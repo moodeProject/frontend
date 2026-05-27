@@ -1,0 +1,162 @@
+.page { display: flex; flex-direction: column; gap: 20px; }
+
+.topBar { display: flex; justify-content: space-between; align-items: flex-start; }
+.title  { font-size: 22px; font-weight: 700; color: #1a2340; }
+.subtitle { font-size: 13px; color: #888; margin-top: 4px; }
+.refresh { font-size: 12px; color: #4a7cdc; cursor: pointer; background: none; border: none; padding: 0; }
+
+/* Stat row */
+.statRow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.statCard {
+  background: #fff;
+  border: 1px solid #e8ecf2;
+  border-radius: 12px;
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.statIcon { width: 52px; height: 52px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+.statLabel { font-size: 12px; color: #888; margin-bottom: 4px; }
+.statValue { display: flex; align-items: baseline; gap: 4px; }
+.statNum  { font-size: 30px; font-weight: 800; color: #1a2340; }
+.statUnit { font-size: 14px; color: #555; }
+
+/* Main row */
+.mainRow { display: grid; grid-template-columns: 1fr 360px; gap: 16px; min-height: 500px; }
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1a2340;
+  padding: 14px 18px 12px;
+  border-bottom: 1px solid #f0f2f7;
+  flex-shrink: 0;
+}
+.headerRight { display: flex; align-items: center; gap: 14px; }
+.legend { display: flex; gap: 12px; }
+.legendItem { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #666; font-weight: 400; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+.viewAll { font-size: 12px; color: #4a7cdc; cursor: pointer; background: none; border: none; padding: 0; font-weight: 600; white-space: nowrap; }
+
+/* Map */
+.mapCard {
+  background: #fff;
+  border: 1px solid #e8ecf2;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.mapArea {
+  position: relative;
+  flex: 1;
+  background-color: #1e2d4a;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+.mapSvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Worker pin */
+.pin {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translate(-50%, -100%);
+  cursor: pointer;
+  z-index: 10;
+}
+.pinLabel {
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(0,0,0,0.55);
+  border-radius: 4px;
+  padding: 2px 6px;
+  margin-bottom: 4px;
+  white-space: nowrap;
+}
+.pinMarker {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+}
+
+/* Status card */
+.statusCard {
+  background: #fff;
+  border: 1px solid #e8ecf2;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.statusList { flex: 1; overflow-y: auto; }
+
+.workerRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 16px;
+  border-bottom: 1px solid #f4f6fb;
+  transition: background 0.1s;
+}
+.workerRow:hover { background: #f8faff; }
+.workerRow:last-child { border-bottom: none; }
+
+.workerAvatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: #333;
+  flex-shrink: 0;
+}
+.workerInfo { flex: 1; min-width: 0; }
+.workerName {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1a2340;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.workerZone {
+  font-size: 11px;
+  color: #888;
+  font-weight: 400;
+}
+.workerSub { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+.heartRate { font-size: 11px; color: #555; }
+.eventDot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; }
+.eventText { font-size: 11px; color: #666; }
+
+.workerRight { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+.statusBadge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+.workerTime { font-size: 10px; color: #aaa; }
