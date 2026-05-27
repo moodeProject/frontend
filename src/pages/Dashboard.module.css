@@ -1,0 +1,200 @@
+.page { display: flex; flex-direction: column; gap: 20px; }
+
+.topBar { display: flex; justify-content: space-between; align-items: flex-start; }
+.title { font-size: 22px; font-weight: 700; color: #1a2340; }
+.subtitle { font-size: 13px; color: #888; margin-top: 4px; }
+.dateArea { text-align: right; }
+.dateStr { font-size: 13px; color: #555; }
+.refresh { font-size: 12px; color: #4a7cdc; margin-top: 4px; cursor: pointer; }
+
+/* Stat row */
+.statRow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.statCard {
+  background: #fff;
+  border: 1px solid #e8ecf2;
+  border-radius: 12px;
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.statIcon { width: 52px; height: 52px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+.statLabel { font-size: 12px; color: #888; margin-bottom: 4px; }
+.statValue { display: flex; align-items: baseline; gap: 4px; }
+.statNum { font-size: 30px; font-weight: 800; color: #1a2340; }
+.statUnit { font-size: 14px; color: #555; }
+
+/* Mid row: map + alerts */
+.midRow { display: grid; grid-template-columns: 1fr 380px; gap: 16px; }
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1a2340;
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid #f0f2f7;
+}
+.legend { display: flex; gap: 14px; }
+.legendItem { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #666; font-weight: 400; }
+.legendDot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+
+/* Map */
+.mapCard {
+  background: #fff;
+  border: 1px solid #e8ecf2;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.mapArea {
+  position: relative;
+  height: 320px;
+  background-color: #2a3a5c;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px),
+    radial-gradient(ellipse at 30% 60%, rgba(60,90,140,0.5) 0%, transparent 60%),
+    radial-gradient(ellipse at 70% 30%, rgba(40,70,110,0.4) 0%, transparent 50%);
+  background-size: 40px 40px, 40px 40px, 100% 100%, 100% 100%;
+  overflow: hidden;
+}
+
+/* decorative site blocks */
+.mapArea::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(135deg, rgba(100,140,200,0.07) 25%, transparent 25%) 0 0,
+    linear-gradient(225deg, rgba(100,140,200,0.07) 25%, transparent 25%) 0 0,
+    linear-gradient(315deg, rgba(100,140,200,0.07) 25%, transparent 25%) 0 0,
+    linear-gradient(45deg,  rgba(100,140,200,0.07) 25%, transparent 25%) 0 0;
+  background-size: 80px 80px;
+}
+
+.pin {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  cursor: default;
+}
+.pinLabel {
+  background: rgba(255,255,255,0.9);
+  color: #1a2340;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 10px;
+  white-space: nowrap;
+  margin-bottom: 4px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.pinMarker {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 3px solid;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a2340;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+.pinArrow {
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 8px solid;
+  margin-top: -1px;
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,0.2));
+}
+
+/* Alerts */
+.alertCard {
+  background: #fff;
+  border: 1px solid #e8ecf2;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.viewAll { font-size: 12px; color: #4a7cdc; cursor: pointer; }
+.alertList { flex: 1; display: flex; flex-direction: column; gap: 6px; padding: 12px; overflow-y: auto; }
+.alertItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 8px;
+  gap: 10px;
+}
+.alertLeft { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+.alertBadge {
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.alertBadgeEmergency { background: #e53935; color: #fff; }
+.alertBadgeCaution   { background: #ff9800; color: #fff; }
+.alertBadgeNormal    { background: #4caf50; color: #fff; }
+.alertText { font-size: 12px; font-weight: 600; color: #1a2340; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.alertMeta { font-size: 11px; color: #888; margin-top: 2px; }
+.confirmBtn {
+  padding: 4px 10px;
+  border: 1.5px solid #dde3ef;
+  border-radius: 6px;
+  font-size: 11px;
+  background: #fff;
+  color: #555;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Bottom row */
+.botRow { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+/* Worker status */
+.statusCard {
+  background: #fff;
+  border: 1px solid #e8ecf2;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.statusTable { width: 100%; border-collapse: collapse; font-size: 12px; }
+.statusTable thead tr { background: #f7f9fc; }
+.statusTable th { padding: 10px 12px; text-align: left; color: #4a7cdc; font-weight: 600; white-space: nowrap; }
+.statusRow { border-bottom: 1px solid #f0f2f7; }
+.statusRow:last-child { border-bottom: none; }
+.statusRow:hover { background: #f7f9fc; }
+.statusTable td { padding: 10px 12px; color: #333; vertical-align: middle; white-space: nowrap; }
+.workerCell { display: flex; align-items: center; gap: 8px; }
+.statusDot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.heartWarn { color: #e65100; font-weight: 700; }
+
+/* Chart */
+.chartCard {
+  background: #fff;
+  border: 1px solid #e8ecf2;
+  border-radius: 12px;
+  overflow: hidden;
+  padding-bottom: 16px;
+}
+.chartDate { font-size: 12px; color: #888; font-weight: 400; }
+.chartLegend { display: flex; align-items: center; font-size: 12px; color: #666; padding: 8px 18px; gap: 4px; }
+.chartSummary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 12px 18px 0; }
+.summaryBox { border-radius: 8px; padding: 10px 14px; }
+.summaryLabel { font-size: 11px; color: #888; margin-bottom: 4px; }
+.summaryNum { font-size: 20px; font-weight: 800; color: #1a2340; }

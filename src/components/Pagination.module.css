@@ -1,0 +1,66 @@
+.wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 16px 0 4px;
+  position: relative;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.arrow,
+.pageBtn {
+  min-width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: #555;
+  transition: background 0.1s;
+}
+
+.arrow {
+  font-size: 18px;
+  color: #999;
+}
+
+.arrow:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.pageBtn:hover {
+  background: #f0f2f7;
+}
+
+.active {
+  background: #1a2340 !important;
+  color: #fff !important;
+  font-weight: 700;
+}
+
+.sizeSelect {
+  position: absolute;
+  right: 0;
+  padding: 6px 28px 6px 10px;
+  border: 1.5px solid #dde3ef;
+  border-radius: 8px;
+  font-size: 12px;
+  background: #fff;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23999' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+}
