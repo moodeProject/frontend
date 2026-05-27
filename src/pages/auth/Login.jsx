@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AuthLayout from './AuthLayout'
+import { useAuth } from '../../context/AuthContext'
 import styles from './Login.module.css'
 
 export default function Login() {
-  const navigate = useNavigate()
+  const navigate  = useNavigate()
+  const { login } = useAuth()
   const [id, setId]           = useState('')
   const [pw, setPw]           = useState('')
   const [showPw, setShowPw]   = useState(false)
@@ -15,8 +17,9 @@ export default function Login() {
       setError('아이디와 비밀번호를 입력하세요.')
       return
     }
-    // TODO: 실제 API 인증으로 교체
-    if (id === 'admin01' && pw === '1234') {
+    // TODO: 실제 API 인증으로 교체 → loginApi(id, pw) from src/api/auth.js
+    const ok = login(id, pw)
+    if (ok) {
       navigate('/')
     } else {
       setError('아이디 또는 비밀번호가 올바르지 않습니다.')

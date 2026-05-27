@@ -23,6 +23,8 @@ import MonitoringMap      from './pages/MonitoringMap'
 import MonitoringStatus   from './pages/MonitoringStatus'
 
 import { WorkerProvider } from './context/WorkerContext'
+import { AuthProvider }   from './context/AuthContext'
+import WorkerDetail       from './pages/WorkerDetail'
 
 // 사이드바가 포함된 앱 페이지 래퍼
 function AppRoutes() {
@@ -31,7 +33,8 @@ function AppRoutes() {
       <Routes>
         <Route path="/"          element={<Dashboard />} />
         <Route path="/workers"   element={<WorkerManagement />} />
-        <Route path="/workers/new" element={<WorkerRegistration />} />
+        <Route path="/workers/new"  element={<WorkerRegistration />} />
+        <Route path="/workers/:id"  element={<WorkerDetail />} />
         <Route path="/monitoring"        element={<Monitoring />} />
         <Route path="/monitoring/map"    element={<MonitoringMap />} />
         <Route path="/monitoring/status" element={<MonitoringStatus />} />
@@ -57,6 +60,7 @@ function Placeholder({ title }) {
 export default function App() {
   return (
     <BrowserRouter>
+      <AuthProvider>
       <WorkerProvider>
         <Routes>
           {/* ── 인증 페이지 (사이드바 없음) ── */}
@@ -69,6 +73,7 @@ export default function App() {
           <Route path="/*" element={<AppRoutes />} />
         </Routes>
       </WorkerProvider>
+      </AuthProvider>
     </BrowserRouter>
   )
 }

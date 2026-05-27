@@ -30,8 +30,15 @@ export function WorkerProvider({ children }) {
     return newWorker
   }
 
+  // TODO: 실제 API 호출로 교체 → PUT /users/:id
+  function updateWorker(id, updatedData) {
+    setWorkers((prev) =>
+      prev.map((w) => (w.id === id ? { ...w, ...updatedData } : w))
+    )
+  }
+
   return (
-    <WorkerContext.Provider value={{ workers, addWorker }}>
+    <WorkerContext.Provider value={{ workers, addWorker, updateWorker }}>
       {children}
     </WorkerContext.Provider>
   )

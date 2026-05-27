@@ -163,3 +163,133 @@
 .detailBtn:hover { background: #e8ecf2; }
 
 .empty { text-align: center; padding: 48px !important; color: #aaa; }
+
+/* ── 이벤트 상세 모달 ── */
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  overflow: hidden;
+  animation: modalIn 0.2s ease;
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.95) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.modalHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid #f0f2f7;
+}
+.modalTitleRow { display: flex; align-items: center; gap: 10px; flex: 1; }
+.modalTitle { font-size: 17px; font-weight: 700; color: #1a2340; }
+.modalClose {
+  font-size: 18px;
+  color: #aaa;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  line-height: 1;
+}
+.modalClose:hover { color: #555; }
+
+.modalBody { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+
+.modalGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.modalField { display: flex; flex-direction: column; gap: 4px; }
+.modalFieldLabel { font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; }
+.modalFieldValue { font-size: 13px; color: #1a2340; font-weight: 500; }
+
+.modalDivider { height: 1px; background: #f0f2f7; }
+
+.modalWorkerRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #f8faff;
+  border-radius: 10px;
+}
+.modalWorkerAvatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #dde8f8;
+  color: #4a7cdc;
+  font-size: 16px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.modalWorkerName { font-size: 14px; font-weight: 700; color: #1a2340; }
+.modalWorkerId   { font-size: 12px; color: #888; }
+
+.modalNotice {
+  padding: 12px 14px;
+  background: #fff8e1;
+  border: 1px solid #ffe082;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #795548;
+}
+
+.modalFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 20px;
+  border-top: 1px solid #f0f2f7;
+}
+.modalCancelBtn {
+  padding: 9px 20px;
+  border: 1.5px solid #d0d5e0;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+  background: #fff;
+  cursor: pointer;
+}
+.modalCancelBtn:hover { background: #f5f7fb; }
+.modalConfirmBtn {
+  padding: 9px 20px;
+  background: #2e7d32;
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.modalConfirmBtn:hover { background: #1b5e20; }
+
+/* 반응형 */
+@media (max-width: 768px) {
+  .statRow { grid-template-columns: 1fr 1fr; }
+  .filterBar { gap: 8px; }
+  .modalGrid { grid-template-columns: 1fr; }
+}
