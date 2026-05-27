@@ -1,14 +1,45 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+
+// Layout
 import Layout from './components/Layout'
-import Dashboard from './pages/Dashboard'
-import WorkerManagement from './pages/WorkerManagement'
+
+// Auth pages (사이드바 없음)
+import Login         from './pages/auth/Login'
+import FindId        from './pages/auth/FindId'
+import ResetPassword from './pages/auth/ResetPassword'
+import Register      from './pages/auth/Register'
+
+// App pages (사이드바 있음)
+import Dashboard       from './pages/Dashboard'
+import WorkerManagement  from './pages/WorkerManagement'
 import WorkerRegistration from './pages/WorkerRegistration'
-import WorkRecords from './pages/WorkRecords'
-import HazardEvents from './pages/HazardEvents'
-import ZoneManagement from './pages/ZoneManagement'
-import Statistics from './pages/Statistics'
-import SystemSettings from './pages/SystemSettings'
+import WorkRecords     from './pages/WorkRecords'
+import HazardEvents    from './pages/HazardEvents'
+import ZoneManagement  from './pages/ZoneManagement'
+import Statistics      from './pages/Statistics'
+import SystemSettings  from './pages/SystemSettings'
+
 import { WorkerProvider } from './context/WorkerContext'
+
+// 사이드바가 포함된 앱 페이지 래퍼
+function AppRoutes() {
+  return (
+    <Layout>
+      <Routes>
+        <Route path="/"          element={<Dashboard />} />
+        <Route path="/workers"   element={<WorkerManagement />} />
+        <Route path="/workers/new" element={<WorkerRegistration />} />
+        <Route path="/monitoring" element={<Placeholder title="실시간 모니터링" />} />
+        <Route path="/events"    element={<HazardEvents />} />
+        <Route path="/records"   element={<WorkRecords />} />
+        <Route path="/zones"     element={<ZoneManagement />} />
+        <Route path="/stats"     element={<Statistics />} />
+        <Route path="/settings"  element={<SystemSettings />} />
+        <Route path="*"          element={<Navigate to="/" replace />} />
+      </Routes>
+    </Layout>
+  )
+}
 
 function Placeholder({ title }) {
   return (
@@ -22,20 +53,16 @@ export default function App() {
   return (
     <BrowserRouter>
       <WorkerProvider>
-      <Layout>
         <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/workers" element={<WorkerManagement />} />
-          <Route path="/workers/new" element={<WorkerRegistration />} />
-          <Route path="/monitoring" element={<Placeholder title="실시간 모니터링" />} />
-          <Route path="/events" element={<HazardEvents />} />
-          <Route path="/records" element={<WorkRecords />} />
-          <Route path="/zones" element={<ZoneManagement />} />
-          <Route path="/stats" element={<Statistics />} />
-          <Route path="/settings" element={<SystemSettings />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          {/* ── 인증 페이지 (사이드바 없음) ── */}
+          <Route path="/login"          element={<Login />} />
+          <Route path="/find-id"        element={<FindId />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/register"       element={<Register />} />
+
+          {/* ── 앱 페이지 (사이드바 있음) ── */}
+          <Route path="/*" element={<AppRoutes />} />
         </Routes>
-      </Layout>
       </WorkerProvider>
     </BrowserRouter>
   )

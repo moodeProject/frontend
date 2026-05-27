@@ -1,0 +1,129 @@
+/* FindId / ResetPassword 공통 스타일 */
+.box {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  width: 100%;
+  max-width: 460px;
+}
+
+.title {
+  font-size: 26px;
+  font-weight: 700;
+  color: #1a1a2e;
+  letter-spacing: -0.5px;
+  margin-bottom: 6px;
+}
+
+/* 필드 행 */
+.fieldRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.label {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1a1a2e;
+  width: 76px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.input {
+  flex: 1;
+  padding: 11px 14px;
+  border: 1.5px solid #d0d5e0;
+  border-radius: 6px;
+  font-size: 14px;
+  background: #fff;
+  outline: none;
+  transition: border-color 0.15s;
+  min-width: 0;
+}
+.input:focus { border-color: #4a7cdc; }
+
+/* 비밀번호 wrap */
+.pwWrap {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+.pwWrap .input { width: 100%; padding-right: 40px; }
+.eyeBtn {
+  position: absolute;
+  right: 12px;
+  color: #aaa;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 0;
+  background: none;
+  border: none;
+}
+.eyeBtn:hover { color: #666; }
+
+/* 인증번호 받기 버튼 */
+.codeBtn {
+  padding: 10px 14px;
+  background: #1a2340;
+  color: #fff;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
+  cursor: pointer;
+  white-space: nowrap;
+  border: none;
+  flex-shrink: 0;
+  text-align: center;
+}
+.codeBtn:hover { background: #253060; }
+.codeBtn:disabled { background: #aab0c0; cursor: default; }
+
+/* 주요 액션 버튼 */
+.submitBtn {
+  align-self: center;
+  padding: 12px 48px;
+  background: #1a2340;
+  color: #fff;
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  margin-top: 4px;
+}
+.submitBtn:hover { background: #253060; }
+
+/* 돌아가기 링크 */
+.backLink {
+  align-self: center;
+  font-size: 13px;
+  color: #888;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+}
+.backLink:hover { color: #1a2340; text-decoration: underline; }
+
+/* 성공 메시지 */
+.successMsg {
+  font-size: 13px;
+  color: #2e7d32;
+  background: #e8f5e9;
+  border-radius: 6px;
+  padding: 8px 14px;
+  margin-top: -8px;
+}
+
+/* 에러 메시지 */
+.error {
+  font-size: 12px;
+  color: #e53935;
+  margin-top: -12px;
+  padding-left: 90px;
+}

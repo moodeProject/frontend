@@ -1,0 +1,122 @@
+.box {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  width: 100%;
+  max-width: 420px;
+}
+
+.title {
+  font-size: 26px;
+  font-weight: 700;
+  color: #1a1a2e;
+  letter-spacing: -0.5px;
+}
+
+/* ID/PW + LOGIN 버튼 가로 배치 */
+.formRow {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.label {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a2e;
+  width: 24px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.input {
+  flex: 1;
+  padding: 11px 14px;
+  border: 1.5px solid #d0d5e0;
+  border-radius: 6px;
+  font-size: 14px;
+  background: #fff;
+  outline: none;
+  transition: border-color 0.15s;
+  min-width: 0;
+}
+.input:focus { border-color: #4a7cdc; }
+
+/* 비밀번호 wrap */
+.pwWrap {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+.pwWrap .input {
+  width: 100%;
+  padding-right: 40px;
+}
+.eyeBtn {
+  position: absolute;
+  right: 12px;
+  color: #aaa;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 0;
+  background: none;
+  border: none;
+}
+.eyeBtn:hover { color: #666; }
+
+/* LOGIN 버튼 */
+.loginBtn {
+  padding: 0 22px;
+  background: #1a2340;
+  color: #fff;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  cursor: pointer;
+  align-self: stretch;
+  border: none;
+  min-width: 72px;
+  transition: background 0.15s;
+}
+.loginBtn:hover { background: #253060; }
+
+/* 에러 메시지 */
+.error {
+  font-size: 12px;
+  color: #e53935;
+  margin-top: -16px;
+}
+
+/* 하단 링크 */
+.links {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.link {
+  font-size: 13px;
+  color: #666;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+}
+.link:hover { color: #1a2340; text-decoration: underline; }
+.divider { color: #ccc; font-size: 13px; }

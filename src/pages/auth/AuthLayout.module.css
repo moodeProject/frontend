@@ -1,0 +1,28 @@
+.shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* 왼쪽: 네이비 로고 영역 */
+.left {
+  width: 58%;
+  flex-shrink: 0;
+  background: #1a2340;
+  /* 로고가 들어올 때를 위한 중앙 정렬 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 오른쪽: 콘텐츠 영역 */
+.right {
+  flex: 1;
+  background: #f0f2f5;
+  display: flex;
+  align-items: center;       /* 짧은 폼은 수직 중앙 */
+  justify-content: center;
+  padding: 48px;
+  overflow-y: auto;
+  /* 폼이 길어지면 위에서부터 배치 */
+  min-height: 100vh;
+}
