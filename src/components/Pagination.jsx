@@ -1,8 +1,8 @@
 import styles from './Pagination.module.css'
 
-const PAGE_SIZES = [5, 10, 20]
+const DEFAULT_PAGE_SIZES = [5, 10, 20]
 
-export default function Pagination({ page, totalPages, pageSize, onPage, onPageSize }) {
+export default function Pagination({ page, totalPages, pageSize, onPage, onPageSize, pageSizes = DEFAULT_PAGE_SIZES }) {
   const pages = Array.from({ length: totalPages }, (_, i) => i + 1)
 
   return (
@@ -40,7 +40,7 @@ export default function Pagination({ page, totalPages, pageSize, onPage, onPageS
         value={pageSize}
         onChange={(e) => onPageSize(Number(e.target.value))}
       >
-        {PAGE_SIZES.map((s) => (
+        {pageSizes.map((s) => (
           <option key={s} value={s}>{s}개씩 보기</option>
         ))}
       </select>

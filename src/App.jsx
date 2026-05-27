@@ -5,6 +5,9 @@ import WorkerManagement from './pages/WorkerManagement'
 import WorkerRegistration from './pages/WorkerRegistration'
 import WorkRecords from './pages/WorkRecords'
 import HazardEvents from './pages/HazardEvents'
+import ZoneManagement from './pages/ZoneManagement'
+import Statistics from './pages/Statistics'
+import SystemSettings from './pages/SystemSettings'
 import { WorkerProvider } from './context/WorkerContext'
 
 function Placeholder({ title }) {
@@ -27,9 +30,9 @@ export default function App() {
           <Route path="/monitoring" element={<Placeholder title="실시간 모니터링" />} />
           <Route path="/events" element={<HazardEvents />} />
           <Route path="/records" element={<WorkRecords />} />
-          <Route path="/zones" element={<Placeholder title="안전 구역 관리" />} />
-          <Route path="/stats" element={<Placeholder title="통계 분석" />} />
-          <Route path="/settings" element={<Placeholder title="시스템 설정" />} />
+          <Route path="/zones" element={<ZoneManagement />} />
+          <Route path="/stats" element={<Statistics />} />
+          <Route path="/settings" element={<SystemSettings />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>
