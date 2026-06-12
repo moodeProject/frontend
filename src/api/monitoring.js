@@ -34,3 +34,14 @@ export async function getWorkerStatuses() {
 export async function getStatusGroups() {
   return api.get('/monitoring/groups')
 }
+
+/**
+ * 헬멧(센서) 실시간 상태 목록 — 실제 백엔드 연동
+ * GET /api/workers/status
+ * 응답: { success, message, data: [{ deviceId, state, recordedAt }] }
+ * state: 'NORMAL' | 'FALLING' | 'FALLEN'
+ */
+export async function getHelmetStatusList() {
+  const res = await api.get('/api/workers/status')
+  return res.data
+}

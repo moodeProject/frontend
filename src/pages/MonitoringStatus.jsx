@@ -1,8 +1,20 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ALL_STATUS_LIST, ALL_STATS } from '../data/mockMonitoring'
+import { getHelmetStatusList } from '../api/monitoring'
 import Pagination from '../components/Pagination'
 import styles from './MonitoringStatus.module.css'
+
+// 백엔드 센서 상태 → 화면 상태 매핑
+const STATE_TO_STATUS = {
+  NORMAL:  'normal',
+  FALLING: 'caution',
+  FALLEN:  'emergency',
+}
+
+function formatTime(isoString) {
+  return new Date(isoString).toLocaleTimeString('ko-KR', { hour12: false })
+}
 
 const STATUS_COLOR = {
   emergency: '#e53935',
@@ -52,14 +64,52 @@ export default function MonitoringStatus() {
   const [page, setPage]         = useState(1)
   const [pageSize, setPageSize] = useState(10)
 
+  // 실제 백엔드(/api/workers/status)에서 받아온 실시간 헬멧 상태
+  const [liveData, setLiveData] = useState({})
+  const [liveConnected, setLiveConnected] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function fetchLive() {
+      try {
+        const list = await getHelmetStatusList()
+        if (cancelled) return
+        const map = {}
+        list.forEach((item) => { map[item.deviceId] = item })
+        setLiveData(map)
+        setLiveConnected(true)
+      } catch {
+        if (!cancelled) setLiveConnected(false)
+      }
+    }
+
+    fetchLive()
+    const interval = setInterval(fetchLive, 5000)
+    return () => { cancelled = true; clearInterval(interval) }
+  }, [])
+
+  // mock 데이터에 실시간 상태(status, updatedAt)를 덧입힌 목록
+  const displayList = useMemo(() => {
+    return ALL_STATUS_LIST.map((w) => {
+      const live = liveData[w.helmetId]
+      if (!live) return w
+      return {
+        ...w,
+        status: STATE_TO_STATUS[live.state] ?? w.status,
+        updatedAt: formatTime(live.recordedAt),
+      }
+    })
+  }, [liveData])
+
   const filtered = useMemo(() => {
-    return ALL_STATUS_LIST.filter((w) => {
+    return displayList.filter((w) => {
       const matchQuery  = !query || w.name.includes(query) || w.employeeId.includes(query) || w.helmetId.includes(query)
       const matchTeam   = team === '전체 팀' || w.team === team
       const matchStatus = status === '전체 상태' || STATUS_LABEL[w.status] === status
       return matchQuery && matchTeam && matchStatus
     })
-  }, [query, team, status])
+  }, [displayList, query, team, status])
 
   const totalPages  = Math.max(1, Math.ceil(filtered.length / pageSize))
   const paginated   = filtered.slice((page - 1) * pageSize, page * pageSize)
@@ -75,7 +125,18 @@ export default function MonitoringStatus() {
         <span className={styles.breadCurrent}>작업자 상태 전체보기</span>
       </div>
 
-      <h1 className={styles.title}>작업자 상태 전체보기</h1>
+      <h1 className={styles.title}>
+        작업자 상태 전체보기
+        <span
+          className={styles.liveBadge}
+          style={{
+            color: liveConnected ? '#43a047' : '#aaa',
+            background: liveConnected ? '#d4f5e2' : '#f0f2f7',
+          }}
+        >
+          {liveConnected ? '🟢 실시간 연동 중' : '⚪ 서버 연결 대기'}
+        </span>
+      </h1>
 
       {/* 요약 카드 5개 */}
       <div className={styles.statRow}>

@@ -7,7 +7,8 @@
 .breadSep { color: #bbb; }
 .breadCurrent { color: #555; font-weight: 600; }
 
-.title { font-size: 20px; font-weight: 700; color: #1a2340; }
+.title { font-size: 20px; font-weight: 700; color: #1a2340; display: flex; align-items: center; gap: 10px; }
+.liveBadge { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 20px; }
 
 /* Stat row */
 .statRow { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
