@@ -45,3 +45,24 @@ export async function getHelmetStatusList() {
   const res = await api.get('/api/workers/status')
   return res.data
 }
+
+/**
+ * 낙상(FALLEN) 이력 전체 조회 — 실제 백엔드 연동
+ * GET /api/workers/alerts
+ * 응답: { success, message, data: [{ deviceId, state, recordedAt }] }
+ */
+export async function getFallAlerts() {
+  const res = await api.get('/api/workers/alerts')
+  return res.data
+}
+
+/**
+ * 특정 헬멧 최근 상태 조회 — 실제 백엔드 연동
+ * GET /api/workers/{deviceId}
+ * 응답: { success, message, data: { deviceId, state, recordedAt } }
+ * 해당 deviceId가 한 번도 데이터를 보낸 적이 없으면 404 (Error throw)
+ */
+export async function getHelmetStatus(deviceId) {
+  const res = await api.get(`/api/workers/${deviceId}`)
+  return res.data
+}

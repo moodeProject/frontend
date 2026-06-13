@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useWorkers } from '../context/WorkerContext'
+import { getHelmetStatus } from '../api/monitoring'
 import Spinner from '../components/Spinner'
 import styles from './WorkerDetail.module.css'
 
@@ -15,6 +16,27 @@ const BLOOD_TYPES = ['A', 'B', 'O', 'AB']
 const GENDERS     = ['남성', '여성']
 const STATUSES    = ['작업중', '휴식중', '작업대기', '비활성']
 
+// 백엔드 센서 상태 → 화면 상태 매핑
+const STATE_TO_STATUS = {
+  NORMAL:  'normal',
+  FALLING: 'caution',
+  FALLEN:  'emergency',
+}
+const HELMET_STATUS_LABEL = {
+  emergency: '긴급',
+  caution:   '주의',
+  normal:    '정상',
+}
+const HELMET_STATUS_COLOR = {
+  emergency: '#e53935',
+  caution:   '#ff9800',
+  normal:    '#43a047',
+}
+
+function formatTime(isoString) {
+  return new Date(isoString).toLocaleTimeString('ko-KR', { hour12: false })
+}
+
 export default function WorkerDetail() {
   const { id }     = useParams()
   const navigate   = useNavigate()
@@ -25,6 +47,27 @@ export default function WorkerDetail() {
   const [editing, setEditing] = useState(false)
   const [form, setForm]       = useState(null)
   const [saving, setSaving]   = useState(false)
+
+  // 실제 백엔드(/api/workers/{deviceId})에서 받아온 헬멧 실시간 상태
+  const [helmetLive, setHelmetLive] = useState(null)
+
+  useEffect(() => {
+    if (!worker) return
+    let cancelled = false
+
+    async function fetchLive() {
+      try {
+        const data = await getHelmetStatus(worker.helmetId)
+        if (!cancelled) setHelmetLive(data)
+      } catch {
+        if (!cancelled) setHelmetLive(null)
+      }
+    }
+
+    fetchLive()
+    const interval = setInterval(fetchLive, 5000)
+    return () => { cancelled = true; clearInterval(interval) }
+  }, [worker?.helmetId])
 
   if (!worker) {
     return (
@@ -62,6 +105,9 @@ export default function WorkerDetail() {
 
   const data = editing ? form : worker
   const st   = STATUS_COLOR[data.status] ?? { bg: '#eee', color: '#888' }
+
+  const helmetStatus    = helmetLive ? (STATE_TO_STATUS[helmetLive.state] ?? null) : null
+  const helmetUpdatedAt = helmetLive ? formatTime(helmetLive.recordedAt) : '-'
 
   return (
     <div className={styles.page}>
@@ -153,6 +199,25 @@ export default function WorkerDetail() {
                   ? <input className={styles.input} value={form.helmetId} onChange={(e) => handleChange('helmetId', e.target.value)} />
                   : <span>{data.helmetId}</span>
                 }
+              </Field>
+              <Field label="안전모 상태">
+                {helmetStatus
+                  ? (
+                    <span
+                      className={styles.statusBadge}
+                      style={{
+                        background: (HELMET_STATUS_COLOR[helmetStatus] ?? '#ccc') + '22',
+                        color: HELMET_STATUS_COLOR[helmetStatus] ?? '#666',
+                      }}
+                    >
+                      {HELMET_STATUS_LABEL[helmetStatus] ?? '-'}
+                    </span>
+                  )
+                  : '-'
+                }
+              </Field>
+              <Field label="상태 업데이트">
+                <span>{helmetUpdatedAt}</span>
               </Field>
               <Field label="팀">
                 {editing

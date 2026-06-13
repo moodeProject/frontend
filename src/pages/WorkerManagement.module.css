@@ -14,6 +14,16 @@
   font-size: 22px;
   font-weight: 700;
   color: #1a2340;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.liveBadge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
 }
 
 .subtitle {
@@ -187,26 +197,6 @@
   border-radius: 20px;
   font-size: 12px;
   font-weight: 600;
-}
-
-.statusWorking {
-  background: #e8f5e9;
-  color: #2e7d32;
-}
-
-.statusResting {
-  background: #fff3e0;
-  color: #e65100;
-}
-
-.statusWaiting {
-  background: #eeeeee;
-  color: #555;
-}
-
-.statusInactive {
-  background: #f3f4f6;
-  color: #999;
 }
 
 .dateCell {

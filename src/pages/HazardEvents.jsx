@@ -1,10 +1,18 @@
-import { useState, useMemo } from 'react'
-import { MOCK_EVENTS, EVENT_TYPES, EVENT_ZONES, EVENT_STATS } from '../data/mockEvents'
+import { useState, useMemo, useEffect } from 'react'
+import { getFallAlerts } from '../api/monitoring'
 import Pagination from '../components/Pagination'
 import EmptyState from '../components/EmptyState'
 import styles from './HazardEvents.module.css'
 
-const TABS = ['전체 이벤트', '위험 이벤트', '주의 이벤트']
+// 백엔드(/api/workers/alerts)는 낙상(FALLEN) 이력만 제공
+const EVENT_TYPES = ['전체 유형', '낙상 감지']
+
+function formatDateTime(isoString) {
+  return new Date(isoString).toLocaleString('ko-KR', {
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+  })
+}
 
 function StatCard({ icon, iconBg, label, main, sub }) {
   return (
@@ -22,7 +30,7 @@ function StatCard({ icon, iconBg, label, main, sub }) {
 }
 
 // ── 상세 모달 ──
-function EventDetailModal({ event, onClose, onConfirm }) {
+function EventDetailModal({ event, onClose }) {
   if (!event) return null
   const isDanger = event.severity === 'danger'
 
@@ -37,7 +45,7 @@ function EventDetailModal({ event, onClose, onConfirm }) {
           <div className={styles.modalTitleRow}>
             <span className={`${styles.dot} ${isDanger ? styles.dotDanger : styles.dotWarning}`} style={{ width: 10, height: 10 }} />
             <h2 className={styles.modalTitle}>{event.type}</h2>
-            <span className={`${styles.statusBadge} ${event.status === '미확인' ? styles.statusUnconfirmed : styles.statusConfirmed}`}>
+            <span className={styles.statusBadge} style={{ background: '#f0f2f7', color: '#888' }}>
               {event.status}
             </span>
           </div>
@@ -62,22 +70,11 @@ function EventDetailModal({ event, onClose, onConfirm }) {
               <div className={styles.modalWorkerId}>사번 {event.worker.employeeId}</div>
             </div>
           </div>
-
-          {event.status === '미확인' && (
-            <div className={styles.modalNotice}>
-              ⚠️ 아직 확인되지 않은 이벤트입니다. 즉시 대응이 필요합니다.
-            </div>
-          )}
         </div>
 
         {/* 모달 푸터 */}
         <div className={styles.modalFooter}>
           <button className={styles.modalCancelBtn} onClick={onClose}>닫기</button>
-          {event.status === '미확인' && (
-            <button className={styles.modalConfirmBtn} onClick={() => onConfirm(event.id)}>
-              ✅ 확인 처리
-            </button>
-          )}
         </div>
       </div>
     </div>
@@ -97,7 +94,6 @@ export default function HazardEvents() {
   const [dateFrom, setDateFrom] = useState('2026-05-01')
   const [dateTo, setDateTo]     = useState('2026-05-30')
   const [eventType, setEventType] = useState('전체 유형')
-  const [zone, setZone]           = useState('전체 구역')
   const [query, setQuery]         = useState('')
   const [tab, setTab]             = useState(0)
   const [page, setPage]           = useState(1)
@@ -105,18 +101,55 @@ export default function HazardEvents() {
 
   // 모달 상태
   const [selectedEvent, setSelectedEvent] = useState(null)
-  // TODO: 실제 API 연동 시 서버 데이터로 교체
-  const [events, setEvents] = useState(MOCK_EVENTS)
+
+  // 실제 백엔드(/api/workers/alerts)에서 받아온 낙상 이력
+  const [liveAlerts, setLiveAlerts] = useState([])
+  const [liveConnected, setLiveConnected] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function fetchLive() {
+      try {
+        const list = await getFallAlerts()
+        if (cancelled) return
+        setLiveAlerts(list)
+        setLiveConnected(true)
+      } catch {
+        if (!cancelled) setLiveConnected(false)
+      }
+    }
+
+    fetchLive()
+    const interval = setInterval(fetchLive, 5000)
+    return () => { cancelled = true; clearInterval(interval) }
+  }, [])
+
+  // 백엔드 낙상(FALLEN) 기록을 화면에 표시할 이벤트 형태로 변환
+  const events = useMemo(() => {
+    return [...liveAlerts]
+      .sort((a, b) => new Date(b.recordedAt) - new Date(a.recordedAt))
+      .map((a, i) => ({
+        id: `${a.deviceId}-${a.recordedAt}-${i}`,
+        type: '낙상 감지',
+        severity: 'danger',
+        detail: '-',
+        zone: '-',
+        worker: { name: '-', employeeId: '-' },
+        helmetId: a.deviceId,
+        time: formatDateTime(a.recordedAt),
+        status: '-',
+      }))
+  }, [liveAlerts])
 
   const filtered = useMemo(() => {
     return events.filter((e) => {
       const matchType  = eventType === '전체 유형' || e.type === eventType
-      const matchZone  = zone === '전체 구역' || e.zone === zone
-      const matchQuery = !query || e.type.includes(query) || e.worker.name.includes(query) || e.helmetId.includes(query)
+      const matchQuery = !query || e.type.includes(query) || e.helmetId.toLowerCase().includes(query.toLowerCase())
       const matchTab   = tab === 0 || (tab === 1 && e.severity === 'danger') || (tab === 2 && e.severity === 'warning')
-      return matchType && matchZone && matchQuery && matchTab
+      return matchType && matchQuery && matchTab
     })
-  }, [events, eventType, zone, query, tab])
+  }, [events, eventType, query, tab])
 
   const dangerCount  = events.filter((e) => e.severity === 'danger').length
   const warningCount = events.filter((e) => e.severity === 'warning').length
@@ -130,14 +163,6 @@ export default function HazardEvents() {
   // TODO: 실제 CSV/Excel 다운로드로 교체
   function handleDownload() { alert('다운로드 기능은 실제 API 연동 후 구현됩니다.') }
 
-  // TODO: 실제 API 호출로 교체 → PATCH /events/:id/confirm
-  function handleConfirm(id) {
-    setEvents((prev) =>
-      prev.map((e) => e.id === id ? { ...e, status: '확인' } : e)
-    )
-    setSelectedEvent((prev) => prev ? { ...prev, status: '확인' } : null)
-  }
-
   const now = new Date().toLocaleString('ko-KR', {
     year: 'numeric', month: '2-digit', day: '2-digit',
     weekday: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit',
@@ -149,13 +174,23 @@ export default function HazardEvents() {
       <EventDetailModal
         event={selectedEvent}
         onClose={() => setSelectedEvent(null)}
-        onConfirm={handleConfirm}
       />
 
       {/* 상단 */}
       <div className={styles.topBar}>
         <div>
-          <h1 className={styles.title}>위험 이벤트</h1>
+          <h1 className={styles.title}>
+            위험 이벤트
+            <span
+              className={styles.liveBadge}
+              style={{
+                color: liveConnected ? '#43a047' : '#aaa',
+                background: liveConnected ? '#d4f5e2' : '#f0f2f7',
+              }}
+            >
+              {liveConnected ? '🟢 실시간 연동 중' : '⚪ 서버 연결 대기'}
+            </span>
+          </h1>
           <p className={styles.subtitle}>발생한 위험 이벤트를 확인하고 대응할 수 있습니다.</p>
         </div>
         <div className={styles.topRight}>
@@ -172,9 +207,6 @@ export default function HazardEvents() {
         <select className={styles.select} value={eventType} onChange={(e) => setEventType(e.target.value)}>
           {EVENT_TYPES.map((t) => <option key={t}>{t}</option>)}
         </select>
-        <select className={styles.select} value={zone} onChange={(e) => setZone(e.target.value)}>
-          {EVENT_ZONES.map((z) => <option key={z}>{z}</option>)}
-        </select>
         <div className={styles.searchWrap}>
           <input
             className={styles.searchInput}
@@ -189,13 +221,10 @@ export default function HazardEvents() {
 
       {/* 통계 카드 */}
       <div className={styles.statRow}>
-        <StatCard icon="📋" iconBg="#ddeeff" label="전체 이벤트"   main={`${EVENT_STATS.total}건`} />
-        <StatCard icon="🔴" iconBg="#ffe0e0" label="미확인"        main={`${EVENT_STATS.unconfirmed}건`} />
-        <StatCard icon="✅" iconBg="#d4f5e2" label="확인 완료"     main={`${EVENT_STATS.confirmed}건`} />
-        <StatCard icon="🕐" iconBg="#ddeeff" label="평균 처리 시간"
-          main={`${EVENT_STATS.avgMinutes}`}
-          sub={{ unit: '분', num: EVENT_STATS.avgSeconds, unit2: '초' }}
-        />
+        <StatCard icon="📋" iconBg="#ddeeff" label="전체 이벤트"   main={`${events.length}건`} />
+        <StatCard icon="🔴" iconBg="#ffe0e0" label="미확인"        main="-" />
+        <StatCard icon="✅" iconBg="#d4f5e2" label="확인 완료"     main="-" />
+        <StatCard icon="🕐" iconBg="#ddeeff" label="평균 처리 시간" main="-" />
       </div>
 
       {/* 탭 + 테이블 */}
@@ -253,7 +282,7 @@ export default function HazardEvents() {
                 <td>{e.helmetId}</td>
                 <td>{e.time}</td>
                 <td>
-                  <span className={`${styles.statusBadge} ${e.status === '미확인' ? styles.statusUnconfirmed : styles.statusConfirmed}`}>
+                  <span className={styles.statusBadge} style={{ background: '#f0f2f7', color: '#888' }}>
                     {e.status}
                   </span>
                 </td>

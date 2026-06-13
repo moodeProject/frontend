@@ -1,7 +1,8 @@
 .page { display: flex; flex-direction: column; gap: 20px; }
 
 .topBar { display: flex; justify-content: space-between; align-items: flex-start; }
-.title { font-size: 22px; font-weight: 700; color: #1a2340; }
+.title { font-size: 22px; font-weight: 700; color: #1a2340; display: flex; align-items: center; gap: 10px; }
+.liveBadge { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 20px; }
 .subtitle { font-size: 13px; color: #888; margin-top: 4px; }
 .topRight { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
 .dateStr { font-size: 13px; color: #555; }
