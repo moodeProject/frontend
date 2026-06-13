@@ -1,9 +1,11 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ALL_STATUS_LIST, ALL_STATS } from '../data/mockMonitoring'
 import { getHelmetStatusList } from '../api/monitoring'
 import Pagination from '../components/Pagination'
 import styles from './MonitoringStatus.module.css'
+
+// 백엔드에 등록된 헬멧 ID 목록
+const HELMET_IDS = ['HM-1001', 'HM-1002', 'HM-1003', 'HM-1004', 'HM-1005', 'HM-1006']
 
 // 백엔드 센서 상태 → 화면 상태 매핑
 const STATE_TO_STATUS = {
@@ -18,31 +20,21 @@ function formatTime(isoString) {
 
 const STATUS_COLOR = {
   emergency: '#e53935',
-  danger:    '#e53935',
   caution:   '#ff9800',
   normal:    '#43a047',
-  waiting:   '#90a4ae',
-  resting:   '#78909c',
 }
 const STATUS_LABEL = {
   emergency: '긴급',
-  danger:    '위험',
   caution:   '주의',
   normal:    '정상',
-  waiting:   '대기',
-  resting:   '휴식',
 }
 const ROW_BORDER = {
   emergency: '#e53935',
-  danger:    '#e53935',
   caution:   '#ff9800',
   normal:    '#43a047',
-  waiting:   '#90a4ae',
-  resting:   '#78909c',
 }
 
-const TEAMS    = ['전체 팀', '토목팀', '건축팀', '전기팀', '기계팀', '배관팀', '안전팀', '안전관리팀']
-const STATUSES = ['전체 상태', '긴급', '주의', '정상', '대기', '휴식']
+const STATUSES = ['전체 상태', '긴급', '주의', '정상']
 
 function StatCard({ icon, iconBg, label, value, accent }) {
   return (
@@ -59,7 +51,6 @@ function StatCard({ icon, iconBg, label, value, accent }) {
 export default function MonitoringStatus() {
   const navigate   = useNavigate()
   const [query, setQuery]       = useState('')
-  const [team, setTeam]         = useState('전체 팀')
   const [status, setStatus]     = useState('전체 상태')
   const [page, setPage]         = useState(1)
   const [pageSize, setPageSize] = useState(10)
@@ -89,27 +80,45 @@ export default function MonitoringStatus() {
     return () => { cancelled = true; clearInterval(interval) }
   }, [])
 
-  // mock 데이터에 실시간 상태(status, updatedAt)를 덧입힌 목록
+  // 백엔드에 등록된 헬멧 6대를 기준으로, 실시간 상태를 덧입힌 목록
   const displayList = useMemo(() => {
-    return ALL_STATUS_LIST.map((w) => {
-      const live = liveData[w.helmetId]
-      if (!live) return w
+    return HELMET_IDS.map((helmetId) => {
+      const live = liveData[helmetId]
       return {
-        ...w,
-        status: STATE_TO_STATUS[live.state] ?? w.status,
-        updatedAt: formatTime(live.recordedAt),
+        id: helmetId,
+        helmetId,
+        team: '-',
+        employeeId: '-',
+        name: '-',
+        zone: '-',
+        workTime: '-',
+        heartRate: null,
+        temp: null,
+        event: { label: '-', level: null },
+        status: live ? (STATE_TO_STATUS[live.state] ?? null) : null,
+        updatedAt: live ? formatTime(live.recordedAt) : '-',
       }
     })
   }, [liveData])
 
+  // 상단 요약 카드도 displayList(실시간 반영된 목록) 기준으로 집계
+  const stats = useMemo(() => {
+    const result = { normal: 0, danger: 0, emergency: 0 }
+    displayList.forEach((w) => {
+      if (w.status === 'normal') result.normal++
+      else if (w.status === 'caution') result.danger++
+      else if (w.status === 'emergency') result.emergency++
+    })
+    return result
+  }, [displayList])
+
   const filtered = useMemo(() => {
     return displayList.filter((w) => {
-      const matchQuery  = !query || w.name.includes(query) || w.employeeId.includes(query) || w.helmetId.includes(query)
-      const matchTeam   = team === '전체 팀' || w.team === team
+      const matchQuery  = !query || w.helmetId.toLowerCase().includes(query.toLowerCase())
       const matchStatus = status === '전체 상태' || STATUS_LABEL[w.status] === status
-      return matchQuery && matchTeam && matchStatus
+      return matchQuery && matchStatus
     })
-  }, [displayList, query, team, status])
+  }, [displayList, query, status])
 
   const totalPages  = Math.max(1, Math.ceil(filtered.length / pageSize))
   const paginated   = filtered.slice((page - 1) * pageSize, page * pageSize)
@@ -140,25 +149,22 @@ export default function MonitoringStatus() {
 
       {/* 요약 카드 5개 */}
       <div className={styles.statRow}>
-        <StatCard icon="✅" iconBg="#d4f5e2" label="정상"    value={`${ALL_STATS.normal}명`}    accent="#43a047" />
-        <StatCard icon="⚠️" iconBg="#fff0d0" label="위험"    value={`${ALL_STATS.danger}명`}    accent="#ff9800" />
-        <StatCard icon="🚨" iconBg="#ffe0e8" label="긴급"    value={`${ALL_STATS.emergency}명`} accent="#e53935" />
-        <StatCard icon="🏗️" iconBg="#e8f0fe" label="작업 중" value={`${ALL_STATS.working}명`}  />
-        <StatCard icon="🔋" iconBg="#f0f4f8" label="휴식 중" value={`${ALL_STATS.resting}명`}  />
+        <StatCard icon="✅" iconBg="#d4f5e2" label="정상"    value={`${stats.normal}명`}    accent="#43a047" />
+        <StatCard icon="⚠️" iconBg="#fff0d0" label="위험"    value={`${stats.danger}명`}    accent="#ff9800" />
+        <StatCard icon="🚨" iconBg="#ffe0e8" label="긴급"    value={`${stats.emergency}명`} accent="#e53935" />
+        <StatCard icon="🏗️" iconBg="#e8f0fe" label="작업 중" value="-" />
+        <StatCard icon="🔋" iconBg="#f0f4f8" label="휴식 중" value="-" />
       </div>
 
       {/* 필터 */}
       <div className={styles.filterBar}>
         <input
           className={styles.searchInput}
-          placeholder="이름, 사번, 안전모 ID 검색..."
+          placeholder="안전모 ID 검색..."
           value={query}
           onChange={(e) => { setQuery(e.target.value); setPage(1) }}
         />
         <div className={styles.filters}>
-          <select className={styles.select} value={team} onChange={(e) => { setTeam(e.target.value); setPage(1) }}>
-            {TEAMS.map((t) => <option key={t}>{t}</option>)}
-          </select>
           <select className={styles.select} value={status} onChange={(e) => { setStatus(e.target.value); setPage(1) }}>
             {STATUSES.map((s) => <option key={s}>{s}</option>)}
           </select>
@@ -210,7 +216,7 @@ export default function MonitoringStatus() {
                         border: `1px solid ${(STATUS_COLOR[w.status] ?? '#ccc')}44`,
                       }}
                     >
-                      {STATUS_LABEL[w.status] ?? w.status}
+                      {STATUS_LABEL[w.status] ?? '-'}
                     </span>
                   </td>
                   <td>{w.heartRate != null ? `${w.heartRate} bpm` : '-'}</td>
