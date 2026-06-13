@@ -86,17 +86,6 @@
   font-size: 14px;
 }
 
-.select {
-  padding: 10px 14px;
-  border: 1.5px solid #dde3ef;
-  border-radius: 8px;
-  font-size: 13px;
-  background: #fff;
-  cursor: pointer;
-  outline: none;
-  min-width: 120px;
-}
-
 .resetBtn {
   padding: 10px 18px;
   border: 1.5px solid #dde3ef;

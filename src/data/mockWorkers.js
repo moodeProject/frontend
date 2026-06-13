@@ -116,4 +116,3 @@ export const MOCK_WORKERS = [
 ];
 
 export const TEAMS = ['전체 팀', '토목팀', '전기팀', '기계팀', '안전팀'];
-export const STATUSES = ['전체 상태', '작업중', '휴식중', '작업대기', '비활성'];
