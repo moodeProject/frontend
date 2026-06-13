@@ -5,7 +5,7 @@ import Pagination from '../components/Pagination'
 import styles from './MonitoringStatus.module.css'
 
 // 백엔드에 등록된 헬멧 ID 목록
-const HELMET_IDS = ['HM-1001', 'HM-1002', 'HM-1003', 'HM-1004', 'HM-1005', 'HM-1006']
+const HELMET_IDS = ['HELMET-001', 'HELMET-002', 'HELMET-003', 'HELMET-004', 'HELMET-005', 'HELMET-006']
 
 // 백엔드 센서 상태 → 화면 상태 매핑
 const STATE_TO_STATUS = {
