@@ -30,53 +30,154 @@ function StatCard({ icon, iconBg, label, main, sub }) {
 }
 
 // ── 상세 모달 ──
+// ── 상세 모달 ──
 function EventDetailModal({ event, onClose }) {
   if (!event) return null
-  const isDanger = event.severity === 'danger'
+
+  const confidence = Number(event.confidence ?? 0)
+  const confidencePercent = Math.round(confidence * 100)
+
+  const riskLevel =
+    confidencePercent >= 70
+      ? '위험'
+      : confidencePercent >= 40
+      ? '주의'
+      : '낮음'
 
   return (
     <div className={styles.modalBackdrop} onClick={onClose}>
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-        {/* 모달 헤더 */}
-        <div
-          className={styles.modalHeader}
-          style={{ borderTop: `4px solid ${isDanger ? '#e53935' : '#ff9800'}` }}
-        >
-          <div className={styles.modalTitleRow}>
-            <span className={`${styles.dot} ${isDanger ? styles.dotDanger : styles.dotWarning}`} style={{ width: 10, height: 10 }} />
-            <h2 className={styles.modalTitle}>{event.type}</h2>
-            <span className={styles.statusBadge} style={{ background: '#f0f2f7', color: '#888' }}>
-              {event.status}
-            </span>
-          </div>
-          <button className={styles.modalClose} onClick={onClose}>✕</button>
-        </div>
+      <div className={styles.modalLarge} onClick={(e) => e.stopPropagation()}>
+        <button className={styles.modalCloseLarge} onClick={onClose}>
+          ✕
+        </button>
 
-        {/* 모달 바디 */}
-        <div className={styles.modalBody}>
-          <div className={styles.modalGrid}>
-            <ModalField label="이벤트 상세" value={event.detail} />
-            <ModalField label="발생 시간"   value={event.time} />
-            <ModalField label="위치 / 구역" value={event.zone} />
-            <ModalField label="안전모 ID"   value={event.helmetId} />
-          </div>
+        <section className={styles.alertModalHeader}>
+          <div className={styles.alertChip}>⚠ 긴급</div>
 
-          <div className={styles.modalDivider} />
+          <div className={styles.alertModalContent}>
+            <div className={styles.alertTriangle}>!</div>
 
-          <div className={styles.modalWorkerRow}>
-            <div className={styles.modalWorkerAvatar}>{event.worker.name[0]}</div>
-            <div>
-              <div className={styles.modalWorkerName}>{event.worker.name}</div>
-              <div className={styles.modalWorkerId}>사번 {event.worker.employeeId}</div>
+            <div className={styles.alertModalText}>
+              <h2>추락이 감지되었습니다</h2>
+              <p>즉시 작업자 상태를 확인해주세요.</p>
+            </div>
+
+            <div className={styles.alertModalConfidence}>
+              <span>AI 신뢰도</span>
+              <strong>{confidencePercent}%</strong>
             </div>
           </div>
+        </section>
+
+        <div className={styles.modalDetailGrid}>
+          <section className={styles.modalDetailCard}>
+            <h3>감지 결과</h3>
+
+            <ModalInfoRow label="fallDetected">
+              <span className={styles.trueBadge}>
+                {event.fallDetected ? 'TRUE' : 'FALSE'}
+              </span>
+            </ModalInfoRow>
+
+            <ModalInfoRow label="confidence">
+              {confidence} ({confidencePercent}%)
+            </ModalInfoRow>
+
+            <ModalInfoRow label="발생 시간">{event.time}</ModalInfoRow>
+            <ModalInfoRow label="이벤트 유형">{event.type}</ModalInfoRow>
+            <ModalInfoRow label="위치 / 구역">{event.zone}</ModalInfoRow>
+            <ModalInfoRow label="작업자">
+              {event.worker?.name} ({event.worker?.employeeId})
+            </ModalInfoRow>
+            <ModalInfoRow label="안전모 ID">{event.helmetId}</ModalInfoRow>
+          </section>
+
+          <section className={styles.modalDetailCard}>
+            <h3>위험도 (Confidence)</h3>
+
+            <div className={styles.modalRiskPercent}>
+              {confidencePercent}%
+            </div>
+
+            <div className={styles.modalRiskBar}>
+              <div
+                className={styles.modalRiskFill}
+                style={{ width: `${confidencePercent}%` }}
+              />
+              <div
+                className={styles.modalRiskDot}
+                style={{ left: `calc(${confidencePercent}% - 10px)` }}
+              />
+            </div>
+
+            <div className={styles.modalRiskScale}>
+              <span>0%</span>
+              <span>40%</span>
+              <span>70%</span>
+              <span>100%</span>
+            </div>
+
+            <div className={styles.modalRiskLabels}>
+              <div className={riskLevel === '낮음' ? styles.riskSelected : ''}>
+                낮음
+                <small>0~39%</small>
+              </div>
+              <div className={riskLevel === '주의' ? styles.riskSelected : ''}>
+                주의
+                <small>40~69%</small>
+              </div>
+              <div className={riskLevel === '위험' ? styles.riskSelected : ''}>
+                위험
+                <small>70~100%</small>
+              </div>
+            </div>
+          </section>
         </div>
 
-        {/* 모달 푸터 */}
-        <div className={styles.modalFooter}>
-          <button className={styles.modalCancelBtn} onClick={onClose}>닫기</button>
+        <section className={styles.sensorModalCard}>
+          <h3>센서 입력값</h3>
+
+          <div className={styles.sensorModalGrid}>
+            <div className={styles.sensorModalLabel}>가속도 (m/s²)</div>
+            <SensorValue label="ax" value={event.sensor?.ax} />
+            <SensorValue label="ay" value={event.sensor?.ay} />
+            <SensorValue label="az" value={event.sensor?.az} />
+
+            <div className={styles.sensorModalLabel}>자이로 (°/s)</div>
+            <SensorValue label="gx" value={event.sensor?.gx} />
+            <SensorValue label="gy" value={event.sensor?.gy} />
+            <SensorValue label="gz" value={event.sensor?.gz} />
+          </div>
+
+          <p className={styles.sensorModalWarning}>
+            ⚠ 비정상적인 충격 및 자세 변화가 감지되었습니다.
+          </p>
+        </section>
+
+        <div className={styles.modalActionRow}>
+          <button className={styles.modalCallBtn}>긴급 연락하기</button>
+          <button className={styles.modalCheckBtn}>작업자 확인 완료</button>
+          <button className={styles.modalFalseBtn}>오탐으로 기록</button>
         </div>
       </div>
+    </div>
+  )
+}
+
+function ModalInfoRow({ label, children }) {
+  return (
+    <div className={styles.modalInfoRow}>
+      <span>{label}</span>
+      <strong>{children}</strong>
+    </div>
+  )
+}
+
+function SensorValue({ label, value }) {
+  return (
+    <div className={styles.sensorModalValue}>
+      <span>{label}</span>
+      <strong>{value ?? '-'}</strong>
     </div>
   )
 }
@@ -126,21 +227,33 @@ export default function HazardEvents() {
   }, [])
 
   // 백엔드 낙상(FALLEN) 기록을 화면에 표시할 이벤트 형태로 변환
-  const events = useMemo(() => {
-    return [...liveAlerts]
-      .sort((a, b) => new Date(b.recordedAt) - new Date(a.recordedAt))
-      .map((a, i) => ({
-        id: `${a.deviceId}-${a.recordedAt}-${i}`,
-        type: '낙상 감지',
-        severity: 'danger',
-        detail: '-',
-        zone: '-',
-        worker: { name: '-', employeeId: '-' },
-        helmetId: a.deviceId,
-        time: formatDateTime(a.recordedAt),
-        status: '-',
-      }))
-  }, [liveAlerts])
+const events = useMemo(() => {
+  return [...liveAlerts]
+    .sort((a, b) => new Date(b.recordedAt) - new Date(a.recordedAt))
+    .map((a, i) => ({
+      id: `${a.deviceId}-${a.recordedAt}-${i}`,
+      type: '낙상 감지',
+      severity: 'danger',
+      detail: '비정상적인 충격 및 자세 변화 감지',
+      zone: '-',
+      worker: { name: '-', employeeId: '-' },
+      helmetId: a.deviceId,
+      time: formatDateTime(a.recordedAt),
+      status: '미확인',
+
+      fallDetected: a.state === 'FALLEN',
+      confidence: a.confidence ?? null,
+
+      sensor: {
+        ax: a.ax ?? '-',
+        ay: a.ay ?? '-',
+        az: a.az ?? '-',
+        gx: a.gx ?? '-',
+        gy: a.gy ?? '-',
+        gz: a.gz ?? '-',
+      },
+    }))
+}, [liveAlerts])
 
   const filtered = useMemo(() => {
     return events.filter((e) => {
