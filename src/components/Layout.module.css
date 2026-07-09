@@ -136,7 +136,7 @@
   padding: 4px;
 }
 
-.headerRight { display: flex; align-items: center; gap: 16px; }
+.headerRight { display: flex; align-items: center; gap: 16px; margin-left: auto; }
 .bell { font-size: 20px; color: #555; background: none; border: none; cursor: pointer; }
 
 .adminInfo {

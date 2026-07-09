@@ -1,421 +1,175 @@
-import { useState, useMemo, useEffect } from 'react'
+﻿import { useState, useEffect, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { getFallAlerts } from '../api/monitoring'
-import Pagination from '../components/Pagination'
-import EmptyState from '../components/EmptyState'
 import styles from './HazardEvents.module.css'
 
-// 백엔드(/api/workers/alerts)는 낙상(FALLEN) 이력만 제공
-const EVENT_TYPES = ['전체 유형', '낙상 감지']
-
-function formatDateTime(isoString) {
-  return new Date(isoString).toLocaleString('ko-KR', {
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
-  })
-}
-
-function StatCard({ icon, iconBg, label, main, sub }) {
-  return (
-    <div className={styles.statCard}>
-      <div className={styles.statIcon} style={{ background: iconBg }}>{icon}</div>
-      <div>
-        <div className={styles.statLabel}>{label}</div>
-        <div className={styles.statValue}>
-          <span className={styles.statNum}>{main}</span>
-          {sub && <><span className={styles.statUnit}>{sub.unit}</span><span className={styles.statNum2}>{sub.num}</span><span className={styles.statUnit}>{sub.unit2}</span></>}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ── 상세 모달 ──
-// ── 상세 모달 ──
-function EventDetailModal({ event, onClose }) {
-  if (!event) return null
-
-  const confidence = Number(event.confidence ?? 0)
-  const confidencePercent = Math.round(confidence * 100)
-
-  const riskLevel =
-    confidencePercent >= 70
-      ? '위험'
-      : confidencePercent >= 40
-      ? '주의'
-      : '낮음'
-
-  return (
-    <div className={styles.modalBackdrop} onClick={onClose}>
-      <div className={styles.modalLarge} onClick={(e) => e.stopPropagation()}>
-        <button className={styles.modalCloseLarge} onClick={onClose}>
-          ✕
-        </button>
-
-        <section className={styles.alertModalHeader}>
-          <div className={styles.alertChip}>⚠ 긴급</div>
-
-          <div className={styles.alertModalContent}>
-            <div className={styles.alertTriangle}>!</div>
-
-            <div className={styles.alertModalText}>
-              <h2>추락이 감지되었습니다</h2>
-              <p>즉시 작업자 상태를 확인해주세요.</p>
-            </div>
-
-            <div className={styles.alertModalConfidence}>
-              <span>AI 신뢰도</span>
-              <strong>{confidencePercent}%</strong>
-            </div>
-          </div>
-        </section>
-
-        <div className={styles.modalDetailGrid}>
-          <section className={styles.modalDetailCard}>
-            <h3>감지 결과</h3>
-
-            <ModalInfoRow label="fallDetected">
-              <span className={styles.trueBadge}>
-                {event.fallDetected ? 'TRUE' : 'FALSE'}
-              </span>
-            </ModalInfoRow>
-
-            <ModalInfoRow label="confidence">
-              {confidence} ({confidencePercent}%)
-            </ModalInfoRow>
-
-            <ModalInfoRow label="발생 시간">{event.time}</ModalInfoRow>
-            <ModalInfoRow label="이벤트 유형">{event.type}</ModalInfoRow>
-            <ModalInfoRow label="위치 / 구역">{event.zone}</ModalInfoRow>
-            <ModalInfoRow label="작업자">
-              {event.worker?.name} ({event.worker?.employeeId})
-            </ModalInfoRow>
-            <ModalInfoRow label="안전모 ID">{event.helmetId}</ModalInfoRow>
-          </section>
-
-          <section className={styles.modalDetailCard}>
-            <h3>위험도 (Confidence)</h3>
-
-            <div className={styles.modalRiskPercent}>
-              {confidencePercent}%
-            </div>
-
-            <div className={styles.modalRiskBar}>
-              <div
-                className={styles.modalRiskFill}
-                style={{ width: `${confidencePercent}%` }}
-              />
-              <div
-                className={styles.modalRiskDot}
-                style={{ left: `calc(${confidencePercent}% - 10px)` }}
-              />
-            </div>
-
-            <div className={styles.modalRiskScale}>
-              <span>0%</span>
-              <span>40%</span>
-              <span>70%</span>
-              <span>100%</span>
-            </div>
-
-            <div className={styles.modalRiskLabels}>
-              <div className={riskLevel === '낮음' ? styles.riskSelected : ''}>
-                낮음
-                <small>0~39%</small>
-              </div>
-              <div className={riskLevel === '주의' ? styles.riskSelected : ''}>
-                주의
-                <small>40~69%</small>
-              </div>
-              <div className={riskLevel === '위험' ? styles.riskSelected : ''}>
-                위험
-                <small>70~100%</small>
-              </div>
-            </div>
-          </section>
-        </div>
-
-        <section className={styles.sensorModalCard}>
-          <h3>센서 입력값</h3>
-
-          <div className={styles.sensorModalGrid}>
-            <div className={styles.sensorModalLabel}>가속도 (m/s²)</div>
-            <SensorValue label="ax" value={event.sensor?.ax} />
-            <SensorValue label="ay" value={event.sensor?.ay} />
-            <SensorValue label="az" value={event.sensor?.az} />
-
-            <div className={styles.sensorModalLabel}>자이로 (°/s)</div>
-            <SensorValue label="gx" value={event.sensor?.gx} />
-            <SensorValue label="gy" value={event.sensor?.gy} />
-            <SensorValue label="gz" value={event.sensor?.gz} />
-          </div>
-
-          <p className={styles.sensorModalWarning}>
-            ⚠ 비정상적인 충격 및 자세 변화가 감지되었습니다.
-          </p>
-        </section>
-
-        <div className={styles.modalActionRow}>
-          <button className={styles.modalCallBtn}>긴급 연락하기</button>
-          <button className={styles.modalCheckBtn}>작업자 확인 완료</button>
-          <button className={styles.modalFalseBtn}>오탐으로 기록</button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function ModalInfoRow({ label, children }) {
-  return (
-    <div className={styles.modalInfoRow}>
-      <span>{label}</span>
-      <strong>{children}</strong>
-    </div>
-  )
-}
-
-function SensorValue({ label, value }) {
-  return (
-    <div className={styles.sensorModalValue}>
-      <span>{label}</span>
-      <strong>{value ?? '-'}</strong>
-    </div>
-  )
-}
-
-function ModalField({ label, value }) {
-  return (
-    <div className={styles.modalField}>
-      <span className={styles.modalFieldLabel}>{label}</span>
-      <span className={styles.modalFieldValue}>{value}</span>
-    </div>
-  )
-}
+const MOCK_HISTORY = [
+  { time: '09:47:02', worker: '정대호', type: '심박수 이상', assignee: '김관리', duration: '02:15', result: '처리완료' },
+  { time: '08:33:41', worker: '박재현', type: '경사 위험',   assignee: '이안전', duration: '03:42', result: '처리완료' },
+  { time: '07:55:20', worker: '김태영', type: '충격 감지',   assignee: '박담당', duration: '01:58', result: '처리완료' },
+]
 
 export default function HazardEvents() {
-  const [dateFrom, setDateFrom] = useState('2026-05-01')
-  const [dateTo, setDateTo]     = useState('2026-05-30')
-  const [eventType, setEventType] = useState('전체 유형')
-  const [query, setQuery]         = useState('')
-  const [tab, setTab]             = useState(0)
+  const navigate = useNavigate()
+  const [alerts, setAlerts]       = useState([])
+  const [connected, setConnected] = useState(false)
   const [page, setPage]           = useState(1)
-  const [pageSize, setPageSize]   = useState(5)
-
-  // 모달 상태
-  const [selectedEvent, setSelectedEvent] = useState(null)
-
-  // 실제 백엔드(/api/workers/alerts)에서 받아온 낙상 이력
-  const [liveAlerts, setLiveAlerts] = useState([])
-  const [liveConnected, setLiveConnected] = useState(false)
+  const [histPage, setHistPage]   = useState(1)
+  const PAGE_SIZE = 10
 
   useEffect(() => {
-    let cancelled = false
-
-    async function fetchLive() {
+    async function fetchData() {
       try {
         const list = await getFallAlerts()
-        if (cancelled) return
-        setLiveAlerts(list)
-        setLiveConnected(true)
-      } catch {
-        if (!cancelled) setLiveConnected(false)
-      }
+        setAlerts([...list].sort((a, b) => new Date(b.recordedAt) - new Date(a.recordedAt)))
+        setConnected(true)
+      } catch { setConnected(false) }
     }
-
-    fetchLive()
-    const interval = setInterval(fetchLive, 5000)
-    return () => { cancelled = true; clearInterval(interval) }
+    fetchData()
+    const id = setInterval(fetchData, 5000)
+    return () => clearInterval(id)
   }, [])
 
-  // 백엔드 낙상(FALLEN) 기록을 화면에 표시할 이벤트 형태로 변환
-const events = useMemo(() => {
-  return [...liveAlerts]
-    .sort((a, b) => new Date(b.recordedAt) - new Date(a.recordedAt))
-    .map((a, i) => ({
-      id: `${a.deviceId}-${a.recordedAt}-${i}`,
-      type: '낙상 감지',
-      severity: 'danger',
-      detail: '비정상적인 충격 및 자세 변화 감지',
-      zone: '-',
-      worker: { name: '-', employeeId: '-' },
-      helmetId: a.deviceId,
-      time: formatDateTime(a.recordedAt),
-      status: '미확인',
+  const latestAlert = alerts[0]
 
-      fallDetected: a.state === 'FALLEN',
-      confidence: a.confidence ?? null,
+  const totalPages     = Math.max(1, Math.ceil(alerts.length / PAGE_SIZE))
+  const pagedAlerts    = alerts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const histTotalPages = Math.max(1, Math.ceil(MOCK_HISTORY.length / PAGE_SIZE))
+  const pagedHistory   = MOCK_HISTORY.slice((histPage - 1) * PAGE_SIZE, histPage * PAGE_SIZE)
 
-      sensor: {
-        ax: a.ax ?? '-',
-        ay: a.ay ?? '-',
-        az: a.az ?? '-',
-        gx: a.gx ?? '-',
-        gy: a.gy ?? '-',
-        gz: a.gz ?? '-',
-      },
-    }))
-}, [liveAlerts])
-
-  const filtered = useMemo(() => {
-    return events.filter((e) => {
-      const matchType  = eventType === '전체 유형' || e.type === eventType
-      const matchQuery = !query || e.type.includes(query) || e.helmetId.toLowerCase().includes(query.toLowerCase())
-      const matchTab   = tab === 0 || (tab === 1 && e.severity === 'danger') || (tab === 2 && e.severity === 'warning')
-      return matchType && matchQuery && matchTab
-    })
-  }, [events, eventType, query, tab])
-
-  const dangerCount  = events.filter((e) => e.severity === 'danger').length
-  const warningCount = events.filter((e) => e.severity === 'warning').length
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
-  const paged = filtered.slice((page - 1) * pageSize, page * pageSize)
-
-  function handleTabChange(i) { setTab(i); setPage(1) }
-  function handlePageSize(s)  { setPageSize(s); setPage(1) }
-  function handleSearch()     { setPage(1) }
-  // TODO: 실제 CSV/Excel 다운로드로 교체
-  function handleDownload() { alert('다운로드 기능은 실제 API 연동 후 구현됩니다.') }
-
-  const now = new Date().toLocaleString('ko-KR', {
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    weekday: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit',
-  })
+  function fmt(iso) {
+    return iso ? new Date(iso).toLocaleString('ko-KR', { hour12: false }) : '-'
+  }
 
   return (
     <div className={styles.page}>
-      {/* 상세 모달 */}
-      <EventDetailModal
-        event={selectedEvent}
-        onClose={() => setSelectedEvent(null)}
-      />
-
-      {/* 상단 */}
-      <div className={styles.topBar}>
+      <div className={styles.header}>
         <div>
-          <h1 className={styles.title}>
-            위험 이벤트
-            <span
-              className={styles.liveBadge}
-              style={{
-                color: liveConnected ? '#43a047' : '#aaa',
-                background: liveConnected ? '#d4f5e2' : '#f0f2f7',
-              }}
-            >
-              {liveConnected ? '🟢 실시간 연동 중' : '⚪ 서버 연결 대기'}
-            </span>
-          </h1>
-          <p className={styles.subtitle}>발생한 위험 이벤트를 확인하고 대응할 수 있습니다.</p>
+          <h1 className={styles.title}>추락 사고 알림</h1>
+          <p className={styles.subtitle}>추락 사고 알림 현황과 처리 이력을 확인합니다.</p>
         </div>
-        <div className={styles.topRight}>
-          <div className={styles.dateStr}>{now}</div>
-          <button className={styles.downloadBtn} onClick={handleDownload}>⬇ 다운로드</button>
-        </div>
+        <span className={styles.liveBadge} style={{ color: connected ? '#43a047' : '#aaa', background: connected ? '#d4f5e2' : '#f0f2f7' }}>
+          {connected ? '🟢 실시간 연동 중' : '⚪ 서버 연결 대기'}
+        </span>
       </div>
 
-      {/* 필터 */}
-      <div className={styles.filterBar}>
-        <input type="date" className={styles.dateInput} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-        <span className={styles.dateSep}>~</span>
-        <input type="date" className={styles.dateInput} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-        <select className={styles.select} value={eventType} onChange={(e) => setEventType(e.target.value)}>
-          {EVENT_TYPES.map((t) => <option key={t}>{t}</option>)}
-        </select>
-        <div className={styles.searchWrap}>
-          <input
-            className={styles.searchInput}
-            placeholder="검색"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          <span className={styles.searchIcon}>🔍</span>
-        </div>
-        <button className={styles.searchBtn} onClick={handleSearch}>조회</button>
-      </div>
-
-      {/* 통계 카드 */}
       <div className={styles.statRow}>
-        <StatCard icon="📋" iconBg="#ddeeff" label="전체 이벤트"   main={`${events.length}건`} />
-        <StatCard icon="🔴" iconBg="#ffe0e0" label="미확인"        main="-" />
-        <StatCard icon="✅" iconBg="#d4f5e2" label="확인 완료"     main="-" />
-        <StatCard icon="🕐" iconBg="#ddeeff" label="평균 처리 시간" main="-" />
+        {[
+          { icon: '🚨', bg: '#ffe0e0', label: '긴급 알림',      value: alerts.length > 0 ? 1 : 0, unit: '건', accent: '#e53935' },
+          { icon: '⚠️', bg: '#fff0d0', label: '오늘 추락 사고', value: alerts.length,              unit: '건', accent: '#ff9800' },
+          { icon: '🔔', bg: '#f0f0ff', label: '미확인 알림',    value: 3,                          unit: '건', accent: '#7c3aed' },
+          { icon: '🕐', bg: '#e0edff', label: '평균 대응 시간', value: '02:38',                    unit: '분초', accent: '#4a7cdc' },
+        ].map((c) => (
+          <div key={c.label} className={styles.statCard} style={{ borderTop: `3px solid ${c.accent}` }}>
+            <div className={styles.statIcon} style={{ background: c.bg }}>{c.icon}</div>
+            <div>
+              <div className={styles.statLabel}>{c.label}</div>
+              <div className={styles.statValue}>
+                <span className={styles.statNum} style={{ color: c.accent }}>{c.value}</span>
+                <span className={styles.statUnit}>{c.unit}</span>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* 탭 + 테이블 */}
-      <div className={styles.tableWrap}>
-        <div className={styles.tabs}>
-          {[`전체 이벤트 (${events.length})`, `위험 이벤트 (${dangerCount})`, `주의 이벤트 (${warningCount})`].map((label, i) => (
-            <button
-              key={i}
-              className={`${styles.tab} ${tab === i ? styles.tabActive : ''}`}
-              onClick={() => handleTabChange(i)}
-            >
-              {label}
-            </button>
-          ))}
+      <div className={styles.mainGrid}>
+        <div className={styles.leftCol}>
+          <div className={styles.card}>
+            <div className={styles.cardHeader}>
+              <span className={styles.cardTitle}>실시간 알림 목록</span>
+              {alerts.length > 0 && <span className={styles.urgentTag}>● 긴급 {alerts.length}건</span>}
+            </div>
+            <table className={styles.table}>
+              <thead><tr>{['발생 시간','작업자','위치','사고 유형','위험도','상태'].map((h) => <th key={h}>{h}</th>)}</tr></thead>
+              <tbody>
+                {alerts.length === 0 ? (
+                  <tr><td colSpan={6} className={styles.empty}>낙상 감지 이력이 없습니다.</td></tr>
+                ) : pagedAlerts.map((a, i) => {
+                  const isFirst = page === 1 && i === 0
+                  return (
+                    <tr key={i} className={isFirst ? styles.dangerRow : ''}>
+                      <td className={styles.muted} style={{ color: isFirst ? '#e53935' : '#555', fontWeight: isFirst ? 700 : 400 }}>{fmt(a.recordedAt)}</td>
+                      <td className={styles.workerName} style={{ color: isFirst ? '#e53935' : '#1a2340' }}>이준호</td>
+                      <td style={{ color: isFirst ? '#e53935' : '#333' }}>B구역 3층 계단</td>
+                      <td style={{ color: isFirst ? '#e53935' : '#333', fontWeight: isFirst ? 700 : 400 }}>추락 감지</td>
+                      <td><span className={styles.riskBadge} style={{ background: '#ffe0e0', color: '#e53935' }}>매우 높음</span></td>
+                      <td><span className={styles.statusBadge} style={{ background: '#ffe0e0', color: '#c62828' }}>대응중</span></td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+            {totalPages > 1 && (
+              <div className={styles.pagination}>
+                <button className={styles.pageBtn} onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>‹ 이전</button>
+                <span className={styles.pageInfo}>{page} / {totalPages}</span>
+                <button className={styles.pageBtn} onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}>다음 ›</button>
+              </div>
+            )}
+          </div>
+
+          <div className={styles.card}>
+            <div className={styles.cardHeader}><span className={styles.cardTitle}>알림 처리 이력</span></div>
+            <table className={styles.table}>
+              <thead><tr>{['접수 시간','작업자','유형','처리 담당','대응 시간','결과'].map((h) => <th key={h}>{h}</th>)}</tr></thead>
+              <tbody>
+                {pagedHistory.map((h, i) => (
+                  <tr key={i}>
+                    <td className={styles.muted}>{h.time}</td>
+                    <td className={styles.workerName}>{h.worker}</td>
+                    <td>{h.type}</td>
+                    <td>{h.assignee}</td>
+                    <td>{h.duration}</td>
+                    <td><span className={styles.statusBadge} style={{ background: '#e8f5e9', color: '#2e7d32' }}>{h.result}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {histTotalPages > 1 && (
+              <div className={styles.pagination}>
+                <button className={styles.pageBtn} onClick={() => setHistPage((p) => Math.max(1, p - 1))} disabled={histPage === 1}>‹ 이전</button>
+                <span className={styles.pageInfo}>{histPage} / {histTotalPages}</span>
+                <button className={styles.pageBtn} onClick={() => setHistPage((p) => Math.min(histTotalPages, p + 1))} disabled={histPage === histTotalPages}>다음 ›</button>
+              </div>
+            )}
+          </div>
         </div>
 
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              {['이벤트 유형','이벤트 상세','위치/구역','작업자','안전모ID','발생시간','상태','대응'].map((h) => (
-                <th key={h}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {paged.length === 0 ? (
-              <tr>
-                <td colSpan={8}>
-                  <EmptyState
-                    icon="🔍"
-                    title="검색 결과가 없습니다."
-                    desc="조건을 변경하거나 필터를 초기화해 보세요."
-                  />
-                </td>
-              </tr>
-            ) : paged.map((e) => (
-              <tr key={e.id} className={styles.row}>
-                <td>
-                  <div className={styles.typeCell}>
-                    <span className={`${styles.dot} ${e.severity === 'danger' ? styles.dotDanger : styles.dotWarning}`} />
-                    {e.type}
-                  </div>
-                </td>
-                <td className={styles.detailCell}>{e.detail}</td>
-                <td>{e.zone}</td>
-                <td>
-                  <div className={styles.workerCell}>
-                    <div className={styles.workerAvatar}>{e.worker.name[0]}</div>
-                    <div>
-                      <div className={styles.workerName}>{e.worker.name}</div>
-                      <div className={styles.workerId}>{e.worker.employeeId}</div>
+        <div className={styles.rightCol}>
+          <div className={styles.emergencyCard}>
+            <div className={styles.emergencyHeader}>
+              <span className={styles.emergencyDot} />
+              긴급 추락 사고 알림
+            </div>
+            {latestAlert ? (
+              <>
+                <div className={styles.emergencyGrid}>
+                  {[
+                    ['작업자', '이준호'],
+                    ['ID', 'W-1024'],
+                    ['위치', 'B구역 3층 계단'],
+                    ['사고 유형', '추락 감지'],
+                    ['위험도', '매우 높음'],
+                    ['마지막 측정 위치', 'B-3F-12'],
+                    ['발생 시간', fmt(latestAlert.recordedAt)],
+                    ['주변 작업자', '3명 알림 발송'],
+                  ].map(([k, v]) => (
+                    <div key={k} className={styles.emergencyRow}>
+                      <span className={styles.emergencyKey}>{k}</span>
+                      <span className={styles.emergencyVal}>{v}</span>
                     </div>
-                  </div>
-                </td>
-                <td>{e.helmetId}</td>
-                <td>{e.time}</td>
-                <td>
-                  <span className={styles.statusBadge} style={{ background: '#f0f2f7', color: '#888' }}>
-                    {e.status}
-                  </span>
-                </td>
-                <td>
-                  <button className={styles.detailBtn} onClick={() => setSelectedEvent(e)}>
-                    상세보기
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        <Pagination
-          page={page}
-          totalPages={totalPages}
-          pageSize={pageSize}
-          onPage={setPage}
-          onPageSize={handlePageSize}
-        />
+                  ))}
+                </div>
+                <button className={styles.emergencyBtn} onClick={() => navigate('/accident')}>사고 상세 보기</button>
+                <button className={styles.emergencyBtn2}>119 신고 전송</button>
+                <button className={styles.emergencyBtn2}>주변 작업자 알림</button>
+              </>
+            ) : (
+              <div className={styles.noAlert}>현재 긴급 알림이 없습니다</div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   )

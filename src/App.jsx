@@ -21,6 +21,7 @@ import SystemSettings     from './pages/SystemSettings'
 import Monitoring         from './pages/Monitoring'
 import MonitoringMap      from './pages/MonitoringMap'
 import MonitoringStatus   from './pages/MonitoringStatus'
+import AccidentDetail     from './pages/AccidentDetail'
 
 import { WorkerProvider } from './context/WorkerContext'
 import { AuthProvider }   from './context/AuthContext'
@@ -39,6 +40,7 @@ function AppRoutes() {
         <Route path="/monitoring/map"    element={<MonitoringMap />} />
         <Route path="/monitoring/status" element={<MonitoringStatus />} />
         <Route path="/events"    element={<HazardEvents />} />
+        <Route path="/accident"  element={<AccidentDetail />} />
         <Route path="/records"   element={<WorkRecords />} />
         <Route path="/zones"     element={<ZoneManagement />} />
         <Route path="/stats"     element={<Statistics />} />

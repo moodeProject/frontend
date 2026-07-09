@@ -4,14 +4,11 @@ import { useAuth } from '../context/AuthContext'
 import styles from './Layout.module.css'
 
 const NAV_ITEMS = [
-  { path: '/',           label: '대시보드',      icon: '⊞' },
-  { path: '/workers',    label: '작업자 관리',    icon: '👥' },
-  { path: '/monitoring', label: '실시간 모니터링', icon: '🖥' },
-  { path: '/events',     label: '위험 이벤트',    icon: '⚠️' },
-  { path: '/records',    label: '작업 기록',      icon: '🕐' },
-  { path: '/zones',      label: '안전 구역 관리',  icon: '📍' },
-  { path: '/stats',      label: '통계 분석',      icon: '📊' },
-  { path: '/settings',   label: '시스템 설정',    icon: '⚙️' },
+  { path: '/',                   label: '대시보드',     icon: '⊞' },
+  { path: '/monitoring/status',  label: '작업자 상태',  icon: '👥' },
+  { path: '/events',             label: '추락 사고 알림', icon: '⚠️' },
+  { path: '/accident',           label: '사고 상세',    icon: '📋' },
+  { path: '/stats',              label: '위험도 현황',  icon: '📊' },
 ]
 
 export default function Layout({ children }) {

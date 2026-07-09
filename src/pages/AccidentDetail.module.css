@@ -1,0 +1,109 @@
+.page { display: flex; flex-direction: column; gap: 18px; }
+
+/* 빈 상태 */
+.empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 60vh; gap: 12px; color: #aaa; }
+.emptyIcon  { font-size: 48px; }
+.emptyTitle { font-size: 18px; font-weight: 700; color: #555; }
+.emptySub   { font-size: 14px; }
+
+/* 헤더 */
+.detailHeader      { display: flex; justify-content: space-between; align-items: flex-start; }
+.detailTitle       { font-size: 20px; font-weight: 800; color: #1a2340; margin: 0 0 4px; }
+.detailSub         { font-size: 13px; color: #777; margin: 0; }
+.detailHeaderRight { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.badgeDanger { padding: 5px 12px; border-radius: 20px; background: #ffe0e0; color: #c62828; font-size: 12px; font-weight: 700; }
+.badgeActive { padding: 5px 12px; border-radius: 20px; background: #e0edff; color: #1a5fbf; font-size: 12px; font-weight: 700; }
+.alertSelect { padding: 6px 12px; border: 1.5px solid #dde3ef; border-radius: 8px; font-size: 12px; background: #fff; cursor: pointer; max-width: 260px; }
+
+/* 메인 2컬럼 */
+.detailMain {
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
+  gap: 16px;
+  align-items: stretch;
+}
+
+/* 왼쪽 컬럼 — 오른쪽과 동일 높이로 늘어남 */
+.leftCol { display: flex; flex-direction: column; gap: 14px; height: 100%; }
+
+/* 센서 차트 2×2 — flex: 1로 남은 공간 채움 */
+.chartGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; flex: 1; }
+.chartCard {
+  background: #fff;
+  border: 1px solid #e8ecf2;
+  border-radius: 14px;
+  padding: 14px 16px 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.chartMeta  { margin-bottom: 6px; }
+.chartLabel { display: block; font-size: 11px; color: #888; font-weight: 600; margin-bottom: 2px; }
+.chartPeak  { display: block; font-size: 20px; font-weight: 800; line-height: 1.1; }
+.chartSub   { display: block; font-size: 11px; color: #aaa; margin-bottom: 4px; }
+
+/* AI 분석 카드 2×2 */
+.aiGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.aiCard {
+  background: #fff;
+  border: 1px solid #e8ecf2;
+  border-radius: 14px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  justify-content: center;
+}
+.aiIcon      { font-size: 20px; margin-bottom: 4px; }
+.aiCardLabel { font-size: 11px; color: #888; font-weight: 600; }
+.aiCardVal   { font-size: 17px; font-weight: 800; }
+.aiCardSub   { font-size: 11px; color: #aaa; }
+
+/* 오른쪽 컬럼 */
+.rightCol { display: flex; flex-direction: column; gap: 14px; height: 100%; }
+
+/* 영상 카드 — 가장 큰 비율 */
+.videoCard   { background: #fff; border: 1px solid #e8ecf2; border-radius: 14px; overflow: hidden; }
+.videoHeader {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 16px; border-bottom: 1px solid #f0f2f7;
+}
+.recBadge    { font-size: 12px; font-weight: 700; color: #e53935; }
+.videoTime   { font-size: 11px; color: #aaa; }
+.videoArea   {
+  background: #111827;
+  height: 380px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  position: relative;
+}
+.playBtn  { width: 56px; height: 56px; border-radius: 50%; background: rgba(255,255,255,0.18); color: #fff; font-size: 20px; display: flex; align-items: center; justify-content: center; cursor: pointer; border: none; }
+.camLabel { font-size: 12px; color: rgba(255,255,255,0.5); }
+.videoProgressInner { position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: rgba(255,255,255,0.12); }
+.videoProgressFill  { height: 100%; width: 35%; background: #4a7cdc; border-radius: 0; }
+
+/* 이벤트 타임라인 */
+.timelineCard  { background: #fff; border: 1px solid #e8ecf2; border-radius: 14px; padding: 16px 18px; }
+.timelineTitle { font-size: 14px; font-weight: 700; color: #1a2340; margin: 0 0 12px; }
+.timelineRow   { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid #f5f7fb; }
+.timelineRow:last-child { border-bottom: none; }
+.timelineDot   { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.timelineTime  { font-size: 12px; color: #888; width: 68px; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.timelineLabel { font-size: 13px; color: #333; }
+
+/* 대응 체크리스트 — 남은 공간 채움 */
+.checklistCard  { background: #fff; border: 1px solid #e8ecf2; border-radius: 14px; padding: 16px 18px; flex: 1; }
+.checklistTitle { font-size: 14px; font-weight: 700; color: #1a2340; margin: 0 0 12px; }
+.checkTable { width: 100%; border-collapse: collapse; font-size: 13px; }
+.checkTable thead tr { background: #f7f9fc; }
+.checkTable th { color: #4a7cdc; font-weight: 600; padding: 8px 12px; text-align: left; border-bottom: 1px solid #f0f2f7; font-size: 12px; }
+.checkTable td { padding: 9px 12px; color: #333; border-bottom: 1px solid #f5f7fb; }
+.checkTable tr:last-child td { border-bottom: none; }
+.muted { color: #888; font-size: 12px; }
+
+.statusDone { padding: 3px 10px; border-radius: 12px; background: #d4f5e2; color: #1b7a3e; font-size: 12px; font-weight: 700; }
+.statusWait { padding: 3px 10px; border-radius: 12px; background: #f0f2f7; color: #888;    font-size: 12px; font-weight: 700; }
