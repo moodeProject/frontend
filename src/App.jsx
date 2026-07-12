@@ -26,6 +26,8 @@ import { WorkerProvider } from './context/WorkerContext'
 import { AuthProvider }   from './context/AuthContext'
 import WorkerDetail       from './pages/WorkerDetail'
 
+import WorkerMobile from "./pages/worker/WorkerMobile";
+
 // 사이드바가 포함된 앱 페이지 래퍼
 function AppRoutes() {
   return (
@@ -61,18 +63,21 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-      <WorkerProvider>
-        <Routes>
-          {/* ── 인증 페이지 (사이드바 없음) ── */}
-          <Route path="/login"          element={<Login />} />
-          <Route path="/find-id"        element={<FindId />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/register"       element={<Register />} />
+        <WorkerProvider>
+          <Routes>
+            {/* ── 인증 페이지 (사이드바 없음) ── */}
+            <Route path="/login"          element={<Login />} />
+            <Route path="/find-id"        element={<FindId />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/register"       element={<Register />} />
 
-          {/* ── 앱 페이지 (사이드바 있음) ── */}
-          <Route path="/*" element={<AppRoutes />} />
-        </Routes>
-      </WorkerProvider>
+            {/* ── 근로자 모바일 웹 (사이드바 없음) ── */}
+            <Route path="/worker" element={<WorkerMobile />} />
+
+            {/* ── 앱 페이지 (사이드바 있음) ── */}
+            <Route path="/*" element={<AppRoutes />} />
+          </Routes>
+        </WorkerProvider>
       </AuthProvider>
     </BrowserRouter>
   )
