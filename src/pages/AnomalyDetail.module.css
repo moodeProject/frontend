@@ -1,0 +1,273 @@
+.page { display: flex; flex-direction: column; gap: 16px; }
+
+.backBtn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: none; border: none; color: #6b7280; font-size: 14px;
+  cursor: pointer; padding: 0; font-weight: 500;
+}
+.backBtn:hover { color: #111827; }
+
+/* Item header (external / health) */
+.itemHeader {
+  display: flex; align-items: center; gap: 14px;
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 16px 20px;
+}
+.itemHeaderIcon {
+  width: 44px; height: 44px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; flex-shrink: 0;
+}
+.itemHeaderTitle { font-size: 18px; font-weight: 800; color: #111827; }
+.itemHeaderSub   { font-size: 13px; color: #9ca3af; margin-top: 2px; }
+.levelBadge {
+  margin-left: auto; padding: 5px 14px; border-radius: 20px; font-size: 13px; font-weight: 700;
+}
+
+/* ─── External hazard layout ─── */
+.extBody { display: flex; gap: 16px; }
+.extLeft  { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.extRight { width: 320px; flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; }
+
+/* Video card */
+.videoCard { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; overflow: hidden; }
+.videoCardHeader { font-size: 14px; font-weight: 700; color: #374151; padding: 14px 18px 10px; }
+.videoCardHeaderRow { display: flex; align-items: center; gap: 10px; padding: 14px 18px 10px; }
+.markingTag { background: #fff7ed; color: #f97316; border: 1px solid #fed7aa; border-radius: 6px; padding: 3px 10px; font-size: 12px; font-weight: 700; }
+.videoNote { font-size: 12px; color: #9ca3af; padding: 8px 18px 14px; margin: 0; }
+
+/* CCTV box */
+.cctvBox { background: #0a0e1a; margin: 0 12px; border-radius: 10px; overflow: hidden; font-family: monospace; }
+.cctvTop {
+  display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+  background: rgba(255,255,255,0.06); font-size: 12px; color: #94a3b8;
+}
+.cctvDot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #ef4444; margin-right: 4px; }
+.cctvId   { color: #22c55e; font-weight: 600; }
+.cctvDate { margin-left: 8px; }
+.recBadge { margin-left: auto; color: #ef4444; font-weight: 700; font-size: 11px; }
+
+.cctvScene { position: relative; height: 240px; overflow: hidden; }
+
+.cctvAiStatus {
+  padding: 6px 12px; font-size: 11px; color: #64748b;
+  background: rgba(255,255,255,0.04); letter-spacing: 0.5px;
+}
+.cctvControls { padding: 6px 12px 10px; }
+.progressBar { height: 4px; background: rgba(255,255,255,0.15); border-radius: 2px; margin-bottom: 8px; position: relative; }
+.progressFill { height: 100%; background: #3b82f6; border-radius: 2px; }
+.progressMarker { position: absolute; top: -4px; width: 12px; height: 12px; background: #fff; border-radius: 50%; transform: translateX(-50%); margin-top: -4px; }
+.cctvFooter { display: flex; align-items: center; justify-content: space-between; }
+.ctrlBtns { display: flex; gap: 6px; align-items: center; }
+.ctrlBtn { background: rgba(255,255,255,0.1); border: none; color: #fff; border-radius: 6px; width: 28px; height: 28px; cursor: pointer; font-size: 12px; }
+.playBtn { background: #3b82f6 !important; width: 32px; height: 32px; border-radius: 50% !important; font-size: 14px; }
+.jumpBtn { background: #1e293b; color: #94a3b8; border: none; border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
+.timeCode { color: #64748b; font-size: 12px; }
+
+/* Overlay elements */
+.overlayRoot { position: relative; width: 100%; height: 100%; }
+.workerBoxWrap { position: absolute; }
+.workerBoxLabel {
+  background: #22c55e; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 3px;
+  margin-bottom: 4px; display: inline-block;
+}
+.hatDot { width: 10px; height: 10px; border-radius: 50%; margin: 0 auto 4px; }
+.workerBox {
+  width: 60px; height: 100px;
+  border: 2px dashed #22c55e; border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+}
+.personSvg { width: 44px; height: 80px; opacity: 0.85; }
+
+/* Puddle overlay */
+.puddleWrap { position: absolute; }
+.puddleLabel { background: #0ea5e9; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 3px; margin-bottom: 4px; white-space: nowrap; }
+.puddle {
+  width: 90px; height: 36px; border-radius: 50%; border: 2px dashed #0ea5e9;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(14,165,233,0.15);
+}
+.puddleTag { color: #38bdf8; font-size: 10px; font-weight: 700; }
+
+/* Obstacle overlay */
+.obstacleWrap { position: absolute; }
+.obstacleLabel { background: #f97316; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 3px; margin-bottom: 2px; }
+.obstacleDanger { background: #dc2626; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 3px; margin-bottom: 4px; }
+.obstacleBox { width: 70px; height: 60px; border: 2px dashed #f97316; border-radius: 4px; background: rgba(249,115,22,0.1); }
+
+/* Unguarded edge overlay */
+.unguardedZone { position: absolute; right: 0; top: 0; width: 180px; height: 100%; }
+.unguardedBanner {
+  background: #ef4444; color: #fff; font-size: 11px; font-weight: 700; padding: 4px 12px;
+  text-align: center;
+}
+.unguardedStripe {
+  width: 100%; height: calc(100% - 28px);
+  background: repeating-linear-gradient(
+    -45deg, transparent, transparent 8px,
+    rgba(239,68,68,0.25) 8px, rgba(239,68,68,0.25) 14px
+  );
+  border-left: 2px solid #ef4444;
+}
+.approachLabel { position: absolute; color: #fbbf24; font-size: 11px; font-weight: 700; white-space: nowrap; }
+
+/* Fall overlay */
+.fallBoxWrap { position: absolute; }
+.fallLabel { background: #ef4444; color: #fff; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 3px; margin-bottom: 4px; }
+.fallBox { border: 2px dashed #ef4444; border-radius: 4px; min-width: 160px; background: rgba(239,68,68,0.08); }
+.fallTag { background: rgba(239,68,68,0.3); color: #fca5a5; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 3px; }
+.fallenFigure { width: 80px; height: 30px; background: #3b5285; border-radius: 4px; margin: 8px auto; opacity: 0.8; }
+
+/* Clip section */
+.clipSection { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 16px 18px; }
+.clipTitle { font-size: 14px; font-weight: 700; color: #374151; margin: 0 0 12px; }
+.clipRow { display: flex; gap: 12px; }
+.clipBtn {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px;
+  background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px;
+  color: #6b7280; font-size: 13px; cursor: pointer;
+}
+.clipBtn:hover { background: #f3f4f6; }
+
+/* AI result card */
+.aiResultCard { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 18px; flex: 1; }
+.aiResultTitle { font-size: 15px; font-weight: 800; color: #111827; margin: 0 0 14px; }
+.hazardTypeBadge {
+  border: 1.5px solid; border-radius: 10px; padding: 12px 16px; margin-bottom: 16px;
+}
+.hazardTypeSmall { font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px; }
+.hazardTypeBig   { font-size: 18px; font-weight: 800; }
+.aiMeta { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.aiMetaRow { display: flex; justify-content: space-between; font-size: 14px; color: #6b7280; }
+.aiMetaRow strong { color: #111827; }
+.riskNote { font-size: 13px; color: #6b7280; line-height: 1.5; margin: 0; border-top: 1px solid #f3f4f6; padding-top: 12px; }
+
+/* Action card */
+.actionCard { background: #fff; border: 1px solid; border-radius: 14px; padding: 16px 18px; }
+.actionMsg { font-size: 14px; font-weight: 700; margin: 0 0 12px; }
+.actionBtn { width: 100%; padding: 12px; border: none; border-radius: 10px; color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; margin-bottom: 8px; }
+.actionBtn:last-child { margin-bottom: 0; }
+.actionBtnOutline { width: 100%; padding: 12px; border: 1.5px solid; border-radius: 10px; background: #fff; font-size: 14px; font-weight: 700; cursor: pointer; }
+
+/* ─── Fall layout ─── */
+.fallBanner {
+  background: #ef4444; border-radius: 14px; padding: 18px 22px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.fallBannerLeft { display: flex; align-items: center; gap: 12px; }
+.fallBannerIcon { font-size: 22px; }
+.fallBannerTitle { font-size: 16px; font-weight: 800; color: #fff; }
+.fallBannerSub   { font-size: 13px; color: rgba(255,255,255,0.8); margin-top: 2px; }
+.processingBadge { background: rgba(255,255,255,0.2); color: #fff; border-radius: 20px; padding: 6px 14px; font-size: 13px; font-weight: 700; }
+
+.fallBody  { display: flex; gap: 16px; }
+.fallLeft  { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.fallRight { width: 300px; flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; }
+
+/* Timeline */
+.fallTimeline { display: flex; justify-content: space-between; padding: 6px 12px; font-size: 11px; color: #64748b; }
+.tlLabel  { }
+.tlMarker { color: #f97316; font-weight: 700; }
+.tlTabs { display: flex; border-top: 1px solid #f3f4f6; }
+.tlTab { flex: 1; padding: 12px; background: none; border: none; color: #9ca3af; font-size: 13px; cursor: pointer; border-right: 1px solid #f3f4f6; }
+.tlTab:last-child { border-right: none; }
+.tlTabActive { color: #ef4444; font-weight: 700; }
+
+/* Causes card */
+.causesCard { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 18px; }
+.causesTitle { font-size: 15px; font-weight: 800; color: #111827; margin: 0 0 14px; }
+.causeRow {
+  display: flex; align-items: center; gap: 10px; border: 1px solid; border-radius: 10px;
+  padding: 12px 16px; margin-bottom: 8px;
+}
+.causeRank  { font-size: 11px; font-weight: 700; white-space: nowrap; }
+.causeLabel { flex: 1; font-size: 14px; color: #374151; font-weight: 500; }
+.causePct   { font-size: 15px; font-weight: 800; }
+.auxRow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 0; border-top: 1px solid #f3f4f6; border-bottom: 1px solid #f3f4f6; margin: 4px 0 12px; }
+.auxTitle { font-size: 12px; color: #9ca3af; font-weight: 600; }
+.auxTag { background: #f3f4f6; color: #6b7280; border-radius: 20px; padding: 3px 10px; font-size: 12px; }
+.finalCause { background: #fafafa; border-radius: 10px; padding: 14px; }
+.finalCauseTitle { font-size: 13px; font-weight: 700; color: #ef4444; margin: 0 0 6px; }
+.finalCauseText  { font-size: 14px; font-weight: 700; color: #ef4444; margin: 0 0 12px; line-height: 1.5; }
+.finalMeta { display: flex; gap: 16px; font-size: 12px; color: #9ca3af; }
+.finalMeta div { display: flex; flex-direction: column; gap: 2px; }
+.finalMeta strong { color: #374151; font-size: 13px; }
+
+/* Fall right panel */
+.workerInfoCard { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 16px 18px; }
+.wiAvatar { width: 40px; height: 40px; border-radius: 50%; background: #3b82f6; color: #fff; font-size: 16px; font-weight: 800; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
+.wiName   { font-size: 16px; font-weight: 800; color: #111827; }
+.wiSub    { font-size: 13px; color: #9ca3af; margin-bottom: 14px; }
+.wiStats  { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #f3f4f6; padding-top: 12px; }
+.wiStat   { display: flex; justify-content: space-between; font-size: 14px; color: #6b7280; }
+.wiStat strong { color: #111827; }
+
+.resultCard { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 16px 18px; }
+.resultTitle { font-size: 14px; font-weight: 800; color: #111827; margin: 0 0 12px; }
+.resultRow { display: flex; justify-content: space-between; font-size: 14px; color: #6b7280; padding: 8px 0; border-bottom: 1px solid #f3f4f6; }
+.resultRow:last-child { border-bottom: none; }
+.resultLabel { }
+.resultValue { font-weight: 700; }
+
+.relatedCard { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 16px 18px; }
+.relatedTitle { font-size: 14px; font-weight: 800; color: #111827; margin: 0 0 12px; }
+.relatedRow { display: flex; justify-content: space-between; font-size: 14px; color: #374151; padding: 8px 12px; background: #f9fafb; border-radius: 8px; margin-bottom: 6px; }
+.relatedRow:last-child { margin-bottom: 0; }
+.relatedTime { color: #9ca3af; }
+
+.fallActions { display: flex; flex-direction: column; gap: 8px; }
+.emergencyBtn { padding: 13px; background: #ef4444; color: #fff; border: none; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; }
+.locationBtn  { padding: 13px; background: #3b82f6; color: #fff; border: none; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; }
+
+/* ─── Health layout ─── */
+.healthLayout { display: flex; gap: 16px; }
+.healthMain { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.healthRight { width: 280px; flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; }
+
+.healthWorkerCard {
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 16px 20px;
+  display: flex; align-items: center; gap: 14px;
+}
+.hwAvatar { width: 44px; height: 44px; border-radius: 50%; background: #3b82f6; color: #fff; font-size: 18px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.hwInfo { flex: 1; }
+.hwName { font-size: 18px; font-weight: 800; color: #111827; display: flex; align-items: center; gap: 8px; }
+.warnBadge { background: #fff7ed; color: #f97316; border-radius: 20px; padding: 2px 10px; font-size: 12px; font-weight: 700; }
+.hwZone { font-size: 13px; color: #9ca3af; margin-top: 2px; }
+.hwRight { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.hwBpm { font-size: 15px; font-weight: 700; color: #ef4444; }
+.hwFatigue { display: flex; align-items: center; gap: 4px; }
+.fBar { display: inline-block; width: 18px; height: 6px; border-radius: 3px; background: #e5e7eb; }
+.fBarOn { background: #f97316; }
+.fLabel { font-size: 13px; color: #374151; font-weight: 600; margin-left: 4px; }
+
+.metricsRow { display: flex; gap: 12px; }
+.metricCard { flex: 1; background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 18px; }
+.metricGreen { border-color: #bbf7d0; background: #f0fdf4; }
+.metricOrange { border-color: #fed7aa; background: #fff7ed; }
+.metricHeader { font-size: 13px; color: #6b7280; font-weight: 600; margin-bottom: 8px; }
+.metricValue  { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+.metricDesc   { font-size: 12px; color: #9ca3af; }
+
+.fatigueCard { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 18px; }
+.fatigueTitle { font-size: 14px; font-weight: 800; color: #111827; margin: 0 0 14px; }
+.fatigueStages { display: flex; gap: 10px; }
+.fatigueStage {
+  flex: 1; border: 1.5px solid #e5e7eb; border-radius: 10px; padding: 14px;
+  background: #f9fafb;
+}
+.fatigueStageActive { border-color: #f97316; background: #fff7ed; }
+.fsLabel { font-size: 14px; font-weight: 700; color: #374151; display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.fsDot   { width: 8px; height: 8px; border-radius: 50%; background: #f97316; flex-shrink: 0; }
+.fsDesc  { font-size: 12px; color: #9ca3af; }
+
+/* Health right panel */
+.actionPanel { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 18px; }
+.apTitle { font-size: 15px; font-weight: 800; color: #111827; margin: 0 0 6px; }
+.apDesc  { font-size: 13px; color: #6b7280; margin: 0 0 14px; }
+.sentBtn { width: 100%; padding: 12px; background: #dcfce7; color: #16a34a; border: none; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: default; }
+.alertBox { margin-top: 12px; background: #fff1f2; border: 1px solid #fca5a5; border-radius: 10px; padding: 12px; }
+.alertMsg { font-size: 13px; color: #dc2626; font-weight: 600; margin: 0 0 10px; display: flex; gap: 6px; }
+.managerBtn { width: 100%; padding: 10px; background: #ef4444; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; }
+
+.metaPanel { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 16px 18px; }
+.metaPanelRow { display: flex; justify-content: space-between; font-size: 14px; color: #6b7280; padding: 8px 0; border-bottom: 1px solid #f3f4f6; }
+.metaPanelRow:last-child { border-bottom: none; }
+.metaPanelRow strong { color: #111827; }

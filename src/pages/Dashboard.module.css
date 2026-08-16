@@ -1,87 +1,91 @@
 .page { display: flex; flex-direction: column; gap: 18px; }
+.pageHeader { display: flex; justify-content: space-between; align-items: flex-start; }
+.title    { font-size: 22px; font-weight: 800; color: #111827; margin: 0 0 2px; }
+.subtitle { font-size: 13px; color: #9ca3af; margin: 0; }
 
-.header   { display: flex; justify-content: space-between; align-items: flex-start; }
-.title    { font-size: 22px; font-weight: 800; color: #1a2340; margin: 0 0 4px; }
-.subtitle { font-size: 13px; color: #888; margin: 0; }
-.liveBadge { font-size: 12px; font-weight: 600; padding: 6px 14px; border-radius: 20px; white-space: nowrap; }
-
-/* 통계 카드 5개 — 균일 높이 */
-.statRow { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+/* 통계 카드 */
+.statRow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
 .statCard {
-  background: #fff; border: 1px solid #e8ecf2; border-radius: 12px;
-  padding: 18px 16px; display: flex; align-items: center; gap: 12px;
-  min-height: 88px;
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 14px;
+  padding: 18px 20px; display: flex; align-items: center; gap: 14px;
+  transition: box-shadow 0.15s;
 }
-.statIcon  { width: 46px; height: 46px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
-.statLabel { font-size: 12px; color: #888; margin-bottom: 4px; white-space: nowrap; }
-.statValue { display: flex; align-items: baseline; gap: 3px; }
-.statNum   { font-size: 26px; font-weight: 800; color: #1a2340; line-height: 1; }
-.statUnit  { font-size: 13px; color: #888; }
+.statCardActive { border-color: #f97316; box-shadow: 0 0 0 3px #fff7ed; }
+.statIcon { font-size: 26px; width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; background: #f9fafb; border-radius: 10px; flex-shrink: 0; }
+.statLabel { font-size: 12px; color: #9ca3af; margin-bottom: 2px; }
+.statNum   { font-size: 28px; font-weight: 800; color: #111827; line-height: 1; }
+.statUnit  { font-size: 14px; font-weight: 500; color: #9ca3af; margin-left: 2px; }
+.statSub   { font-size: 11px; color: #f97316; margin-top: 2px; }
 
-/* 메인 레이아웃 */
-.mainGrid { display: grid; grid-template-columns: 1fr 280px; gap: 16px; }
-.leftCol  { display: flex; flex-direction: column; gap: 16px; }
-.rightCol { display: flex; flex-direction: column; gap: 16px; }
-
-/* 카드 */
-.card { background: #fff; border: 1px solid #e8ecf2; border-radius: 14px; overflow: hidden; }
-.cardHeader {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 14px 18px; border-bottom: 1px solid #f0f2f7;
+/* 주의 작업자 카드 */
+.warnCardSection { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 18px 20px; }
+.warnCardHeader  { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.warnCardTitle   { font-size: 15px; font-weight: 700; color: #111827; flex: 1; }
+.warnCardLink    { font-size: 12px; color: #3b82f6; background: #eff6ff; border: none; border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+.warnCardClose   { background: none; border: none; font-size: 16px; color: #9ca3af; cursor: pointer; }
+.warnCardGrid    { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.warnCard {
+  border: 1.5px solid #fed7aa; border-radius: 12px; padding: 18px 16px;
+  display: flex; flex-direction: column; gap: 8px; background: #fffbf7;
 }
-.cardTitle { font-size: 15px; font-weight: 700; color: #1a2340; }
-.liveTag   { font-size: 12px; font-weight: 700; color: #e53935; }
+.warnCardAvatar { width: 56px; height: 56px; border-radius: 50%; background: #e5e7eb; margin: 0 auto 4px; }
+.warnCardName   { font-size: 15px; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 6px; }
+.warnCardZone   { font-size: 12px; color: #9ca3af; }
+.warnCardRow    { display: flex; justify-content: space-between; font-size: 13px; color: #374151; }
+.warnCardStatus { font-size: 13px; color: #f97316; font-weight: 600; }
+.warnBadge { font-size: 11px; color: #f97316; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 20px; padding: 2px 8px; font-weight: 700; }
 
-/* 테이블 — fixed layout으로 컬럼 너비 고정 */
-.table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
-.table thead tr { background: #f7f9fc; }
-.table th {
-  padding: 10px 12px; text-align: left;
-  color: #4a7cdc; font-weight: 600; font-size: 12px;
-  white-space: nowrap; overflow: hidden;
+/* 메인 그리드 */
+.mainGrid { display: grid; grid-template-columns: 1fr 260px; gap: 16px; }
+
+/* 이상 감지 목록 */
+.alertSection { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; overflow: hidden; }
+.sectionHeader { display: flex; align-items: center; gap: 8px; padding: 14px 18px; border-bottom: 1px solid #f3f4f6; }
+.liveDot     { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; animation: pulse 1.2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+.sectionTitle { font-size: 15px; font-weight: 700; color: #111827; }
+.sectionSub   { font-size: 12px; color: #9ca3af; }
+.moreBtn      { margin-left: auto; font-size: 12px; color: #3b82f6; background: none; border: none; cursor: pointer; }
+
+.alertList { display: flex; flex-direction: column; }
+.alertItem {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 14px 18px; border-bottom: 1px solid #f3f4f6;
 }
-.table td {
-  padding: 11px 12px; color: #333;
-  border-bottom: 1px solid #f5f7fb; vertical-align: middle;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.table tr:last-child td { border-bottom: none; }
-.dangerRow { background: #fff8f8; }
-.workerName { font-weight: 600; }
-.muted { color: #888; font-size: 12px; }
+.alertItem:last-child { border-bottom: none; }
+.alertIconWrap { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.alertIcon { font-size: 18px; }
+.alertBody { flex: 1; min-width: 0; }
+.alertTop  { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; }
+.alertType   { font-size: 13px; font-weight: 700; }
+.alertDot    { color: #d1d5db; }
+.alertWorker { font-size: 13px; font-weight: 600; color: #111827; }
+.alertZone   { font-size: 12px; color: #9ca3af; }
+.alertDesc   { font-size: 12px; color: #6b7280; }
+.alertTime   { font-size: 12px; color: #9ca3af; white-space: nowrap; flex-shrink: 0; }
+.detailBtn   { font-size: 12px; color: #374151; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 5px 10px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+.detailBtn:hover { background: #f3f4f6; }
 
-/* 뱃지 — min-width로 균일 크기 */
-.stateBadge  { display: inline-flex; align-items: center; justify-content: center; min-width: 68px; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 700; }
-.riskBadge   { display: inline-flex; align-items: center; justify-content: center; min-width: 68px; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 700; }
-.statusBadge { display: inline-flex; align-items: center; justify-content: center; min-width: 60px; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 700; }
-.viewBtn { padding: 4px 12px; border: 1px solid #dde3ef; border-radius: 6px; font-size: 12px; color: #555; background: #f7f9fc; cursor: pointer; }
-.viewBtn:hover { background: #e8ecf2; }
+.badgeDanger { font-size: 11px; color: #ef4444; background: #fee2e2; border-radius: 20px; padding: 2px 8px; font-weight: 700; white-space: nowrap; }
+.badgeWarn   { font-size: 11px; color: #f97316; background: #fff7ed; border-radius: 20px; padding: 2px 8px; font-weight: 700; white-space: nowrap; }
 
-/* 긴급 알림 카드 */
-.emergencyCard {
-  background: #c62828; border-radius: 14px; padding: 18px 20px;
-  display: flex; flex-direction: column; gap: 10px;
-}
-.emergencyHeader { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 800; color: #fff; }
-.emergencyDot    { width: 10px; height: 10px; border-radius: 50%; background: #ff8a80; animation: pulse 1.2s infinite; flex-shrink: 0; }
-@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
-.emergencyGrid { display: flex; flex-direction: column; gap: 0; }
-.emergencyRow  { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.12); gap: 8px; }
-.emergencyRow:last-child { border-bottom: none; }
-.emergencyKey  { font-size: 12px; color: rgba(255,255,255,0.7); flex-shrink: 0; }
-.emergencyVal  { font-size: 12px; color: #fff; font-weight: 600; text-align: right; word-break: keep-all; }
-.emergencyBtn  { width: 100%; padding: 10px; background: #fff; color: #c62828; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
-.emergencyBtn:hover  { background: #ffebee; }
-.emergencyBtn2 { width: 100%; padding: 10px; background: rgba(255,255,255,0.15); color: #fff; border: 1px solid rgba(255,255,255,0.3); border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
-.noAlert { color: rgba(255,255,255,0.7); font-size: 13px; text-align: center; padding: 20px 0; }
+/* 오른쪽 패널 */
+.rightPanel { display: flex; flex-direction: column; gap: 14px; }
+.panelCard  { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 16px 18px; }
+.panelTitle { font-size: 14px; font-weight: 700; color: #111827; margin-bottom: 12px; }
+.panelTitleRow { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.allBtn { font-size: 12px; color: #3b82f6; background: none; border: none; cursor: pointer; }
 
-/* AI 분석 카드 */
-.aiCard   { background: #fff; border: 1px solid #e8ecf2; border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
-.aiHeader { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; color: #1a2340; margin-bottom: 2px; }
-.aiIcon   { font-size: 16px; }
-.aiRow    { display: flex; justify-content: space-between; align-items: center; }
-.aiLabel  { font-size: 13px; color: #555; }
-.aiVal    { font-size: 14px; font-weight: 700; color: #1a2340; }
-.aiBar    { height: 6px; background: #f0f2f7; border-radius: 3px; }
-.aiBarFill{ height: 100%; background: #e53935; border-radius: 3px; transition: width 0.4s; }
-.aiNotice { padding: 10px 12px; background: #fff8e1; border: 1px solid #ffe082; border-radius: 8px; font-size: 12px; color: #795548; line-height: 1.6; }
+.zoneRow { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid #f3f4f6; font-size: 13px; }
+.zoneRow:last-child { border-bottom: none; }
+.zoneName   { flex: 1; color: #374151; font-weight: 600; }
+.zoneNormal { color: #22c55e; font-weight: 600; font-size: 12px; }
+.zoneWarn   { color: #f97316; font-weight: 600; font-size: 12px; }
+.zoneDanger { color: #ef4444; font-weight: 600; font-size: 12px; }
+
+.riskWorkerRow { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f3f4f6; }
+.riskWorkerRow:last-child { border-bottom: none; }
+.riskAvatar { width: 32px; height: 32px; border-radius: 50%; background: #e5e7eb; flex-shrink: 0; }
+.riskName   { font-size: 13px; font-weight: 600; color: #111827; display: flex; align-items: center; }
+.riskSub    { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+.riskInfo   { min-width: 0; }

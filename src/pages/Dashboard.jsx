@@ -3,39 +3,45 @@ import { useNavigate } from 'react-router-dom'
 import { getHelmetStatusList, getFallAlerts } from '../api/monitoring'
 import styles from './Dashboard.module.css'
 
-const MOCK_WORKERS = [
-  { name: '이준호', zone: 'B구역 3층 계단', state: 'FALLEN',  lastSeen: '10초 전',  risk: '매우 높음', riskLevel: 'very-high' },
-  { name: '김민수', zone: 'A구역 2층',      state: 'NORMAL',  lastSeen: '30초 전',  risk: '낮음',     riskLevel: 'low' },
-  { name: '박재현', zone: 'C구역 옥상',     state: 'FALLING', lastSeen: '1분 전',   risk: '보통',     riskLevel: 'medium' },
-  { name: '최성훈', zone: 'A구역 1층',      state: 'NORMAL',  lastSeen: '45초 전',  risk: '낮음',     riskLevel: 'low' },
-  { name: '정대호', zone: 'D구역 4층',      state: 'FALLING', lastSeen: '2분 전',   risk: '높음',     riskLevel: 'high' },
+const MOCK_ALERTS = [
+  { id:1, level:'danger', type:'추락 감지',    icon:'📉', worker:'박민수', zone:'A구역 3층', time:'10:28', desc:'추락 감지 — 충격·자세 변화·움직임 없음 동시 감지.' },
+  { id:2, level:'danger', type:'난간 없는 구간', icon:'⚠', worker:'박민수', zone:'A구역 3층', time:'10:26', desc:'난간 없는 구간 접근 감지 — 추락 고위험 구역.' },
+  { id:3, level:'warn',   type:'피로도 이상',   icon:'💓', worker:'김현석', zone:'B구역',     time:'10:27', desc:'피로도 2단계 감지 — 휴식 권고 필요.' },
+  { id:4, level:'warn',   type:'물웅덩이 감지', icon:'💧', worker:'이수진', zone:'C구역',     time:'10:24', desc:'작업 구역 내 물웅덩이 감지 — 미끄럼 위험.' },
+  { id:5, level:'warn',   type:'장애물 감지',   icon:'📦', worker:'김현석', zone:'B구역',     time:'10:21', desc:'장애물(적재물) 감지 — 통로 협소, 충돌 위험.' },
+  { id:6, level:'warn',   type:'열사병 위험',   icon:'🌡', worker:'정유진', zone:'B구역 1층', time:'09:55', desc:'열사병 주의 — 체온 38.1°C, 지속 관찰 필요.' },
 ]
 
-const MOCK_EVENTS = [
-  { time: '10:24:15', worker: '이준호', zone: 'B구역 3층 계단', type: '추락 감지', risk: '매우 높음', riskLevel: 'very-high', status: '대응중' },
-  { time: '09:47:02', worker: '정대호', zone: 'D구역 4층',      type: '심박수 이상', risk: '높음',    riskLevel: 'high',      status: '처리완료' },
-  { time: '08:33:41', worker: '박재현', zone: 'C구역 옥상',     type: '경사 위험',  risk: '보통',    riskLevel: 'medium',    status: '처리완료' },
+const ZONES = [
+  { name: 'A구역', normal: 8, warn: 1, danger: 0 },
+  { name: 'B구역', normal: 5, warn: 0, danger: 1 },
+  { name: 'C구역', normal: 6, warn: 2, danger: 0 },
 ]
 
-const RISK_COLOR = { 'very-high': '#e53935', high: '#ff9800', medium: '#f59e0b', low: '#43a047' }
-const RISK_BG    = { 'very-high': '#ffe0e0', high: '#fff0d0', medium: '#fffbe6', low: '#e8f5e9' }
-const STATE_LABEL = { FALLEN: '추락 감지', FALLING: '주의', NORMAL: '정상' }
-const STATE_COLOR = { FALLEN: '#e53935', FALLING: '#ff9800', NORMAL: '#43a047' }
+const RISK_WORKERS = [
+  { name: '박민수', level: 'danger', bpm: 118, zone: 'A구역 3층' },
+  { name: '김현석', level: 'warn',   bpm: 92,  zone: 'B구역' },
+  { name: '이수진', level: 'warn',   bpm: 78,  zone: 'C구역' },
+  { name: '정유진', level: 'warn',   bpm: 88,  zone: 'B구역 1층' },
+]
+
+const WARN_CARDS = [
+  { name: '김현석', zone: 'B구역', bpm: 92, fatigue: 2, status: '피로도 2단계', level: 'warn' },
+  { name: '이수진', zone: 'C구역', bpm: 78, fatigue: 1, status: '물웅덩이 감지', level: 'warn' },
+  { name: '정유진', zone: 'B구역 1층', bpm: 88, fatigue: 1, status: '열사병 주의', level: 'warn' },
+]
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const [liveData, setLiveData]     = useState({})
   const [alerts, setAlerts]         = useState([])
   const [connected, setConnected]   = useState(false)
+  const [showWarnCards, setShowWarnCards] = useState(false)
 
   useEffect(() => {
     async function fetch() {
       try {
-        const [list, alertList] = await Promise.all([getHelmetStatusList(), getFallAlerts()])
-        const map = {}
-        list.forEach((item) => { map[item.deviceId] = item })
-        setLiveData(map)
-        setAlerts([...alertList].sort((a, b) => new Date(b.recordedAt) - new Date(a.recordedAt)))
+        const list = await getFallAlerts()
+        setAlerts(list)
         setConnected(true)
       } catch { setConnected(false) }
     }
@@ -44,174 +50,152 @@ export default function Dashboard() {
     return () => clearInterval(id)
   }, [])
 
-  const latestAlert = alerts[0]
-
-  const totalWorkers  = 128
-  const normalCount   = 102
-  const cautionCount  = 17
-  const fallenCount   = alerts.length > 0 ? 1 : 0
-  const unconfirmed   = 8
+  const dangerCount = alerts.length > 0 ? 1 : 0
 
   return (
     <div className={styles.page}>
-      {/* 헤더 */}
-      <div className={styles.header}>
+      <div className={styles.pageHeader}>
         <div>
-          <h1 className={styles.title}>관리자 대시보드</h1>
-          <p className={styles.subtitle}>현장의 작업자 안전 상태를 실시간으로 모니터링하고 관리합니다.</p>
+          <h1 className={styles.title}>통합 모니터링</h1>
+          <p className={styles.subtitle}>현장 전체 실시간 현황</p>
         </div>
-        <span className={styles.liveBadge} style={{ color: connected ? '#43a047' : '#aaa', background: connected ? '#d4f5e2' : '#f0f2f7' }}>
-          {connected ? '🟢 실시간 연동 중' : '⚪ 서버 연결 대기'}
-        </span>
       </div>
 
-      {/* 통계 카드 5개 */}
+      {/* 통계 카드 4개 */}
       <div className={styles.statRow}>
-        <StatCard icon="👥" iconBg="#e8f0fe" label="전체 작업자"  value={totalWorkers} unit="명" />
-        <StatCard icon="✅" iconBg="#d4f5e2" label="정상 상태"    value={normalCount}  unit="명" accent="#43a047" />
-        <StatCard icon="⚠️" iconBg="#fff0d0" label="주의 필요"    value={cautionCount} unit="명" accent="#ff9800" />
-        <StatCard icon="🚨" iconBg="#ffe0e0" label="추락 사고"    value={fallenCount}  unit="명" accent="#e53935" />
-        <StatCard icon="🔔" iconBg="#f0f0ff" label="미확인 알림"  value={unconfirmed}  unit="건" accent="#7c3aed" />
-      </div>
-
-      {/* 메인 레이아웃 */}
-      <div className={styles.mainGrid}>
-        {/* 왼쪽 */}
-        <div className={styles.leftCol}>
-          {/* 실시간 작업자 현황 */}
-          <div className={styles.card}>
-            <div className={styles.cardHeader}>
-              <span className={styles.cardTitle}>실시간 작업자 현황</span>
-              <span className={styles.liveTag}>● 실시간</span>
-            </div>
-            <table className={styles.table}>
-              <colgroup>
-                <col style={{ width: '13%' }} /><col style={{ width: '22%' }} />
-                <col style={{ width: '14%' }} /><col style={{ width: '14%' }} />
-                <col style={{ width: '14%' }} /><col style={{ width: '10%' }} />
-              </colgroup>
-              <thead>
-                <tr>{['작업자명','위치','안전 상태','마지막 통신','위험도','상세보기'].map((h) => <th key={h}>{h}</th>)}</tr>
-              </thead>
-              <tbody>
-                {MOCK_WORKERS.map((w, i) => (
-                  <tr key={i} className={w.state === 'FALLEN' ? styles.dangerRow : ''}>
-                    <td className={styles.workerName} style={{ color: w.state === 'FALLEN' ? '#e53935' : '#1a2340' }}>{w.name}</td>
-                    <td style={{ color: w.state === 'FALLEN' ? '#e53935' : '#333' }}>{w.zone}</td>
-                    <td><span className={styles.stateBadge} style={{ background: STATE_COLOR[w.state] + '22', color: STATE_COLOR[w.state] }}>{STATE_LABEL[w.state]}</span></td>
-                    <td className={styles.muted}>{w.lastSeen}</td>
-                    <td><span className={styles.riskBadge} style={{ background: RISK_BG[w.riskLevel], color: RISK_COLOR[w.riskLevel] }}>{w.risk}</span></td>
-                    <td><button className={styles.viewBtn} onClick={() => navigate('/monitoring/status')}>보기 &rsaquo;</button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* 최근 위험 이벤트 */}
-          <div className={styles.card}>
-            <div className={styles.cardHeader}>
-              <span className={styles.cardTitle}>최근 위험 이벤트</span>
-            </div>
-            <table className={styles.table}>
-              <colgroup>
-                <col style={{ width: '13%' }} /><col style={{ width: '10%' }} />
-                <col style={{ width: '22%' }} /><col style={{ width: '15%' }} />
-                <col style={{ width: '14%' }} /><col style={{ width: '12%' }} />
-              </colgroup>
-              <thead>
-                <tr>{['발생 시간','작업자','위치','유형','위험도','상태'].map((h) => <th key={h}>{h}</th>)}</tr>
-              </thead>
-              <tbody>
-                {MOCK_EVENTS.map((e, i) => (
-                  <tr key={i}>
-                    <td className={styles.muted} style={{ color: i === 0 ? '#e53935' : '#555', fontWeight: i === 0 ? 700 : 400 }}>{e.time}</td>
-                    <td className={styles.workerName} style={{ color: i === 0 ? '#e53935' : '#1a2340' }}>{e.worker}</td>
-                    <td style={{ color: i === 0 ? '#e53935' : '#333' }}>{e.zone}</td>
-                    <td style={{ color: i === 0 ? '#e53935' : '#333', fontWeight: i === 0 ? 700 : 400 }}>{e.type}</td>
-                    <td><span className={styles.riskBadge} style={{ background: RISK_BG[e.riskLevel], color: RISK_COLOR[e.riskLevel] }}>{e.risk}</span></td>
-                    <td><span className={styles.statusBadge} style={{ background: e.status === '대응중' ? '#ffe0e0' : '#e8f5e9', color: e.status === '대응중' ? '#c62828' : '#2e7d32' }}>{e.status}</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <div className={styles.statCard}>
+          <span className={styles.statIcon}>👥</span>
+          <div>
+            <div className={styles.statLabel}>현재 작업자</div>
+            <div className={styles.statNum}>10<span className={styles.statUnit}>명</span></div>
           </div>
         </div>
+        <div className={styles.statCard}>
+          <span className={styles.statIcon} style={{ color: '#22c55e' }}>✓</span>
+          <div>
+            <div className={styles.statLabel}>정상</div>
+            <div className={styles.statNum} style={{ color: '#22c55e' }}>6<span className={styles.statUnit}>명</span></div>
+          </div>
+        </div>
+        <div className={`${styles.statCard} ${showWarnCards ? styles.statCardActive : ''}`}
+          onClick={() => setShowWarnCards(v => !v)} style={{ cursor: 'pointer' }}>
+          <span className={styles.statIcon} style={{ color: '#f97316' }}>⚠</span>
+          <div>
+            <div className={styles.statLabel}>주의</div>
+            <div className={styles.statNum} style={{ color: '#f97316' }}>3<span className={styles.statUnit}>명</span></div>
+            {showWarnCards && <div className={styles.statSub}>목록 보기 ▲</div>}
+          </div>
+        </div>
+        <div className={styles.statCard} style={{ border: '1.5px solid #fee2e2' }}>
+          <span className={styles.statIcon} style={{ color: '#ef4444' }}>⊘</span>
+          <div>
+            <div className={styles.statLabel}>위험</div>
+            <div className={styles.statNum} style={{ color: '#ef4444' }}>{dangerCount}<span className={styles.statUnit}>명</span></div>
+          </div>
+        </div>
+      </div>
 
-        {/* 오른쪽 */}
-        <div className={styles.rightCol}>
-          {/* 긴급 추락 사고 알림 */}
-          <div className={styles.emergencyCard}>
-            <div className={styles.emergencyHeader}>
-              <span className={styles.emergencyDot} />
-              긴급 추락 사고 알림
-            </div>
-            {latestAlert ? (
-              <>
-                <div className={styles.emergencyGrid}>
-                  {[
-                    ['작업자', '이준호'],
-                    ['ID', 'W-1024'],
-                    ['위치', 'B구역 3층 계단'],
-                    ['사고 유형', '추락 감지'],
-                    ['위험도', '매우 높음'],
-                    ['발생 시간', new Date(latestAlert.recordedAt).toLocaleString('ko-KR')],
-                  ].map(([k, v]) => (
-                    <div key={k} className={styles.emergencyRow}>
-                      <span className={styles.emergencyKey}>{k}</span>
-                      <span className={styles.emergencyVal}>{v}</span>
-                    </div>
-                  ))}
+      {/* 주의 작업자 카드 펼치기 */}
+      {showWarnCards && (
+        <div className={styles.warnCardSection}>
+          <div className={styles.warnCardHeader}>
+            <span className={styles.warnCardTitle}>주의 작업자 3명</span>
+            <button className={styles.warnCardLink} onClick={() => navigate('/workers')}>작업자 페이지로</button>
+            <button className={styles.warnCardClose} onClick={() => setShowWarnCards(false)}>✕</button>
+          </div>
+          <div className={styles.warnCardGrid}>
+            {WARN_CARDS.map((w) => (
+              <div key={w.name} className={styles.warnCard}>
+                <div className={styles.warnCardAvatar} />
+                <div className={styles.warnCardName}>{w.name} <span className={styles.warnBadge}>● 주의</span></div>
+                <div className={styles.warnCardZone}>@ {w.zone}</div>
+                <div className={styles.warnCardRow}><span>심박수</span><span>♡ {w.bpm} bpm</span></div>
+                <div className={styles.warnCardRow}>
+                  <span>피로도</span>
+                  <span>
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <span key={i} style={{ display:'inline-block', width:14, height:6, borderRadius:3, background: i < w.fatigue ? '#f97316' : '#e5e7eb', marginRight:2 }} />
+                    ))}
+                    {w.fatigue}단계
+                  </span>
                 </div>
-                <button className={styles.emergencyBtn} onClick={() => navigate('/accident')}>사고 상세 보기</button>
-                <button className={styles.emergencyBtn2}>주변 작업자 알림</button>
-              </>
-            ) : (
-              <div className={styles.noAlert}>현재 긴급 알림이 없습니다</div>
-            )}
-          </div>
-
-          {/* AI 안전 분석 요약 */}
-          <div className={styles.aiCard}>
-            <div className={styles.aiHeader}>
-              <span className={styles.aiIcon}>🔵</span>
-              AI 안전 분석 요약
-            </div>
-            <div className={styles.aiRow}>
-              <span className={styles.aiLabel}>전체 위험 점수</span>
-              <span className={styles.aiVal}>86/100</span>
-            </div>
-            <div className={styles.aiBar}><div className={styles.aiBarFill} style={{ width: '86%' }} /></div>
-            <div className={styles.aiRow}>
-              <span className={styles.aiLabel}>안전 준수율</span>
-              <span className={styles.aiVal} style={{ color: '#43a047' }}>91.8%</span>
-            </div>
-            <div className={styles.aiBar} style={{ background: '#e8f5e9' }}><div className={styles.aiBarFill} style={{ width: '91.8%', background: '#43a047' }} /></div>
-            <div className={styles.aiRow}>
-              <span className={styles.aiLabel}>평균 대응 시간</span>
-              <span className={styles.aiVal} style={{ color: '#4a7cdc' }}>02:38</span>
-            </div>
-            <div className={styles.aiBar} style={{ background: '#e0edff' }}><div className={styles.aiBarFill} style={{ width: '44%', background: '#4a7cdc' }} /></div>
-            <div className={styles.aiNotice}>
-              ⚠ AI 권고 사항<br />
-              <span>B구역 3층 계단 즉시 접근 통제 및 추가 안전 점검이 필요합니다.</span>
-            </div>
+                <div className={styles.warnCardStatus}>{w.status}</div>
+              </div>
+            ))}
           </div>
         </div>
-      </div>
-    </div>
-  )
-}
+      )}
 
-function StatCard({ icon, iconBg, label, value, unit, accent }) {
-  return (
-    <div className={styles.statCard} style={accent ? { borderTop: `3px solid ${accent}` } : {}}>
-      <div className={styles.statIcon} style={{ background: iconBg }}>{icon}</div>
-      <div>
-        <div className={styles.statLabel}>{label}</div>
-        <div className={styles.statValue}>
-          <span className={styles.statNum} style={accent ? { color: accent } : {}}>{value}</span>
-          <span className={styles.statUnit}>{unit}</span>
+      {/* 메인 그리드 */}
+      <div className={styles.mainGrid}>
+        {/* 실시간 이상 감지 목록 */}
+        <div className={styles.alertSection}>
+          <div className={styles.sectionHeader}>
+            <span className={styles.liveDot} />
+            <span className={styles.sectionTitle}>실시간 이상 감지</span>
+            <span className={styles.sectionSub}>최신순</span>
+            <button className={styles.moreBtn} onClick={() => navigate('/logs')}>전체 보기 ›</button>
+          </div>
+          <div className={styles.alertList}>
+            {MOCK_ALERTS.map((a) => (
+              <div key={a.id} className={styles.alertItem}>
+                <div className={styles.alertIconWrap} style={{ background: a.level === 'danger' ? '#fee2e2' : '#fff7ed' }}>
+                  <span className={styles.alertIcon}>{a.icon}</span>
+                </div>
+                <div className={styles.alertBody}>
+                  <div className={styles.alertTop}>
+                    <span className={a.level === 'danger' ? styles.badgeDanger : styles.badgeWarn}>
+                      ● {a.level === 'danger' ? '위험' : '주의'}
+                    </span>
+                    <span className={styles.alertType} style={{ color: a.level === 'danger' ? '#ef4444' : '#f97316' }}>
+                      {a.type}
+                    </span>
+                    <span className={styles.alertDot}>·</span>
+                    <span className={styles.alertWorker}>{a.worker}</span>
+                    <span className={styles.alertZone}>@ {a.zone}</span>
+                  </div>
+                  <div className={styles.alertDesc}>{a.desc}</div>
+                </div>
+                <span className={styles.alertTime}>{a.time}</span>
+                <button className={styles.detailBtn} onClick={() => navigate('/anomaly')}>👁 상세보기</button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 오른쪽 패널 */}
+        <div className={styles.rightPanel}>
+          <div className={styles.panelCard}>
+            <div className={styles.panelTitle}>현장 상태</div>
+            {ZONES.map((z) => (
+              <div key={z.name} className={styles.zoneRow}>
+                <span className={styles.zoneName}>● {z.name}</span>
+                <span className={styles.zoneNormal}>정상 {z.normal}</span>
+                {z.warn > 0 && <span className={styles.zoneWarn}>주의 {z.warn}</span>}
+                {z.danger > 0 && <span className={styles.zoneDanger}>위험 {z.danger}</span>}
+              </div>
+            ))}
+          </div>
+
+          <div className={styles.panelCard}>
+            <div className={styles.panelTitleRow}>
+              <span className={styles.panelTitle}>주의·위험 작업자</span>
+              <button className={styles.allBtn} onClick={() => navigate('/workers')}>전체</button>
+            </div>
+            {RISK_WORKERS.map((w) => (
+              <div key={w.name} className={styles.riskWorkerRow}>
+                <div className={styles.riskAvatar} />
+                <div className={styles.riskInfo}>
+                  <div className={styles.riskName}>{w.name}
+                    <span className={w.level === 'danger' ? styles.badgeDanger : styles.badgeWarn} style={{ marginLeft: 6 }}>
+                      ● {w.level === 'danger' ? '위험' : '주의'}
+                    </span>
+                  </div>
+                  <div className={styles.riskSub}>♡ {w.bpm} bpm {w.zone}</div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
