@@ -4,6 +4,7 @@ import Login         from './pages/auth/Login'
 import FindId        from './pages/auth/FindId'
 import ResetPassword from './pages/auth/ResetPassword'
 import Register      from './pages/auth/Register'
+import WorkerMobile     from './pages/worker/WorkerMobile'
 import Dashboard        from './pages/Dashboard'
 import AnomalyList      from './pages/AnomalyList'
 import AnomalyDetail    from './pages/AnomalyDetail'
@@ -39,6 +40,7 @@ export default function App() {
             <Route path="/find-id"        element={<FindId />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/register"       element={<Register />} />
+            <Route path="/worker"         element={<WorkerMobile />} />
             <Route path="/*"              element={<AppRoutes />} />
           </Routes>
         </WorkerProvider>
