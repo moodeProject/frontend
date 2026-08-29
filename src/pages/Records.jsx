@@ -27,7 +27,8 @@ function iconForDetection(item) {
 function detailHref(item) {
   if (item.category === 'fall') return '/incident';
   if (item.category === 'external') return `/detections/${item.id}`;
-  return '/detections?tab=health';
+  if (item.category === 'health') return `/detections/health/${item.id}`;
+  return '/detections';
 }
 
 export default function Records() {

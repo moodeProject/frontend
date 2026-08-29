@@ -11,7 +11,7 @@ const labelMap = { normal: '정상', warning: '주의', danger: '위험' };
 
 export default function Dashboard() {
   const { workers } = useWorkers();
-  const [expanded, setExpanded] = useState(false);
+  const [expandedStatus, setExpandedStatus] = useState('');
   const navigate = useNavigate();
   const riskyWorkers = workers.filter((w) => w.status !== 'normal');
   const counts = workers.reduce((acc, w) => ({ ...acc, [w.status]: (acc[w.status] || 0) + 1 }), {});
@@ -22,31 +22,51 @@ export default function Dashboard() {
     { key: 'danger', label: '위험', value: counts.danger || 0, unit: '명', icon: HeartPulse },
   ];
 
+  const handleSummaryClick = (key) => {
+    if (key === 'warning' || key === 'danger') {
+      setExpandedStatus((current) => current === key ? '' : key);
+      return;
+    }
+    if (key === 'all') navigate('/workers');
+    else navigate(`/workers?status=${key}`);
+  };
+
+  const expandedWorkers = expandedStatus
+    ? workers.filter((worker) => worker.status === expandedStatus)
+    : [];
+
   return (
     <>
       <TopHeader title="통합 모니터링" subtitle="현장 전체 실시간 현황" />
       <div className="page-body dashboard-page">
         <section className="summary-grid">
-          {summary.map(({ key, label, value, unit, icon: Icon }) => (
-            <button key={key} className={`summary-card ${key}`} onClick={() => key === 'warning' && setExpanded(true)}>
-              <div>
-                <span>{label}</span>
-                <strong>{value}<small>{unit}</small></strong>
-                {key === 'warning' && <em>목록 보기 ▲</em>}
-              </div>
-              <div className="summary-icon"><Icon size={19} /></div>
-            </button>
-          ))}
+          {summary.map(({ key, label, value, unit, icon: Icon }) => {
+            const expandable = key === 'warning' || key === 'danger';
+            const isExpanded = expandedStatus === key;
+            return (
+              <button key={key} className={`summary-card ${key} ${isExpanded ? 'selected' : ''}`} onClick={() => handleSummaryClick(key)}>
+                <div>
+                  <span>{label}</span>
+                  <strong>{value}<small>{unit}</small></strong>
+                </div>
+                <div className="summary-icon"><Icon size={19} /></div>
+                {expandable && <em className="summary-list-toggle">{isExpanded ? '목록 닫기 ▼' : '목록 보기 ▲'}</em>}
+              </button>
+            );
+          })}
         </section>
 
-        {expanded && (
-          <section className="expanded-workers panel">
+        {expandedStatus && (
+          <section className={`expanded-workers panel ${expandedStatus}`}>
             <div className="panel-title-row">
-              <div><strong>주의 작업자</strong><span>{counts.warning || 0}명</span></div>
-              <div className="row-actions"><button onClick={() => navigate('/workers')}>작업자 페이지로</button><button className="icon-btn" onClick={() => setExpanded(false)}><X size={15}/></button></div>
+              <div><strong>{labelMap[expandedStatus]} 작업자</strong><span>{expandedWorkers.length}명</span></div>
+              <button className="icon-btn expanded-close" onClick={() => setExpandedStatus('')} aria-label="목록 닫기"><X size={16}/></button>
             </div>
             <div className="expanded-worker-grid">
-              {riskyWorkers.filter((w) => w.status === 'warning').map((w) => <WorkerCard key={w.id} worker={w} compact />)}
+              {expandedWorkers.map((worker) => <WorkerCard key={worker.id} worker={worker} compact />)}
+            </div>
+            <div className="expanded-workers-footer">
+              <button onClick={() => navigate(`/workers?status=${expandedStatus}`)}>{labelMap[expandedStatus]} 작업자 전체보기</button>
             </div>
           </section>
         )}
@@ -66,7 +86,7 @@ export default function Dashboard() {
                     <p>{a.description}</p>
                   </div>
                   <time>{a.time}</time>
-                  <Link className="detail-btn" to={a.id === 1 ? "/incident" : `/detections/${a.id}`}><Eye size={14}/> 상세보기</Link>
+                  <Link className="detail-btn" to={a.id === 1 ? '/incident' : a.id === 3 || a.id === 6 ? `/detections/health/${a.id}` : `/detections/${a.id}`}><Eye size={14}/> 상세보기</Link>
                 </div>
               ))}
             </div>
@@ -79,7 +99,7 @@ export default function Dashboard() {
             </section>
             <section className="panel risk-list-panel">
               <div className="panel-title-row border-bottom"><strong>주의·위험 작업자</strong><Link to="/workers">전체</Link></div>
-              {riskyWorkers.map((w) => <div key={w.id} className="risk-list-row"><div className="mini-avatar">{w.profileImage ? <img src={w.profileImage} alt=""/> : w.name.slice(0,1)}</div><div><div><strong>{w.name}</strong> <StatusBadge level={w.status}>{labelMap[w.status]}</StatusBadge></div><p><HeartPulse size={12}/> {w.heartRate} <small>bpm</small> <span>{w.zone}</span></p></div></div>)}
+              {riskyWorkers.map((w) => <Link to={`/workers/${encodeURIComponent(w.id)}`} key={w.id} className="risk-list-row"><div className="mini-avatar">{w.profileImage ? <img src={w.profileImage} alt=""/> : w.name.slice(0,1)}</div><div><div><strong>{w.name}</strong> <StatusBadge level={w.status}>{labelMap[w.status]}</StatusBadge></div><p><HeartPulse size={12}/> {w.heartRate} <small>bpm</small> <span>{w.zone}</span></p></div></Link>)}
             </section>
           </aside>
         </div>

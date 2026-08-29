@@ -29,9 +29,24 @@ export function NotificationProvider({ children }) {
 
   const markRead = (id) => setNotifications((items) => items.map((item) => item.id === id ? { ...item, read: true } : item));
   const markAllRead = () => setNotifications((items) => items.map((item) => ({ ...item, read: true })));
+  const addNotification = (notification) => {
+    const now = new Date();
+    const item = {
+      id: notification.id || `n-${Date.now()}`,
+      level: notification.level || 'warning',
+      title: notification.title || '새 알림',
+      message: notification.message || '',
+      time: notification.time || now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }),
+      date: notification.date || `${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}`,
+      target: notification.target || '/notifications',
+      read: false,
+    };
+    setNotifications((items) => [item, ...items]);
+    return item;
+  };
   const unreadCount = notifications.filter((item) => !item.read).length;
 
-  const value = useMemo(() => ({ notifications, unreadCount, markRead, markAllRead }), [notifications, unreadCount]);
+  const value = useMemo(() => ({ notifications, unreadCount, markRead, markAllRead, addNotification }), [notifications, unreadCount]);
   return <NotificationContext.Provider value={value}>{children}</NotificationContext.Provider>;
 }
 

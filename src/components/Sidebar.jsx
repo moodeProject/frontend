@@ -23,15 +23,22 @@ export default function Sidebar() {
   const navigate = useNavigate();
   const { unresolvedDangerCount } = useDetections();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [admin, setAdmin] = useState(currentAdmin);
   const menuRef = useRef(null);
-  const admin = currentAdmin();
 
   useEffect(() => {
     const close = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) setMenuOpen(false);
     };
+    const syncAdmin = () => setAdmin(currentAdmin());
     document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
+    window.addEventListener('safehelmet-admin-profile-updated', syncAdmin);
+    window.addEventListener('storage', syncAdmin);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      window.removeEventListener('safehelmet-admin-profile-updated', syncAdmin);
+      window.removeEventListener('storage', syncAdmin);
+    };
   }, []);
 
   const logout = () => {

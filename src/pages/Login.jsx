@@ -7,7 +7,7 @@ const ACCOUNT_KEY = 'safehelmet_admin_accounts';
 function getAccounts() {
   const saved = JSON.parse(localStorage.getItem(ACCOUNT_KEY) || '[]');
   if (saved.length) return saved;
-  const defaults = [{ id: 'admin', password: 'admin1234!', name: '관리자', email: 'admin@safehelmet.kr', phone: '010-0000-0000', department: '안전관리팀', approved: true }];
+  const defaults = [{ id: 'admin', employeeNumber: 'ADM-001', password: 'admin1234!', name: '관리자', email: 'admin@safehelmet.kr', phone: '010-0000-0000', department: '안전관리팀', approved: true }];
   localStorage.setItem(ACCOUNT_KEY, JSON.stringify(defaults));
   return defaults;
 }

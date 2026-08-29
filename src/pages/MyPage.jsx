@@ -1,4 +1,4 @@
-import { Check, KeyRound, LogOut, Mail, Phone, ShieldCheck, UserRound } from 'lucide-react';
+import { BadgeCheck, Check, KeyRound, LogOut, Mail, Phone, ShieldCheck, UserRound } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TopHeader from '../components/TopHeader';
@@ -7,13 +7,25 @@ const ACCOUNT_KEY = 'safehelmet_admin_accounts';
 const CURRENT_KEY = 'safehelmet_current_admin';
 
 function getCurrent() {
-  try { return JSON.parse(localStorage.getItem(CURRENT_KEY) || '{}'); } catch { return {}; }
+  try {
+    const saved = JSON.parse(localStorage.getItem(CURRENT_KEY) || '{}');
+    return { employeeNumber: 'ADM-001', ...saved };
+  } catch {
+    return { employeeNumber: 'ADM-001' };
+  }
 }
 
 export default function MyPage() {
   const navigate = useNavigate();
   const [admin, setAdmin] = useState(getCurrent);
-  const [form, setForm] = useState(() => ({ name: admin.name || '', email: admin.email || '', phone: admin.phone || '', department: admin.department || '' }));
+  const [form, setForm] = useState(() => ({
+    id: admin.id || '',
+    employeeNumber: admin.employeeNumber || 'ADM-001',
+    name: admin.name || '',
+    email: admin.email || '',
+    phone: admin.phone || '',
+    department: admin.department || '',
+  }));
   const [passwords, setPasswords] = useState({ current: '', next: '', confirm: '' });
   const [profileMessage, setProfileMessage] = useState('');
   const [passwordMessage, setPasswordMessage] = useState('');
@@ -21,12 +33,30 @@ export default function MyPage() {
 
   const saveProfile = (e) => {
     e.preventDefault();
+    setProfileMessage('');
+    const nextId = form.id.trim();
+    const nextEmployeeNumber = admin.employeeNumber || 'ADM-001';
+    if (nextId.length < 4 || !/^[A-Za-z0-9_-]+$/.test(nextId)) return setProfileMessage('아이디는 영문·숫자·-_ 조합 4자 이상으로 입력해주세요.');
     if (!form.name.trim() || !form.email.trim()) return setProfileMessage('이름과 이메일을 입력해주세요.');
-    const updated = { ...admin, ...form };
-    localStorage.setItem(CURRENT_KEY, JSON.stringify(updated));
+
     const accounts = JSON.parse(localStorage.getItem(ACCOUNT_KEY) || '[]');
-    localStorage.setItem(ACCOUNT_KEY, JSON.stringify(accounts.map((item) => item.id === admin.id ? { ...item, ...form } : item)));
+    if (accounts.some((item) => item.id !== admin.id && item.id === nextId)) return setProfileMessage('이미 사용 중인 아이디입니다.');
+
+    const updated = {
+      ...admin,
+      ...form,
+      id: nextId,
+      employeeNumber: nextEmployeeNumber,
+      name: form.name.trim(),
+      email: form.email.trim(),
+      phone: form.phone.trim(),
+      department: form.department.trim(),
+    };
+    localStorage.setItem(CURRENT_KEY, JSON.stringify(updated));
+    localStorage.setItem(ACCOUNT_KEY, JSON.stringify(accounts.map((item) => item.id === admin.id ? { ...item, ...updated } : item)));
     setAdmin(updated);
+    setForm((value) => ({ ...value, id: updated.id, employeeNumber: updated.employeeNumber }));
+    window.dispatchEvent(new CustomEvent('safehelmet-admin-profile-updated', { detail: updated }));
     setProfileMessage('관리자 정보가 저장되었습니다.');
   };
 
@@ -42,6 +72,7 @@ export default function MyPage() {
     const accounts = JSON.parse(localStorage.getItem(ACCOUNT_KEY) || '[]');
     localStorage.setItem(ACCOUNT_KEY, JSON.stringify(accounts.map((item) => item.id === admin.id ? { ...item, password: passwords.next } : item)));
     setAdmin(updated);
+    window.dispatchEvent(new CustomEvent('safehelmet-admin-profile-updated', { detail: updated }));
     setPasswords({ current: '', next: '', confirm: '' });
     setPasswordMessage('비밀번호가 변경되었습니다.');
   };
@@ -53,26 +84,29 @@ export default function MyPage() {
 
   return (
     <>
-      <TopHeader title="마이페이지" subtitle="관리자 계정 및 보안 설정" />
+      <TopHeader title="마이페이지" subtitle="로그인한 관리자 회원정보 및 보안 설정" />
       <div className="page-body mypage-page">
         <section className="panel my-profile-summary">
           <div className="my-avatar">{(admin.name || '관').slice(0, 1)}</div>
           <div>
             <div className="my-name-row"><h2>{admin.name || '관리자'}</h2><span><ShieldCheck size={12}/> 승인 완료</span></div>
-            <p>{admin.department || '안전관리팀'} · {admin.email || 'admin@safehelmet.kr'}</p>
+            <p>{admin.employeeNumber || 'ADM-001'} · {admin.department || '안전관리팀'} · {admin.email || 'admin@safehelmet.kr'}</p>
           </div>
           <button className="mypage-logout-top" onClick={logout}><LogOut size={14}/> 로그아웃</button>
         </section>
 
         <div className="mypage-grid">
           <form className="panel mypage-card" onSubmit={saveProfile}>
-            <div className="mypage-card-head"><span className="mypage-head-icon"><UserRound size={17}/></span><div><h3>관리자 정보</h3><p>기본 계정 정보를 확인하고 수정합니다.</p></div></div>
-            <label className="mypage-field"><span>아이디</span><input value={admin.id || ''} disabled/></label>
+            <div className="mypage-card-head"><span className="mypage-head-icon"><UserRound size={17}/></span><div><h3>회원정보</h3><p>로그인한 관리자 정보를 확인하고 수정합니다.</p></div></div>
+            <div className="mypage-two-col">
+              <label className="mypage-field"><span>아이디 *</span><input value={form.id} onChange={(e) => setForm((v) => ({ ...v, id: e.target.value }))} placeholder="관리자 아이디"/></label>
+              <label className="mypage-field"><span><BadgeCheck size={12}/> 관리자 사번</span><input value={form.employeeNumber} disabled readOnly/><small className="mypage-fixed-help">관리자 사번은 계정 생성 후 변경할 수 없습니다.</small></label>
+            </div>
             <label className="mypage-field"><span>이름 *</span><input value={form.name} onChange={(e) => setForm((v) => ({ ...v, name: e.target.value }))}/></label>
             <label className="mypage-field"><span><Mail size={12}/> 이메일 *</span><input type="email" value={form.email} onChange={(e) => setForm((v) => ({ ...v, email: e.target.value }))}/></label>
             <label className="mypage-field"><span><Phone size={12}/> 연락처</span><input value={form.phone} onChange={(e) => setForm((v) => ({ ...v, phone: e.target.value }))} placeholder="010-0000-0000"/></label>
             <label className="mypage-field"><span>소속 / 부서</span><input value={form.department} onChange={(e) => setForm((v) => ({ ...v, department: e.target.value }))}/></label>
-            {profileMessage && <div className={`mypage-message ${profileMessage.includes('저장') ? 'success' : 'error'}`}><Check size={12}/>{profileMessage}</div>}
+            {profileMessage && <div className={`mypage-message ${profileMessage.includes('저장') ? 'success' : 'error'}`}>{profileMessage.includes('저장') && <Check size={12}/>} {profileMessage}</div>}
             <button className="mypage-save" type="submit">정보 저장</button>
           </form>
 

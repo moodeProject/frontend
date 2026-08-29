@@ -1,20 +1,45 @@
 import { AlertOctagon, CheckCircle2, Flame, MapPin, Phone, Play, TriangleAlert } from 'lucide-react';
-import { useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import ActionToast from '../components/ActionToast';
 import TopHeader from '../components/TopHeader';
 import { useDetections } from '../context/DetectionContext';
+import { useNotifications } from '../context/NotificationContext';
 
 const FALL_ID = 1;
 
 export default function IncidentDetail() {
+  const navigate = useNavigate();
   const { detections, acknowledgeDetection, completeDetection } = useDetections();
+  const { addNotification } = useNotifications();
+  const [toast, setToast] = useState({ message: '', type: 'success' });
+  const [rescueSent, setRescueSent] = useState(false);
   const incident = detections.find((item) => item.id === FALL_ID);
   const isCompleted = incident?.processClass === 'completed';
 
-  // 상세 화면을 열면 '확인 필요한 새 위험' 배지에서는 제외한다.
   useEffect(() => {
     acknowledgeDetection(FALL_ID);
   }, []);
+
+  const complete = () => {
+    completeDetection(FALL_ID);
+    setToast({ message: '추락 사고를 처리완료로 변경했습니다.', type: 'success' });
+  };
+
+  const requestRescue = () => {
+    if (rescueSent) {
+      setToast({ message: '이미 긴급 구조 요청이 전송되었습니다.', type: 'info' });
+      return;
+    }
+    setRescueSent(true);
+    addNotification({
+      level: 'danger',
+      title: '긴급 구조 요청 전송',
+      message: '박민수 · A구역 3층 · 현장 구조 대응을 요청했습니다.',
+      target: '/incident',
+    });
+    setToast({ message: '현장 구조 담당자에게 긴급 구조 요청을 전송했습니다.', type: 'warning' });
+  };
 
   return (
     <>
@@ -26,7 +51,7 @@ export default function IncidentDetail() {
           <button
             type="button"
             className={isCompleted ? 'completed' : ''}
-            onClick={() => !isCompleted && completeDetection(FALL_ID)}
+            onClick={() => !isCompleted && complete()}
             disabled={isCompleted}
           >
             {isCompleted ? <><CheckCircle2 size={14}/> 처리완료</> : '● 처리중 · 완료하기'}
@@ -59,11 +84,12 @@ export default function IncidentDetail() {
             <section className="panel worker-info-card"><div className="worker-head"><div className="mini-avatar large">박</div><div><strong>박민수</strong><span>A구역 3층 · H-001</span></div></div><dl><div><dt>발생 시간</dt><dd>10:28</dd></div><div><dt>심박수</dt><dd>118 bpm</dd></div><div><dt>피로도</dt><dd>2단계</dd></div></dl></section>
             <section className="panel detection-card"><h3>추락 감지 결과</h3><div>충격 감지 <b>높음</b></div><div>자세 변화 <b>감지됨</b></div><div>움직임 <b>없음</b></div><div>최종 판단 <b>추락 가능성 높음</b></div></section>
             <section className="panel related-card"><h3>연관 외부요인</h3><div className="blue"><Flame size={15}/> 물웅덩이 감지 <b>3분 전</b></div><div className="red"><TriangleAlert size={15}/> 난간 없는 구간 <b>2분 전</b></div></section>
-            <button className="emergency-btn"><Phone size={16}/> 긴급 구조 요청</button>
-            <button className="location-btn"><MapPin size={16}/> 작업자 위치 확인</button>
+            <button className="emergency-btn" onClick={requestRescue}><Phone size={16}/> {rescueSent ? '구조 요청 전송됨' : '긴급 구조 요청'}</button>
+            <button className="location-btn" onClick={() => { setToast({ message: '박민수 현재 위치: A구역 3층', type: 'info' }); navigate('/workers/H-001'); }}><MapPin size={16}/> 작업자 위치 확인</button>
           </aside>
         </div>
       </div>
+      <ActionToast message={toast.message} type={toast.type} onClose={() => setToast({ message: '', type: 'success' })}/>
     </>
   );
 }

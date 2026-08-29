@@ -1,14 +1,35 @@
-import { AlertTriangle, Bell, CheckCheck, ChevronRight } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { AlertTriangle, Bell, CheckCheck, ChevronRight, RefreshCw } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useNotifications } from '../context/NotificationContext';
 
-export default function TopHeader({ title, subtitle }) {
+function getSavedUpdateTime(pathname) {
+  try {
+    const raw = sessionStorage.getItem(`safehelmet-last-updated:${pathname}`);
+    if (raw) return new Date(raw);
+  } catch {}
+  return new Date();
+}
+
+export default function TopHeader({ title, subtitle, onRefresh }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
   const [open, setOpen] = useState(false);
+  const [now, setNow] = useState(() => new Date());
+  const [lastUpdated, setLastUpdated] = useState(() => getSavedUpdateTime(location.pathname));
+  const [refreshing, setRefreshing] = useState(false);
   const popoverRef = useRef(null);
   const recent = notifications.slice(0, 4);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    setLastUpdated(getSavedUpdateTime(location.pathname));
+  }, [location.pathname]);
 
   useEffect(() => {
     const close = (event) => {
@@ -17,6 +38,36 @@ export default function TopHeader({ title, subtitle }) {
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
   }, []);
+
+  const dateLabel = useMemo(() => now.toLocaleDateString('ko-KR', {
+    month: 'long', day: 'numeric', weekday: 'short',
+  }), [now]);
+  const clockLabel = useMemo(() => now.toLocaleTimeString('ko-KR', {
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true,
+  }), [now]);
+  const formatTime = (date) => date.toLocaleTimeString('ko-KR', {
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+  });
+
+  const handleRefresh = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    const at = new Date();
+    window.dispatchEvent(new CustomEvent('safehelmet-page-refresh', {
+      detail: { at: at.toISOString(), path: location.pathname, title },
+    }));
+    try {
+      if (onRefresh) await onRefresh();
+      await new Promise((resolve) => window.setTimeout(resolve, 350));
+    } finally {
+      const completedAt = new Date();
+      setLastUpdated(completedAt);
+      try {
+        sessionStorage.setItem(`safehelmet-last-updated:${location.pathname}`, completedAt.toISOString());
+      } catch {}
+      setRefreshing(false);
+    }
+  };
 
   const openNotification = (item) => {
     markRead(item.id);
@@ -31,10 +82,16 @@ export default function TopHeader({ title, subtitle }) {
         <p>{subtitle}</p>
       </div>
       <div className="header-right">
-        <span className="date">8월 16일 (일)</span>
-        <span className="clock">· 오후 06:11:13</span>
+        <span className="date">{dateLabel}</span>
+        <span className="clock">· {clockLabel}</span>
         <span className="header-pill danger">● 위험 1명</span>
         <span className="header-pill warning">● 주의 3명</span>
+        <div className="page-refresh-wrap" title={`${title} 페이지 데이터 갱신`}>
+          <span>마지막 업데이트 {formatTime(lastUpdated)}</span>
+          <button className={`page-refresh-btn ${refreshing ? 'refreshing' : ''}`} onClick={handleRefresh} aria-label={`${title} 새로고침`}>
+            <RefreshCw size={14}/><b>{refreshing ? '갱신 중' : '새로고침'}</b>
+          </button>
+        </div>
         <div className="notification-wrap" ref={popoverRef}>
           <button className={`bell-btn ${open ? 'active' : ''}`} onClick={() => setOpen((v) => !v)} aria-label="알림 열기">
             <Bell size={16} />

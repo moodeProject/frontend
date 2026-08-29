@@ -1,6 +1,7 @@
-import { ArrowDownRight, Camera, ChevronLeft, Cpu, HardHat, Heart, MapPin, Package, Phone, Trash2, Wifi } from 'lucide-react';
+import { ArrowDownRight, Camera, ChevronLeft, Cpu, HardHat, Heart, MapPin, Package, Phone, RefreshCw, Trash2, Wifi } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import ActionToast from '../components/ActionToast';
 import DeleteWorkerModal from '../components/DeleteWorkerModal';
 import StatusBadge from '../components/StatusBadge';
 import TopHeader from '../components/TopHeader';
@@ -41,6 +42,8 @@ export default function WorkerDetail() {
   const worker = workers.find((item) => item.id === decodeURIComponent(workerId));
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [imageError, setImageError] = useState('');
+  const [reconnectingHelmet, setReconnectingHelmet] = useState(false);
+  const [toast, setToast] = useState('');
   const imageInput = useRef(null);
 
   if (!worker) {
@@ -68,13 +71,44 @@ export default function WorkerDetail() {
     navigate('/workers');
   };
 
+  const reconnectHelmet = () => {
+    if (!worker.helmetId || reconnectingHelmet) return;
+    setReconnectingHelmet(true);
+    setToast(`${worker.helmetId} 헬멧 연결을 다시 확인하고 있습니다.`);
+    window.setTimeout(() => {
+      try {
+        const key = 'safehelmet-helmets-v1';
+        const helmets = JSON.parse(localStorage.getItem(key) || '[]');
+        const next = helmets.map((helmet) => helmet.helmetNumber === worker.helmetId ? {
+          ...helmet,
+          workerId: worker.id,
+          workerName: worker.name,
+          sensorConnected: true,
+          lastCommunication: '방금 전',
+          status: 'inUse',
+        } : helmet);
+        if (helmets.length) localStorage.setItem(key, JSON.stringify(next));
+        const currentWorker = JSON.parse(localStorage.getItem('safehelmet_worker_profile') || '{}');
+        if (currentWorker.helmetNo === worker.helmetId) {
+          const updatedProfile = { ...currentWorker, helmetConnected: true, sensorConnected: true, helmetLastConnectedAt: new Date().toISOString() };
+          localStorage.setItem('safehelmet_worker_profile', JSON.stringify(updatedProfile));
+          window.dispatchEvent(new CustomEvent('safehelmet-worker-profile-updated', { detail: updatedProfile }));
+        }
+      } catch {}
+      updateWorker(worker.id, { sensorConnected: true });
+      window.dispatchEvent(new Event('safehelmet-helmets-updated'));
+      setReconnectingHelmet(false);
+      setToast(`${worker.helmetId} 헬멧과 센서가 재연결되었습니다.`);
+    }, 650);
+  };
+
   return (
     <>
       <TopHeader title="작업자 상태" subtitle="전체 작업자 현황" />
       <div className="page-body worker-detail-page">
         <div className="worker-detail-actions">
           <Link className="detail-back" to="/workers"><ChevronLeft size={16}/> 작업자 목록</Link>
-          <button className="delete-worker-btn" onClick={() => setDeleteOpen(true)}><Trash2 size={14}/> 작업자 삭제</button>
+          <div className="worker-detail-action-buttons"><button className="reconnect-worker-helmet-btn" onClick={reconnectHelmet} disabled={reconnectingHelmet || !worker.helmetId}><RefreshCw size={14} className={reconnectingHelmet ? 'spin' : ''}/> {reconnectingHelmet ? '재연결 중' : '헬멧 재연결'}</button><button className="delete-worker-btn" onClick={() => setDeleteOpen(true)}><Trash2 size={14}/> 작업자 삭제</button></div>
         </div>
 
         <section className="panel worker-profile-panel">
@@ -105,6 +139,7 @@ export default function WorkerDetail() {
         </div>
       </div>
       <DeleteWorkerModal worker={worker} open={deleteOpen} onClose={() => setDeleteOpen(false)} onDelete={handleDelete}/>
+      <ActionToast message={toast} onClose={() => setToast('')} />
     </>
   );
 }

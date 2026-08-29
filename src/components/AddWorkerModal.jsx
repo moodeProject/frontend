@@ -20,6 +20,16 @@ const emptyForm = {
   profileImage: '',
 };
 
+function FieldLabel({ children, optional, helper }) {
+  return (
+    <span className="form-label-line">
+      <span>{children}</span>
+      {optional && <small>(선택)</small>}
+      {helper && <small>{helper}</small>}
+    </span>
+  );
+}
+
 export default function AddWorkerModal({ open, onClose, onAdd, workers }) {
   const nextNumber = useMemo(() => {
     const used = workers
@@ -103,32 +113,40 @@ export default function AddWorkerModal({ open, onClose, onAdd, workers }) {
           </div>
         </div>
 
-        <label className="form-field">이름 <b>*</b>
+        <label className="form-field form-field-full">
+          <FieldLabel>이름 <b>*</b></FieldLabel>
           <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="예: 홍길동"/>
         </label>
 
-        <div className="form-grid-2">
-          <label className="form-field">사번 <span>(미입력 시 자동 생성)</span>
+        <div className="form-grid-2 aligned-form-grid">
+          <label className="form-field">
+            <FieldLabel helper="(미입력 시 자동 생성)">사번</FieldLabel>
             <input value={form.employeeNumber} onChange={(e) => setForm({ ...form, employeeNumber: e.target.value })} placeholder={`예: W${nextNumber}`}/>
           </label>
-          <label className="form-field">연락처 <span>(선택)</span>
+          <label className="form-field">
+            <FieldLabel optional>연락처</FieldLabel>
             <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="예: 010-1234-5678"/>
           </label>
         </div>
 
-        <div className="form-grid-2">
-          <label className="form-field">소속 구역
+        <div className="form-grid-2 aligned-form-grid">
+          <label className="form-field">
+            <FieldLabel>소속 구역</FieldLabel>
             <select value={form.zone} onChange={(e) => setForm({ ...form, zone: e.target.value })}>
               <option>A구역</option><option>B구역</option><option>C구역</option>
             </select>
           </label>
-          <label className="form-field">세부 위치 <span>(선택)</span>
+          <label className="form-field">
+            <FieldLabel optional>세부 위치</FieldLabel>
             <input value={form.detailLocation} onChange={(e) => setForm({ ...form, detailLocation: e.target.value })} placeholder="예: A구역 2층"/>
           </label>
         </div>
-        <label className="form-field">헬멧 번호 <span>(선택)</span>
+
+        <label className="form-field form-field-full">
+          <FieldLabel optional>헬멧 번호</FieldLabel>
           <input value={form.helmetId} onChange={(e) => setForm({ ...form, helmetId: e.target.value })} placeholder={`예: H-${nextNumber}`}/>
         </label>
+
         {error && <p className="form-error">{error}</p>}
         <div className="modal-actions"><button type="button" className="secondary-modal-btn" onClick={close}>취소</button><button type="submit" className="primary-modal-btn">등록</button></div>
       </form>

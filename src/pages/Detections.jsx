@@ -75,7 +75,7 @@ export default function Detections() {
 
           {rows.map((item) => {
             const { Icon, className } = typeMeta[item.kind];
-            const detailTo = item.kind === 'fall' ? '/incident' : `/detections/${item.id}`;
+            const detailTo = item.kind === 'fall' ? '/incident' : item.category === 'health' ? `/detections/health/${item.id}` : `/detections/${item.id}`;
             return (
               <div className={`detection-table detection-table-row ${item.level}`} key={item.id}>
                 <div><span className={`risk-chip ${item.level}`}>● {levelLabel[item.level]}</span></div>

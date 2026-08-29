@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import AuthLayout from '../components/AuthLayout';
 
 const ACCOUNT_KEY = 'safehelmet_admin_accounts';
-const initial = { id:'', password:'', passwordConfirm:'', name:'', email:'', phone:'', department:'' };
+const initial = { id:'', password:'', passwordConfirm:'', employeeNumber:'', name:'', email:'', phone:'', department:'' };
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -17,9 +17,10 @@ export default function Signup() {
     if (form.id.trim().length < 4 || !/^[A-Za-z0-9]+$/.test(form.id)) return setError('아이디는 영문·숫자 조합 4자 이상으로 입력해주세요.');
     if (form.password.length < 8 || !/[A-Za-z]/.test(form.password) || !/[0-9]/.test(form.password) || !/[^A-Za-z0-9]/.test(form.password)) return setError('비밀번호는 8자 이상이며 영문·숫자·특수문자를 포함해야 합니다.');
     if (form.password !== form.passwordConfirm) return setError('비밀번호 확인이 일치하지 않습니다.');
-    if (!form.name.trim() || !form.email.trim()) return setError('필수 정보를 입력해주세요.');
+    if (!form.employeeNumber.trim() || !form.name.trim() || !form.email.trim()) return setError('필수 정보를 입력해주세요.');
     const accounts = JSON.parse(localStorage.getItem(ACCOUNT_KEY) || '[]');
     if (accounts.some(a => a.id === form.id)) return setError('이미 사용 중인 아이디입니다.');
+    if (accounts.some(a => a.employeeNumber === form.employeeNumber.trim())) return setError('이미 등록된 관리자 사번입니다.');
     if (accounts.some(a => a.email.toLowerCase() === form.email.toLowerCase())) return setError('이미 등록된 이메일입니다.');
     accounts.push({...form, approved:false});
     localStorage.setItem(ACCOUNT_KEY, JSON.stringify(accounts));
@@ -42,6 +43,7 @@ export default function Signup() {
 
         <div className="auth-divider"/>
         <div className="auth-section-title">담당자 정보</div>
+        <label className="auth-field"><span>관리자 사번 *</span><input value={form.employeeNumber} onChange={update('employeeNumber')} placeholder="예: ADM-001" /></label>
         <label className="auth-field"><span>이름 *</span><input value={form.name} onChange={update('name')} placeholder="실명을 입력하세요" /></label>
         <label className="auth-field"><span>이메일 *</span><input type="email" value={form.email} onChange={update('email')} placeholder="업무용 이메일 주소" /></label>
         <label className="auth-field"><span>연락처</span><input value={form.phone} onChange={update('phone')} placeholder="010-0000-0000" /></label>

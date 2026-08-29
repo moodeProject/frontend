@@ -1,6 +1,8 @@
-import { MoreHorizontal, Plus, Search, Wifi } from 'lucide-react';
+import { Link2, MoreHorizontal, Plus, RefreshCw, Search, Wifi } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import AddHelmetModal from '../components/AddHelmetModal';
+import ConnectHelmetModal from '../components/ConnectHelmetModal';
+import ActionToast from '../components/ActionToast';
 import TopHeader from '../components/TopHeader';
 import { useWorkers } from '../context/WorkerContext';
 
@@ -25,11 +27,15 @@ function loadHelmets() {
 }
 
 export default function HelmetManagement() {
-  const { workers } = useWorkers();
+  const { workers, updateWorker } = useWorkers();
   const [helmets, setHelmets] = useState(loadHelmets);
   const [search, setSearch] = useState('');
   const [registerOpen, setRegisterOpen] = useState(false);
+  const [connectOpen, setConnectOpen] = useState(false);
+  const [connectPreset, setConnectPreset] = useState({ helmetNumber: '', workerId: '' });
   const [menuFor, setMenuFor] = useState('');
+  const [toast, setToast] = useState('');
+  const [reconnectingFor, setReconnectingFor] = useState('');
   const menuRef = useRef(null);
 
   useEffect(() => localStorage.setItem(STORAGE_KEY, JSON.stringify(helmets)), [helmets]);
@@ -39,6 +45,22 @@ export default function HelmetManagement() {
     };
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
+  }, []);
+  useEffect(() => {
+    const syncHelmets = () => setHelmets(loadHelmets());
+    const refreshPage = (event) => {
+      if (!event.detail?.path || event.detail.path === '/helmets') syncHelmets();
+    };
+    window.addEventListener('safehelmet-worker-helmet-reconnected', syncHelmets);
+    window.addEventListener('safehelmet-helmets-updated', syncHelmets);
+    window.addEventListener('safehelmet-page-refresh', refreshPage);
+    window.addEventListener('storage', syncHelmets);
+    return () => {
+      window.removeEventListener('safehelmet-worker-helmet-reconnected', syncHelmets);
+      window.removeEventListener('safehelmet-helmets-updated', syncHelmets);
+      window.removeEventListener('safehelmet-page-refresh', refreshPage);
+      window.removeEventListener('storage', syncHelmets);
+    };
   }, []);
 
   const filtered = useMemo(() => {
@@ -50,9 +72,84 @@ export default function HelmetManagement() {
   const inUse = helmets.filter((item) => item.status === 'inUse').length;
   const disconnected = helmets.filter((item) => item.status === 'disconnected').length;
 
-  const addHelmet = (helmet) => setHelmets((prev) => [...prev, helmet]);
-  const unassign = (helmetNumber) => setHelmets((prev) => prev.map((item) => item.helmetNumber === helmetNumber ? { ...item, workerId: '', workerName: '미연결', status: item.sensorConnected ? 'standby' : 'disconnected' } : item));
-  const remove = (helmetNumber) => setHelmets((prev) => prev.filter((item) => item.helmetNumber !== helmetNumber));
+  const addHelmet = (helmet) => {
+    setHelmets((prev) => [...prev, helmet]);
+    if (helmet.workerId) updateWorker(helmet.workerId, { helmetId: helmet.helmetNumber, sensorConnected: helmet.sensorConnected });
+    setToast(`${helmet.helmetNumber} 헬멧이 등록되었습니다.`);
+  };
+
+  const connectHelmet = (helmetNumber, workerId) => {
+    const worker = workers.find((item) => item.id === workerId);
+    if (!worker) return;
+    const selected = helmets.find((item) => item.helmetNumber === helmetNumber);
+    const previousWorkerId = selected?.workerId;
+    const previousHelmetForWorker = helmets.find((item) => item.workerId === workerId && item.helmetNumber !== helmetNumber);
+
+    if (previousWorkerId && previousWorkerId !== workerId) updateWorker(previousWorkerId, { helmetId: '', sensorConnected: false });
+    if (previousHelmetForWorker) {
+      setHelmets((prev) => prev.map((item) => item.helmetNumber === previousHelmetForWorker.helmetNumber
+        ? { ...item, workerId: '', workerName: '미연결', status: item.sensorConnected ? 'standby' : 'disconnected' }
+        : item));
+    }
+
+    setHelmets((prev) => prev.map((item) => {
+      if (item.helmetNumber === helmetNumber) return {
+        ...item,
+        workerId,
+        workerName: worker.name,
+        sensorConnected: true,
+        status: 'inUse',
+        lastCommunication: '방금 전',
+      };
+      if (item.workerId === workerId && item.helmetNumber !== helmetNumber) return { ...item, workerId: '', workerName: '미연결', status: item.sensorConnected ? 'standby' : 'disconnected' };
+      return item;
+    }));
+    updateWorker(workerId, { helmetId: helmetNumber, sensorConnected: true });
+    setToast(`${helmetNumber} 헬멧을 ${worker.name} 작업자에게 재연결했습니다.`);
+  };
+
+  const reconnectDevice = (helmetNumber) => {
+    const target = helmets.find((item) => item.helmetNumber === helmetNumber);
+    if (!target) return;
+    setReconnectingFor(helmetNumber);
+    setToast(`${helmetNumber} 헬멧 연결을 다시 확인하고 있습니다.`);
+    window.setTimeout(() => {
+      const nextHelmets = helmets.map((item) => item.helmetNumber === helmetNumber ? {
+        ...item,
+        sensorConnected: true,
+        lastCommunication: '방금 전',
+        status: item.workerId ? 'inUse' : 'standby',
+      } : item);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextHelmets));
+      setHelmets(nextHelmets);
+      if (target.workerId) updateWorker(target.workerId, { helmetId: helmetNumber, sensorConnected: true });
+      try {
+        const currentWorker = JSON.parse(localStorage.getItem('safehelmet_worker_profile') || '{}');
+        if (currentWorker.helmetNo === helmetNumber) {
+          const updatedProfile = { ...currentWorker, helmetConnected: true, sensorConnected: true, helmetLastConnectedAt: new Date().toISOString() };
+          localStorage.setItem('safehelmet_worker_profile', JSON.stringify(updatedProfile));
+          window.dispatchEvent(new CustomEvent('safehelmet-worker-profile-updated', { detail: updatedProfile }));
+        }
+      } catch {}
+      window.dispatchEvent(new Event('safehelmet-helmets-updated'));
+      setReconnectingFor('');
+      setToast(`${helmetNumber} 헬멧과 센서가 재연결되었습니다.`);
+    }, 650);
+  };
+
+  const unassign = (helmetNumber) => {
+    const target = helmets.find((item) => item.helmetNumber === helmetNumber);
+    if (target?.workerId) updateWorker(target.workerId, { helmetId: '', sensorConnected: false });
+    setHelmets((prev) => prev.map((item) => item.helmetNumber === helmetNumber ? { ...item, workerId: '', workerName: '미연결', status: item.sensorConnected ? 'standby' : 'disconnected' } : item));
+    setToast(`${helmetNumber} 작업자 연결을 해제했습니다.`);
+  };
+
+  const remove = (helmetNumber) => {
+    const target = helmets.find((item) => item.helmetNumber === helmetNumber);
+    if (target?.workerId) updateWorker(target.workerId, { helmetId: '', sensorConnected: false });
+    setHelmets((prev) => prev.filter((item) => item.helmetNumber !== helmetNumber));
+    setToast(`${helmetNumber} 헬멧을 삭제했습니다.`);
+  };
 
   return (
     <>
@@ -60,7 +157,10 @@ export default function HelmetManagement() {
       <div className="page-body helmets-page">
         <div className="helmet-title-row">
           <div><h2>헬멧 관리</h2><p>스마트 안전모를 등록하고 작업자와 연결합니다.</p></div>
-          <button className="helmet-register-btn" onClick={() => setRegisterOpen(true)}><Plus size={16}/> 헬멧 등록</button>
+          <div className="helmet-title-actions">
+            <button className="helmet-connect-btn" onClick={() => { setConnectPreset({ helmetNumber: '', workerId: '' }); setConnectOpen(true); }}><Link2 size={16}/> 헬멧 연결</button>
+            <button className="helmet-register-btn" onClick={() => setRegisterOpen(true)}><Plus size={16}/> 헬멧 등록</button>
+          </div>
         </div>
 
         <div className="helmet-stats">
@@ -81,12 +181,17 @@ export default function HelmetManagement() {
               <span className={`sensor-state ${helmet.sensorConnected ? 'connected' : 'disconnected'}`}><Wifi size={13}/>{helmet.sensorConnected ? '연결' : '미연결'}</span>
               <span className="muted">{helmet.lastCommunication}</span>
               <span><span className={`helmet-status ${helmet.status}`}>{helmet.status === 'inUse' ? '사용중' : helmet.status === 'standby' ? '대기' : '연결 끊김'}</span></span>
-              <div className="helmet-menu-wrap" ref={menuFor === helmet.helmetNumber ? menuRef : null}>
+              <div className="helmet-row-actions" ref={menuFor === helmet.helmetNumber ? menuRef : null}>
+                <button className={`helmet-reconnect-inline ${reconnectingFor === helmet.helmetNumber ? 'busy' : ''}`} onClick={() => reconnectDevice(helmet.helmetNumber)} title="헬멧 센서 재연결" disabled={reconnectingFor === helmet.helmetNumber}><RefreshCw size={14}/></button>
+                <div className="helmet-menu-wrap">
                 <button className="helmet-menu-btn" onClick={() => setMenuFor((current) => current === helmet.helmetNumber ? '' : helmet.helmetNumber)}><MoreHorizontal size={17}/></button>
                 {menuFor === helmet.helmetNumber && <div className="helmet-menu">
+                  <button onClick={() => { reconnectDevice(helmet.helmetNumber); setMenuFor(''); }}>{reconnectingFor === helmet.helmetNumber ? '재연결 중...' : '센서 재연결'}</button>
+                  <button onClick={() => { setConnectPreset({ helmetNumber: helmet.helmetNumber, workerId: helmet.workerId || '' }); setMenuFor(''); setConnectOpen(true); }}>{helmet.workerId ? '작업자 재배정' : '작업자 연결'}</button>
                   {helmet.workerId && <button onClick={() => { unassign(helmet.helmetNumber); setMenuFor(''); }}>작업자 연결 해제</button>}
                   <button className="danger" onClick={() => { remove(helmet.helmetNumber); setMenuFor(''); }}>헬멧 삭제</button>
                 </div>}
+                </div>
               </div>
             </div>
           ))}
@@ -94,6 +199,8 @@ export default function HelmetManagement() {
         </section>
       </div>
       <AddHelmetModal open={registerOpen} onClose={() => setRegisterOpen(false)} onAdd={addHelmet} helmets={helmets} workers={workers}/>
+      <ConnectHelmetModal open={connectOpen} onClose={() => setConnectOpen(false)} onConnect={connectHelmet} helmets={helmets} workers={workers} initialHelmetNumber={connectPreset.helmetNumber} initialWorkerId={connectPreset.workerId}/>
+      <ActionToast message={toast} onClose={() => setToast('')} />
     </>
   );
 }
