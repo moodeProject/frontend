@@ -110,7 +110,6 @@ export function WorkerDrawer({ open, onClose }) {
   const menuItems = [
     { label: '출퇴근 관리', icon: Clock3, color: 'blue', to: '/worker/attendance' },
     { label: '내 기록', icon: BookOpen, color: 'green', to: '/worker/records' },
-    { label: '주변 작업자', icon: Users, color: 'purple', to: '/worker/nearby' },
     { label: '설정 · 회원정보', icon: Settings, color: 'gray', to: '/worker/settings' },
   ];
 
