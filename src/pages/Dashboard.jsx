@@ -1,199 +1,87 @@
-import { DASHBOARD_STATS, WORKER_PINS, ALERTS, WORKER_STATUS_LIST, CHART_DATA, CHART_SUMMARY } from '../data/mockDashboard'
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-} from 'recharts'
-import styles from './Dashboard.module.css'
+import { AlertTriangle, Eye, HeartPulse, ShieldCheck, Users, X } from 'lucide-react';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import TopHeader from '../components/TopHeader';
+import StatusBadge from '../components/StatusBadge';
+import WorkerCard from '../components/WorkerCard';
+import { alerts, workers, zones } from '../data/mockData';
 
-const STATUS_COLOR = { danger: '#e53935', caution: '#ff9800', normal: '#4caf50' }
-const STATUS_LABEL = { danger: '위험', caution: '주의', normal: '정상' }
+const summary = [
+  { key: 'all', label: '현재 작업자', value: 10, unit: '명', icon: Users },
+  { key: 'normal', label: '정상', value: 6, unit: '명', icon: ShieldCheck },
+  { key: 'warning', label: '주의', value: 3, unit: '명', icon: AlertTriangle },
+  { key: 'danger', label: '위험', value: 1, unit: '명', icon: HeartPulse },
+];
 
-const ALERT_STYLE = {
-  emergency: { bg: '#ffeaea', dot: '#e53935', badge: styles.alertBadgeEmergency },
-  caution:   { bg: '#fff7e6', dot: '#ff9800', badge: styles.alertBadgeCaution   },
-  normal:    { bg: '#f0faf2', dot: '#4caf50', badge: styles.alertBadgeNormal    },
-}
+const labelMap = { normal: '정상', warning: '주의', danger: '위험' };
 
 export default function Dashboard() {
-  const now = new Date().toLocaleString('ko-KR', {
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    weekday: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit',
-  })
+  const [expanded, setExpanded] = useState(false);
+  const navigate = useNavigate();
+  const riskyWorkers = workers.filter((w) => w.status !== 'normal');
 
   return (
-    <div className={styles.page}>
-      {/* 상단 */}
-      <div className={styles.topBar}>
-        <div>
-          <h1 className={styles.title}>실시간 현장 현황</h1>
-          <p className={styles.subtitle}>작업자 상태와 위험 상황을 한 눈에 확인하세요.</p>
-        </div>
-        <div className={styles.dateArea}>
-          <div className={styles.dateStr}>{now}</div>
-          <button className={styles.refresh} onClick={() => window.location.reload()}>↺ 새로고침</button>
-        </div>
-      </div>
-
-      {/* 요약 카드 */}
-      <div className={styles.statRow}>
-        <StatCard icon="👥" iconBg="#ddeeff" label="전체 작업자" value={DASHBOARD_STATS.totalWorkers} unit="명" />
-        <StatCard icon="✅" iconBg="#d4f5e2" label="정상 작업자" value={DASHBOARD_STATS.normalWorkers} unit="명" />
-        <StatCard icon="⚠️" iconBg="#fff0d0" label="위험 작업자" value={DASHBOARD_STATS.dangerWorkers} unit="명" />
-        <StatCard icon="🚨" iconBg="#ffe0e8" label="긴급 이벤트" value={DASHBOARD_STATS.emergencyEvents} unit="건" />
-      </div>
-
-      {/* 지도 + 알림 */}
-      <div className={styles.midRow}>
-        {/* 현장 작업자 위치 */}
-        <div className={styles.mapCard}>
-          <div className={styles.cardHeader}>
-            <span>📍 현장 작업자 위치</span>
-            <div className={styles.legend}>
-              {Object.entries(STATUS_COLOR).map(([k, c]) => (
-                <span key={k} className={styles.legendItem}>
-                  <span className={styles.legendDot} style={{ background: c }} />
-                  {STATUS_LABEL[k]}
-                </span>
-              ))}
-            </div>
-          </div>
-          <div className={styles.mapArea}>
-            {WORKER_PINS.map((pin) => (
-              <div
-                key={pin.id}
-                className={styles.pin}
-                style={{ left: `${pin.x}%`, top: `${pin.y}%` }}
-              >
-                <div className={styles.pinLabel}>{pin.name}</div>
-                <div
-                  className={styles.pinMarker}
-                  style={{ borderColor: STATUS_COLOR[pin.status] }}
-                >
-                  {pin.name[0]}
-                </div>
-                <div
-                  className={styles.pinArrow}
-                  style={{ borderTopColor: STATUS_COLOR[pin.status] }}
-                />
+    <>
+      <TopHeader title="통합 모니터링" subtitle="현장 전체 실시간 현황" />
+      <div className="page-body dashboard-page">
+        <section className="summary-grid">
+          {summary.map(({ key, label, value, unit, icon: Icon }) => (
+            <button key={key} className={`summary-card ${key}`} onClick={() => key === 'warning' && setExpanded(true)}>
+              <div>
+                <span>{label}</span>
+                <strong>{value}<small>{unit}</small></strong>
+                {key === 'warning' && <em>목록 보기 ▲</em>}
               </div>
-            ))}
-          </div>
-        </div>
+              <div className="summary-icon"><Icon size={19} /></div>
+            </button>
+          ))}
+        </section>
 
-        {/* 실시간 알림 */}
-        <div className={styles.alertCard}>
-          <div className={styles.cardHeader}>
-            <span>🔔 실시간 알림</span>
-            <button className={styles.viewAll}>전체보기 &rsaquo;</button>
-          </div>
-          <div className={styles.alertList}>
-            {ALERTS.map((a) => {
-              const s = ALERT_STYLE[a.level]
-              return (
-                <div key={a.id} className={styles.alertItem} style={{ background: s.bg }}>
-                  <div className={styles.alertLeft}>
-                    <span className={`${styles.alertBadge} ${s.badge}`}>{a.label}</span>
-                    <div>
-                      <div className={styles.alertText}>{a.text}</div>
-                      <div className={styles.alertMeta}>{a.zone} · {a.time}</div>
-                    </div>
+        {expanded && (
+          <section className="expanded-workers panel">
+            <div className="panel-title-row">
+              <div><strong>주의 작업자</strong><span>3명</span></div>
+              <div className="row-actions"><button onClick={() => navigate('/workers')}>작업자 페이지로</button><button className="icon-btn" onClick={() => setExpanded(false)}><X size={15}/></button></div>
+            </div>
+            <div className="expanded-worker-grid">
+              {riskyWorkers.filter((w) => w.status === 'warning').map((w) => <WorkerCard key={w.id} worker={w} compact />)}
+            </div>
+          </section>
+        )}
+
+        <div className="dashboard-grid">
+          <section className="panel alert-panel">
+            <div className="panel-title-row border-bottom">
+              <div className="title-with-dot"><i className="red-dot"/><strong>실시간 이상 감지</strong><span>최신순</span></div>
+              <Link to="/detections">전체 보기 ›</Link>
+            </div>
+            <div className="alert-list">
+              {alerts.map((a) => (
+                <div className={`alert-row ${a.level}`} key={a.id}>
+                  <div className={`alert-symbol ${a.level}`}><AlertTriangle size={18}/></div>
+                  <div className="alert-content">
+                    <div className="alert-heading"><StatusBadge level={a.level}>{labelMap[a.level]}</StatusBadge><b>{a.type}</b><span>·</span><strong>{a.name}</strong><span className="zone-text">⌖ {a.zone}</span></div>
+                    <p>{a.description}</p>
                   </div>
-                  <button className={styles.confirmBtn}>확인</button>
+                  <time>{a.time}</time>
+                  <Link className="detail-btn" to={a.id === 1 ? "/incident" : `/detections/${a.id}`}><Eye size={14}/> 상세보기</Link>
                 </div>
-              )
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* 작업자 상태 목록 + 위험 이벤트 통계 */}
-      <div className={styles.botRow}>
-        {/* 작업자 상태 목록 */}
-        <div className={styles.statusCard}>
-          <div className={styles.cardHeader}>🔔 작업자 상태 목록</div>
-          <table className={styles.statusTable}>
-            <thead>
-              <tr>
-                {['작업자','구역','심박수','온도','상태','최종 업데이트'].map((h) => (
-                  <th key={h}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {WORKER_STATUS_LIST.map((w) => (
-                <tr key={w.id} className={styles.statusRow}>
-                  <td>
-                    <div className={styles.workerCell}>
-                      <span className={styles.statusDot} style={{ background: STATUS_COLOR[w.status] }} />
-                      {w.name}
-                    </div>
-                  </td>
-                  <td>{w.zone}</td>
-                  <td className={w.heartRate >= 100 ? styles.heartWarn : ''}>{w.heartRate} bpm</td>
-                  <td>{w.temp}</td>
-                  <td>{STATUS_LABEL[w.status]}</td>
-                  <td>{w.lastUpdate}</td>
-                </tr>
               ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* 위험 이벤트 통계 차트 */}
-        <div className={styles.chartCard}>
-          <div className={styles.cardHeader}>
-            <span>🔔 위험 이벤트 통계</span>
-            <span className={styles.chartDate}>2026.05.02</span>
-          </div>
-
-          <div className={styles.chartLegend}>
-            <span className={styles.legendDot} style={{ background: '#e53935' }} /> 사고 및 낙상
-            <span className={styles.legendDot} style={{ background: '#ff9800', marginLeft: 12 }} /> 건강 이상
-            <span className={styles.legendDot} style={{ background: '#2196f3', marginLeft: 12 }} /> 충돌 위험
-          </div>
-
-          <ResponsiveContainer width="100%" height={180}>
-            <LineChart data={CHART_DATA} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f7" />
-              <XAxis dataKey="time" tick={{ fontSize: 11, fill: '#999' }} />
-              <YAxis tick={{ fontSize: 11, fill: '#999' }} />
-              <Tooltip />
-              <Line type="monotone" dataKey="accident" stroke="#e53935" strokeWidth={2} dot={{ r: 3 }} name="사고 및 낙상" />
-              <Line type="monotone" dataKey="health"   stroke="#ff9800" strokeWidth={2} dot={{ r: 3 }} name="건강 이상" />
-              <Line type="monotone" dataKey="collision" stroke="#2196f3" strokeWidth={2} dot={{ r: 3 }} name="충돌 위험" />
-            </LineChart>
-          </ResponsiveContainer>
-
-          <div className={styles.chartSummary}>
-            <div className={styles.summaryBox} style={{ background: '#fff5f5' }}>
-              <div className={styles.summaryLabel}>사고 및 낙상</div>
-              <div className={styles.summaryNum}>{CHART_SUMMARY.accident} 건</div>
             </div>
-            <div className={styles.summaryBox} style={{ background: '#fffbf0' }}>
-              <div className={styles.summaryLabel}>건강 이상</div>
-              <div className={styles.summaryNum}>{CHART_SUMMARY.health} 건</div>
-            </div>
-            <div className={styles.summaryBox} style={{ background: '#f0f7ff' }}>
-              <div className={styles.summaryLabel}>충돌 위험</div>
-              <div className={styles.summaryNum}>{CHART_SUMMARY.collision} 건</div>
-            </div>
-          </div>
+          </section>
+
+          <aside className="right-stack">
+            <section className="panel zone-panel">
+              <h3>현장 상태</h3>
+              {zones.map((z) => <div key={z.name} className={`zone-card ${z.level}`}><b><i/> {z.name}</b><span><em>정상 {z.normal}</em>{z.warning > 0 && <em>주의 {z.warning}</em>}{z.danger > 0 && <em>위험 {z.danger}</em>}</span></div>)}
+            </section>
+            <section className="panel risk-list-panel">
+              <div className="panel-title-row border-bottom"><strong>주의·위험 작업자</strong><Link to="/workers">전체</Link></div>
+              {riskyWorkers.map((w) => <div key={w.id} className="risk-list-row"><div className="mini-avatar">{w.name.slice(0,1)}</div><div><div><strong>{w.name}</strong> <StatusBadge level={w.status}>{labelMap[w.status]}</StatusBadge></div><p><HeartPulse size={12}/> {w.heartRate} <small>bpm</small> <span>{w.zone}</span></p></div></div>)}
+            </section>
+          </aside>
         </div>
       </div>
-    </div>
-  )
-}
-
-function StatCard({ icon, iconBg, label, value, unit }) {
-  return (
-    <div className={styles.statCard}>
-      <div className={styles.statIcon} style={{ background: iconBg }}>{icon}</div>
-      <div>
-        <div className={styles.statLabel}>{label}</div>
-        <div className={styles.statValue}>
-          <span className={styles.statNum}>{value}</span>
-          <span className={styles.statUnit}>{unit}</span>
-        </div>
-      </div>
-    </div>
-  )
+    </>
+  );
 }
