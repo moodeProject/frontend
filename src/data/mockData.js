@@ -1,14 +1,16 @@
+import parkProfile from '../assets/worker-park.png';
+
 export const workers = [
-  { id: 'H-001', name: '박민수', zone: 'A구역 3층', status: 'danger', heartRate: 118, fatigue: 2, issue: '추락 감지됨' },
-  { id: 'H-002', name: '김현석', zone: 'B구역', status: 'warning', heartRate: 92, fatigue: 2, issue: '피로도 2단계' },
-  { id: 'H-003', name: '이수진', zone: 'C구역', status: 'warning', heartRate: 78, fatigue: 1, issue: '물웅덩이 감지' },
-  { id: 'H-004', name: '최동훈', zone: 'A구역 1층', status: 'normal', heartRate: 72, fatigue: 1, issue: '정상 작업 중' },
-  { id: 'H-005', name: '정유진', zone: 'B구역 1층', status: 'warning', heartRate: 88, fatigue: 1, issue: '열사병 주의' },
-  { id: 'H-006', name: '한재원', zone: 'C구역 2층', status: 'normal', heartRate: 71, fatigue: 1, issue: '정상 작업 중' },
-  { id: 'H-007', name: '오서연', zone: 'A구역 1층', status: 'normal', heartRate: 68, fatigue: 1, issue: '정상 작업 중' },
-  { id: 'H-008', name: '강민철', zone: 'B구역 2층', status: 'normal', heartRate: 74, fatigue: 1, issue: '정상 작업 중' },
-  { id: 'H-009', name: '윤지호', zone: 'A구역 2층', status: 'normal', heartRate: 76, fatigue: 1, issue: '정상 작업 중' },
-  { id: 'H-010', name: '서예린', zone: 'C구역 1층', status: 'normal', heartRate: 70, fatigue: 1, issue: '정상 작업 중' },
+  { id: 'H-001', workerCode: 'W001', employeeNumber: 'W001', phone: '010-0000-0001', name: '박민수', zone: 'A구역 3층', detailLocation: 'A구역 3층', status: 'danger', heartRate: 118, fatigue: 2, issue: '추락 감지됨', helmetId: 'H-001', sensorConnected: true, profileImage: parkProfile },
+  { id: 'H-002', workerCode: 'W002', employeeNumber: 'W002', phone: '010-0000-0002', name: '김현석', zone: 'B구역', detailLocation: 'B구역', status: 'warning', heartRate: 92, fatigue: 2, issue: '피로도 2단계', helmetId: 'H-002', sensorConnected: true, profileImage: '' },
+  { id: 'H-003', workerCode: 'W003', employeeNumber: 'W003', phone: '010-0000-0003', name: '이수진', zone: 'C구역', detailLocation: 'C구역', status: 'warning', heartRate: 78, fatigue: 1, issue: '물웅덩이 감지', helmetId: 'H-003', sensorConnected: true, profileImage: '' },
+  { id: 'H-004', workerCode: 'W004', employeeNumber: 'W004', phone: '010-0000-0004', name: '최동훈', zone: 'A구역 1층', detailLocation: 'A구역 1층', status: 'normal', heartRate: 72, fatigue: 1, issue: '정상 작업 중', helmetId: 'H-004', sensorConnected: true, profileImage: '' },
+  { id: 'H-005', workerCode: 'W005', employeeNumber: 'W005', phone: '010-0000-0005', name: '정유진', zone: 'B구역 1층', detailLocation: 'B구역 1층', status: 'warning', heartRate: 88, fatigue: 1, issue: '열사병 주의', helmetId: 'H-005', sensorConnected: true, profileImage: '' },
+  { id: 'H-006', workerCode: 'W006', employeeNumber: 'W006', phone: '010-0000-0006', name: '한재원', zone: 'C구역 2층', detailLocation: 'C구역 2층', status: 'normal', heartRate: 71, fatigue: 1, issue: '정상 작업 중', helmetId: 'H-006', sensorConnected: true, profileImage: '' },
+  { id: 'H-007', workerCode: 'W007', employeeNumber: 'W007', phone: '010-0000-0007', name: '오서연', zone: 'A구역 1층', detailLocation: 'A구역 1층', status: 'normal', heartRate: 68, fatigue: 1, issue: '정상 작업 중', helmetId: 'H-007', sensorConnected: true, profileImage: '' },
+  { id: 'H-008', workerCode: 'W008', employeeNumber: 'W008', phone: '010-0000-0008', name: '강민철', zone: 'B구역 2층', detailLocation: 'B구역 2층', status: 'normal', heartRate: 74, fatigue: 1, issue: '정상 작업 중', helmetId: 'H-008', sensorConnected: true, profileImage: '' },
+  { id: 'H-009', workerCode: 'W009', employeeNumber: 'W009', phone: '010-0000-0009', name: '윤지호', zone: 'A구역 2층', detailLocation: 'A구역 2층', status: 'normal', heartRate: 76, fatigue: 1, issue: '정상 작업 중', helmetId: 'H-009', sensorConnected: true, profileImage: '' },
+  { id: 'H-010', workerCode: 'W010', employeeNumber: 'W010', phone: '010-0000-0010', name: '서예린', zone: 'C구역 1층', detailLocation: 'C구역 1층', status: 'normal', heartRate: 70, fatigue: 1, issue: '정상 작업 중', helmetId: 'H-010', sensorConnected: true, profileImage: '' },
 ];
 
 export const alerts = [
@@ -25,7 +27,6 @@ export const zones = [
   { name: 'B구역', normal: 5, warning: 0, danger: 1, level: 'danger' },
   { name: 'C구역', normal: 6, warning: 2, danger: 0, level: 'warning' },
 ];
-
 
 export const detections = [
   { id: 1, category: 'fall', kind: 'fall', level: 'danger', type: '추락 감지', name: '박민수', zone: 'A구역 3층', time: '10:28', process: '처리중', processClass: 'processing' },

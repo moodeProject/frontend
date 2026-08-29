@@ -1,298 +1,110 @@
-import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { useWorkers } from '../context/WorkerContext'
-import { getHelmetStatus } from '../api/monitoring'
-import Spinner from '../components/Spinner'
-import styles from './WorkerDetail.module.css'
+import { ArrowDownRight, Camera, ChevronLeft, Cpu, HardHat, Heart, MapPin, Package, Phone, Trash2, Wifi } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import DeleteWorkerModal from '../components/DeleteWorkerModal';
+import StatusBadge from '../components/StatusBadge';
+import TopHeader from '../components/TopHeader';
+import { useWorkers } from '../context/WorkerContext';
 
-const STATUS_COLOR = {
-  '작업중':  { bg: '#e8f5e9', color: '#2e7d32' },
-  '휴식중':  { bg: '#fff3e0', color: '#e65100' },
-  '작업대기': { bg: '#eeeeee', color: '#555'    },
-  '비활성':  { bg: '#f3f4f6', color: '#999'    },
+const labels = { normal: '정상', warning: '주의', danger: '위험' };
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
-const BLOOD_TYPES = ['A', 'B', 'O', 'AB']
-const GENDERS     = ['남성', '여성']
-const STATUSES    = ['작업중', '휴식중', '작업대기', '비활성']
-
-// 백엔드 센서 상태 → 화면 상태 매핑
-const STATE_TO_STATUS = {
-  NORMAL:  'normal',
-  FALLING: 'caution',
-  FALLEN:  'emergency',
-}
-const HELMET_STATUS_LABEL = {
-  emergency: '긴급',
-  caution:   '주의',
-  normal:    '정상',
-}
-const HELMET_STATUS_COLOR = {
-  emergency: '#e53935',
-  caution:   '#ff9800',
-  normal:    '#43a047',
-}
-
-function formatTime(isoString) {
-  return new Date(isoString).toLocaleTimeString('ko-KR', { hour12: false })
+function StatusCard({ type, level, title, value, worker }) {
+  const icons = { external: Package, health: Heart, fall: ArrowDownRight };
+  const Icon = icons[type];
+  return (
+    <section className={`worker-status-card ${level}`}>
+      <div className="worker-status-title"><span className={`status-card-icon ${level}`}><Icon size={18}/></span><strong>{title}</strong></div>
+      <StatusBadge level={level}>{labels[level]}</StatusBadge>
+      {type === 'health' ? (
+        <>
+          <strong className={`status-card-value ${level}`}>{worker.heartRate} bpm</strong>
+          <div className="detail-fatigue"><div className={`fatigue-bar level-${worker.fatigue}`}><i/><i/><i/></div><b>{worker.fatigue}단계</b></div>
+        </>
+      ) : <strong className={`status-card-value ${level}`}>{value}</strong>}
+    </section>
+  );
 }
 
 export default function WorkerDetail() {
-  const { id }     = useParams()
-  const navigate   = useNavigate()
-  const { workers, updateWorker } = useWorkers()
-
-  const worker = workers.find((w) => String(w.id) === String(id))
-
-  const [editing, setEditing] = useState(false)
-  const [form, setForm]       = useState(null)
-  const [saving, setSaving]   = useState(false)
-
-  // 실제 백엔드(/api/workers/{deviceId})에서 받아온 헬멧 실시간 상태
-  const [helmetLive, setHelmetLive] = useState(null)
-
-  useEffect(() => {
-    if (!worker) return
-    let cancelled = false
-
-    async function fetchLive() {
-      try {
-        const data = await getHelmetStatus(worker.helmetId)
-        if (!cancelled) setHelmetLive(data)
-      } catch {
-        if (!cancelled) setHelmetLive(null)
-      }
-    }
-
-    fetchLive()
-    const interval = setInterval(fetchLive, 5000)
-    return () => { cancelled = true; clearInterval(interval) }
-  }, [worker?.helmetId])
+  const { workerId } = useParams();
+  const navigate = useNavigate();
+  const { workers, updateWorker, deleteWorker } = useWorkers();
+  const worker = workers.find((item) => item.id === decodeURIComponent(workerId));
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [imageError, setImageError] = useState('');
+  const imageInput = useRef(null);
 
   if (!worker) {
-    return (
-      <div className={styles.notFound}>
-        <span className={styles.notFoundIcon}>🔍</span>
-        <p>작업자를 찾을 수 없습니다.</p>
-        <button className={styles.backBtn} onClick={() => navigate('/workers')}>목록으로 돌아가기</button>
-      </div>
-    )
+    return <><TopHeader title="작업자 상태" subtitle="전체 작업자 현황"/><div className="page-body"><div className="panel worker-not-found">삭제되었거나 존재하지 않는 작업자입니다.<Link to="/workers">작업자 목록으로</Link></div></div></>;
   }
 
-  function startEdit() {
-    setForm({ ...worker })
-    setEditing(true)
-  }
+  const healthLevel = worker.heartRate >= 85 || worker.fatigue >= 2 ? 'warning' : 'normal';
+  const fallLevel = worker.status === 'danger' && worker.issue.includes('추락') ? 'danger' : 'normal';
+  const externalLevel = worker.issue.includes('물웅덩이') || worker.issue.includes('장애물') ? 'warning' : 'normal';
 
-  function cancelEdit() {
-    setForm(null)
-    setEditing(false)
-  }
+  const changeImage = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return setImageError('이미지 파일만 선택해 주세요.');
+    if (file.size > 3 * 1024 * 1024) return setImageError('3MB 이하 이미지를 선택해 주세요.');
+    const profileImage = await fileToDataUrl(file);
+    updateWorker(worker.id, { profileImage });
+    setImageError('');
+    event.target.value = '';
+  };
 
-  function handleChange(field, value) {
-    setForm((prev) => ({ ...prev, [field]: value }))
-  }
-
-  async function handleSave() {
-    setSaving(true)
-    // TODO: 실제 API 호출로 교체 → PUT /users/:id
-    await new Promise((r) => setTimeout(r, 500)) // mock 딜레이
-    updateWorker(worker.id, form)
-    setSaving(false)
-    setEditing(false)
-    setForm(null)
-  }
-
-  const data = editing ? form : worker
-  const st   = STATUS_COLOR[data.status] ?? { bg: '#eee', color: '#888' }
-
-  const helmetStatus    = helmetLive ? (STATE_TO_STATUS[helmetLive.state] ?? null) : null
-  const helmetUpdatedAt = helmetLive ? formatTime(helmetLive.recordedAt) : '-'
+  const handleDelete = () => {
+    deleteWorker(worker.id);
+    setDeleteOpen(false);
+    navigate('/workers');
+  };
 
   return (
-    <div className={styles.page}>
-      {/* 브레드크럼 */}
-      <div className={styles.breadcrumb}>
-        <span className={styles.breadLink} onClick={() => navigate('/workers')}>작업자 관리</span>
-        <span className={styles.breadSep}>›</span>
-        <span className={styles.breadCurrent}>작업자 상세</span>
-      </div>
-
-      {/* 상단 액션 */}
-      <div className={styles.topBar}>
-        <h1 className={styles.title}>작업자 상세 정보</h1>
-        <div className={styles.actions}>
-          {editing ? (
-            <>
-              <button className={styles.cancelBtn} onClick={cancelEdit} disabled={saving}>취소</button>
-              <button className={styles.saveBtn} onClick={handleSave} disabled={saving}>
-                {saving ? <Spinner size="sm" /> : '저장'}
-              </button>
-            </>
-          ) : (
-            <>
-              <button className={styles.editBtn} onClick={startEdit}>✏️ 수정</button>
-              <button className={styles.backBtn2} onClick={() => navigate('/workers')}>← 목록</button>
-            </>
-          )}
+    <>
+      <TopHeader title="작업자 상태" subtitle="전체 작업자 현황" />
+      <div className="page-body worker-detail-page">
+        <div className="worker-detail-actions">
+          <Link className="detail-back" to="/workers"><ChevronLeft size={16}/> 작업자 목록</Link>
+          <button className="delete-worker-btn" onClick={() => setDeleteOpen(true)}><Trash2 size={14}/> 작업자 삭제</button>
         </div>
-      </div>
 
-      <div className={styles.body}>
-        {/* 왼쪽: 프로필 카드 */}
-        <div className={styles.profileCard}>
-          <div className={styles.avatarCircle}>
-            {data.avatar
-              ? <img src={data.avatar} alt="avatar" className={styles.avatarImg} />
-              : <span className={styles.avatarLetter}>{data.name[0]}</span>
-            }
+        <section className="panel worker-profile-panel">
+          <div className={`detail-profile-avatar ${worker.status}`} onClick={() => imageInput.current?.click()} title="프로필 사진 변경">
+            {worker.profileImage ? <img src={worker.profileImage} alt={`${worker.name} 프로필`}/> : <span>{worker.name.slice(0, 1)}</span>}
+            <span className="detail-avatar-dot"/>
+            <span className="photo-edit-badge"><Camera size={12}/></span>
           </div>
-
-          <div className={styles.profileName}>{data.name}</div>
-          <span className={styles.statusBadge} style={{ background: st.bg, color: st.color }}>
-            {data.status}
-          </span>
-
-          <div className={styles.profileMeta}>
-            <div className={styles.metaRow}><span className={styles.metaKey}>사번</span><span>{data.employeeId}</span></div>
-            <div className={styles.metaRow}><span className={styles.metaKey}>팀</span><span>{data.team}</span></div>
-            <div className={styles.metaRow}><span className={styles.metaKey}>직책</span><span>{data.position || '-'}</span></div>
-            <div className={styles.metaRow}><span className={styles.metaKey}>입사일</span><span>{data.joinDate || '-'}</span></div>
-            <div className={styles.metaRow}><span className={styles.metaKey}>최근 작업</span><span className={styles.metaSmall}>{data.lastWork || '-'}</span></div>
+          <input ref={imageInput} className="hidden-file-input" type="file" accept="image/*" onChange={changeImage}/>
+          <div className="worker-profile-copy">
+            <div className="profile-name-row"><h2>{worker.name}</h2><StatusBadge level={worker.status}>{labels[worker.status]}</StatusBadge></div>
+            <div className="worker-meta-row">
+              <span><Cpu size={13}/> 사번 {worker.employeeNumber || worker.workerCode}</span>
+              <span><MapPin size={13}/> {worker.zone}</span>
+              <span><HardHat size={13}/> {worker.helmetId}</span>
+              <span><Phone size={13}/> {worker.phone || '연락처 미등록'}</span>
+              <span className={worker.sensorConnected ? 'sensor-ok' : ''}><Wifi size={13}/> {worker.sensorConnected ? '센서 연결됨' : '센서 연결 끊김'}</span>
+            </div>
+            <button className="change-photo-text" onClick={() => imageInput.current?.click()}><Camera size={12}/> 프로필 사진 변경</button>
+            {imageError && <small className="profile-image-error">{imageError}</small>}
           </div>
-        </div>
+        </section>
 
-        {/* 오른쪽: 상세 정보 */}
-        <div className={styles.detailPanel}>
-          {/* 기본 정보 */}
-          <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>기본 정보</h2>
-            <div className={styles.grid}>
-              <Field label="이름">
-                {editing
-                  ? <input className={styles.input} value={form.name} onChange={(e) => handleChange('name', e.target.value)} />
-                  : <span>{data.name}</span>
-                }
-              </Field>
-              <Field label="상태">
-                {editing
-                  ? <select className={styles.select} value={form.status} onChange={(e) => handleChange('status', e.target.value)}>
-                      {STATUSES.map((s) => <option key={s}>{s}</option>)}
-                    </select>
-                  : <span>{data.status}</span>
-                }
-              </Field>
-              <Field label="연락처">
-                {editing
-                  ? <input className={styles.input} value={form.phone} onChange={(e) => handleChange('phone', e.target.value)} />
-                  : <span>{data.phone}</span>
-                }
-              </Field>
-              <Field label="이메일">
-                {editing
-                  ? <input className={styles.input} value={form.email || ''} onChange={(e) => handleChange('email', e.target.value)} />
-                  : <span>{data.email || '-'}</span>
-                }
-              </Field>
-              <Field label="안전모 ID">
-                {editing
-                  ? <input className={styles.input} value={form.helmetId} onChange={(e) => handleChange('helmetId', e.target.value)} />
-                  : <span>{data.helmetId}</span>
-                }
-              </Field>
-              <Field label="안전모 상태">
-                {helmetStatus
-                  ? (
-                    <span
-                      className={styles.statusBadge}
-                      style={{
-                        background: (HELMET_STATUS_COLOR[helmetStatus] ?? '#ccc') + '22',
-                        color: HELMET_STATUS_COLOR[helmetStatus] ?? '#666',
-                      }}
-                    >
-                      {HELMET_STATUS_LABEL[helmetStatus] ?? '-'}
-                    </span>
-                  )
-                  : '-'
-                }
-              </Field>
-              <Field label="상태 업데이트">
-                <span>{helmetUpdatedAt}</span>
-              </Field>
-              <Field label="팀">
-                {editing
-                  ? <input className={styles.input} value={form.team} onChange={(e) => handleChange('team', e.target.value)} />
-                  : <span>{data.team}</span>
-                }
-              </Field>
-              <Field label="직책">
-                {editing
-                  ? <input className={styles.input} value={form.position || ''} onChange={(e) => handleChange('position', e.target.value)} />
-                  : <span>{data.position || '-'}</span>
-                }
-              </Field>
-              <Field label="입사일">
-                {editing
-                  ? <input className={styles.input} type="date" value={form.joinDate || ''} onChange={(e) => handleChange('joinDate', e.target.value)} />
-                  : <span>{data.joinDate || '-'}</span>
-                }
-              </Field>
-            </div>
-          </section>
-
-          {/* 개인 정보 */}
-          <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>개인 정보</h2>
-            <div className={styles.grid}>
-              <Field label="생년월일">
-                {editing
-                  ? <input className={styles.input} value={form.birthDate || ''} onChange={(e) => handleChange('birthDate', e.target.value)} />
-                  : <span>{data.birthDate || '-'}</span>
-                }
-              </Field>
-              <Field label="성별">
-                {editing
-                  ? <select className={styles.select} value={form.gender || ''} onChange={(e) => handleChange('gender', e.target.value)}>
-                      <option value="">선택</option>
-                      {GENDERS.map((g) => <option key={g}>{g}</option>)}
-                    </select>
-                  : <span>{data.gender || '-'}</span>
-                }
-              </Field>
-              <Field label="혈액형">
-                {editing
-                  ? <select className={styles.select} value={form.bloodType || ''} onChange={(e) => handleChange('bloodType', e.target.value)}>
-                      <option value="">선택</option>
-                      {BLOOD_TYPES.map((b) => <option key={b}>{b}</option>)}
-                    </select>
-                  : <span>{data.bloodType || '-'}</span>
-                }
-              </Field>
-              <Field label="비상연락망">
-                {editing
-                  ? <input className={styles.input} value={form.emergencyContact || ''} onChange={(e) => handleChange('emergencyContact', e.target.value)} />
-                  : <span>{data.emergencyContact || '-'}</span>
-                }
-              </Field>
-              <Field label="주소" colSpan>
-                {editing
-                  ? <input className={styles.input} value={form.address || ''} onChange={(e) => handleChange('address', e.target.value)} />
-                  : <span>{data.address || '-'}</span>
-                }
-              </Field>
-            </div>
-          </section>
+        <div className="worker-status-grid">
+          <StatusCard type="external" title="외부요인" level={externalLevel} value={externalLevel === 'normal' ? '위험 요소 없음' : worker.issue} worker={worker}/>
+          <StatusCard type="health" title="건강" level={healthLevel} worker={worker}/>
+          <StatusCard type="fall" title="추락" level={fallLevel} value={fallLevel === 'danger' ? '추락 감지됨' : '감지 없음'} worker={worker}/>
         </div>
       </div>
-    </div>
-  )
-}
-
-function Field({ label, children, colSpan }) {
-  return (
-    <div className={colSpan ? styles.fieldFull : styles.field}>
-      <span className={styles.fieldLabel}>{label}</span>
-      <div className={styles.fieldValue}>{children}</div>
-    </div>
-  )
+      <DeleteWorkerModal worker={worker} open={deleteOpen} onClose={() => setDeleteOpen(false)} onDelete={handleDelete}/>
+    </>
+  );
 }

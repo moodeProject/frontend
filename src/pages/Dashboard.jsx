@@ -4,21 +4,23 @@ import { Link, useNavigate } from 'react-router-dom';
 import TopHeader from '../components/TopHeader';
 import StatusBadge from '../components/StatusBadge';
 import WorkerCard from '../components/WorkerCard';
-import { alerts, workers, zones } from '../data/mockData';
-
-const summary = [
-  { key: 'all', label: '현재 작업자', value: 10, unit: '명', icon: Users },
-  { key: 'normal', label: '정상', value: 6, unit: '명', icon: ShieldCheck },
-  { key: 'warning', label: '주의', value: 3, unit: '명', icon: AlertTriangle },
-  { key: 'danger', label: '위험', value: 1, unit: '명', icon: HeartPulse },
-];
+import { alerts, zones } from '../data/mockData';
+import { useWorkers } from '../context/WorkerContext';
 
 const labelMap = { normal: '정상', warning: '주의', danger: '위험' };
 
 export default function Dashboard() {
+  const { workers } = useWorkers();
   const [expanded, setExpanded] = useState(false);
   const navigate = useNavigate();
   const riskyWorkers = workers.filter((w) => w.status !== 'normal');
+  const counts = workers.reduce((acc, w) => ({ ...acc, [w.status]: (acc[w.status] || 0) + 1 }), {});
+  const summary = [
+    { key: 'all', label: '현재 작업자', value: workers.length, unit: '명', icon: Users },
+    { key: 'normal', label: '정상', value: counts.normal || 0, unit: '명', icon: ShieldCheck },
+    { key: 'warning', label: '주의', value: counts.warning || 0, unit: '명', icon: AlertTriangle },
+    { key: 'danger', label: '위험', value: counts.danger || 0, unit: '명', icon: HeartPulse },
+  ];
 
   return (
     <>
@@ -40,7 +42,7 @@ export default function Dashboard() {
         {expanded && (
           <section className="expanded-workers panel">
             <div className="panel-title-row">
-              <div><strong>주의 작업자</strong><span>3명</span></div>
+              <div><strong>주의 작업자</strong><span>{counts.warning || 0}명</span></div>
               <div className="row-actions"><button onClick={() => navigate('/workers')}>작업자 페이지로</button><button className="icon-btn" onClick={() => setExpanded(false)}><X size={15}/></button></div>
             </div>
             <div className="expanded-worker-grid">
@@ -77,7 +79,7 @@ export default function Dashboard() {
             </section>
             <section className="panel risk-list-panel">
               <div className="panel-title-row border-bottom"><strong>주의·위험 작업자</strong><Link to="/workers">전체</Link></div>
-              {riskyWorkers.map((w) => <div key={w.id} className="risk-list-row"><div className="mini-avatar">{w.name.slice(0,1)}</div><div><div><strong>{w.name}</strong> <StatusBadge level={w.status}>{labelMap[w.status]}</StatusBadge></div><p><HeartPulse size={12}/> {w.heartRate} <small>bpm</small> <span>{w.zone}</span></p></div></div>)}
+              {riskyWorkers.map((w) => <div key={w.id} className="risk-list-row"><div className="mini-avatar">{w.profileImage ? <img src={w.profileImage} alt=""/> : w.name.slice(0,1)}</div><div><div><strong>{w.name}</strong> <StatusBadge level={w.status}>{labelMap[w.status]}</StatusBadge></div><p><HeartPulse size={12}/> {w.heartRate} <small>bpm</small> <span>{w.zone}</span></p></div></div>)}
             </section>
           </aside>
         </div>
