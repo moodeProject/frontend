@@ -2,7 +2,7 @@ import { Activity, Box, Droplets, Eye, Flame, HeartPulse, Search, TriangleAlert 
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import TopHeader from '../components/TopHeader';
-import { detections } from '../data/mockData';
+import { useDetections } from '../context/DetectionContext';
 
 const tabs = [
   { key: 'all', label: '전체' },
@@ -31,6 +31,7 @@ function detailHref(item) {
 }
 
 export default function Records() {
+  const { detections } = useDetections();
   const [tab, setTab] = useState('all');
   const [search, setSearch] = useState('');
 
@@ -41,7 +42,7 @@ export default function Records() {
       const searchMatch = !query || [item.name, item.type, item.zone, item.process].some((value) => String(value).toLowerCase().includes(query));
       return tabMatch && searchMatch;
     });
-  }, [tab, search]);
+  }, [tab, search, detections]);
 
   return (
     <>

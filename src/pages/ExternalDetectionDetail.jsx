@@ -2,14 +2,16 @@ import {
   AlertTriangle,
   Ban,
   BellRing,
+  CheckCircle2,
   ChevronLeft,
   Droplets,
   Package,
   Play,
 } from 'lucide-react';
+import { useEffect } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import TopHeader from '../components/TopHeader';
-import { detections } from '../data/mockData';
+import { useDetections } from '../context/DetectionContext';
 
 const icons = {
   unguarded: AlertTriangle,
@@ -19,12 +21,18 @@ const icons = {
 
 export default function ExternalDetectionDetail() {
   const { id } = useParams();
+  const { detections, acknowledgeDetection, completeDetection } = useDetections();
   const item = detections.find((d) => String(d.id) === String(id));
+
+  useEffect(() => {
+    if (item?.category === 'external') acknowledgeDetection(id);
+  }, [id, item?.category]);
 
   if (!item || item.category !== 'external') return <Navigate to="/detections" replace />;
 
   const Icon = icons[item.kind] || AlertTriangle;
   const isDanger = item.level === 'danger';
+  const isCompleted = item.processClass === 'completed';
 
   return (
     <>
@@ -78,6 +86,14 @@ export default function ExternalDetectionDetail() {
               <strong>{item.actionText}</strong>
               <button type="button"><BellRing size={15}/> 경고 알림 전송</button>
               {isDanger && <button type="button" className="outline"><Ban size={15}/> 구역 접근 금지</button>}
+              <button
+                type="button"
+                className="complete-action"
+                disabled={isCompleted}
+                onClick={() => !isCompleted && completeDetection(item.id)}
+              >
+                <CheckCircle2 size={15}/> {isCompleted ? '처리완료' : '처리 완료하기'}
+              </button>
             </section>
           </aside>
         </div>

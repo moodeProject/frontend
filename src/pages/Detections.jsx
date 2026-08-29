@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import TopHeader from '../components/TopHeader';
-import { detections } from '../data/mockData';
+import { useDetections } from '../context/DetectionContext';
 
 const tabs = [
   { key: 'all', label: '전체' },
@@ -31,6 +31,7 @@ const levelLabel = { danger: '위험', warning: '주의' };
 
 export default function Detections() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { detections } = useDetections();
   const active = searchParams.get('tab') || 'all';
 
   const counts = {

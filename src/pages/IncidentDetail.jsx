@@ -1,14 +1,37 @@
-import { AlertOctagon, Flame, MapPin, Phone, Play, TriangleAlert } from 'lucide-react';
+import { AlertOctagon, CheckCircle2, Flame, MapPin, Phone, Play, TriangleAlert } from 'lucide-react';
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import TopHeader from '../components/TopHeader';
+import { useDetections } from '../context/DetectionContext';
+
+const FALL_ID = 1;
 
 export default function IncidentDetail() {
+  const { detections, acknowledgeDetection, completeDetection } = useDetections();
+  const incident = detections.find((item) => item.id === FALL_ID);
+  const isCompleted = incident?.processClass === 'completed';
+
+  // 상세 화면을 열면 '확인 필요한 새 위험' 배지에서는 제외한다.
+  useEffect(() => {
+    acknowledgeDetection(FALL_ID);
+  }, []);
+
   return (
     <>
       <TopHeader title="이상 감지" subtitle="외부요인 · 건강 · 추락" />
       <div className="page-body incident-page">
-        <Link className="back-link" to="/">← 이상 감지 목록</Link>
-        <section className="incident-banner"><div><AlertOctagon size={24}/><div><strong>추락 사고가 감지되었습니다.</strong><span>박민수 · A구역 3층 · 10:28</span></div></div><button>● 처리중</button></section>
+        <Link className="back-link" to="/detections">← 이상 감지 목록</Link>
+        <section className={`incident-banner ${isCompleted ? 'completed' : ''}`}>
+          <div><AlertOctagon size={24}/><div><strong>추락 사고가 감지되었습니다.</strong><span>박민수 · A구역 3층 · 10:28</span></div></div>
+          <button
+            type="button"
+            className={isCompleted ? 'completed' : ''}
+            onClick={() => !isCompleted && completeDetection(FALL_ID)}
+            disabled={isCompleted}
+          >
+            {isCompleted ? <><CheckCircle2 size={14}/> 처리완료</> : '● 처리중 · 완료하기'}
+          </button>
+        </section>
 
         <div className="incident-layout">
           <div className="incident-main">
