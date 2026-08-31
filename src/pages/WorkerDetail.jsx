@@ -48,6 +48,7 @@ function statusPatchFromSensor(worker, sensor) {
     gy: sensor?.gy ?? worker.gy,
     gz: sensor?.gz ?? worker.gz,
     sensorConnected: true,
+    serverDataConnected: true,
   };
 }
 
@@ -203,7 +204,10 @@ export default function WorkerDetail() {
               <span><MapPin size={13}/> {worker.zone}</span>
               <span><HardHat size={13}/> {worker.helmetId}</span>
               <span><Phone size={13}/> {worker.phone || '연락처 미등록'}</span>
-              <span className={worker.sensorConnected ? 'sensor-ok' : ''}><Wifi size={13}/> {worker.sensorConnected ? '센서 연결됨' : '센서 연결 끊김'}</span>
+              <span className={worker.serverDataConnected ? 'sensor-ok' : 'sensor-waiting'}>
+                <Wifi size={13}/>
+                {worker.serverDataConnected ? '실시간 센서 데이터 연결됨' : '서버 센서 데이터 대기'}
+              </span>
               {worker.deviceId && <span><Cpu size={13}/> {worker.deviceId}</span>}
               {worker.spo2 != null && <span>SpO₂ {worker.spo2}</span>}
               {worker.recordedAt && <span>센서 갱신 {new Date(worker.recordedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>}

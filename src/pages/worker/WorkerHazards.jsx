@@ -1,12 +1,136 @@
-import { Ban, Flame, MapPin, TriangleAlert } from 'lucide-react';
+import {
+  Ban,
+  Flame,
+  MapPin,
+  TriangleAlert,
+} from 'lucide-react';
+import { useMemo } from 'react';
 import { WorkerScaffold } from '../../components/WorkerMobileUI';
+import { useDetections } from '../../context/DetectionContext';
+import { getWorkerProfile } from '../../utils/workerProfile';
+import { detectionBelongsToWorker } from '../../utils/workerRealtime';
 
-const hazards=[
- {title:'물웅덩이 감지',time:'10:24',loc:'B구역 3층 북측 복도',desc:'작업 구역 바닥에 미끄럼 위험이 있습니다.',action:'주의해서 이동하세요',level:'warning',icon:Flame},
- {title:'장애물 감지',time:'09:12',loc:'B구역 3층 동측 이동로',desc:'이동 경로에 장애물이 감지되었습니다.',action:'우회 경로를 이용하세요',level:'warning',icon:TriangleAlert},
- {title:'난간 없는 구간',time:'10:26',loc:'B구역 3층 서측 엣지',desc:'추락 위험 구역에 접근 중입니다.',action:'즉시 위험 구역에서 벗어나세요',level:'danger',icon:Ban},
-];
+function hazardIcon(kind) {
+  if (kind === 'unguarded') return Ban;
+  if (kind === 'heat') return Flame;
+  return TriangleAlert;
+}
 
-export default function WorkerHazards(){return <WorkerScaffold active="home" title="주변 위험요인 상세" back>
-  <div className="worker-hazard-detail-list">{hazards.map(({title,time,loc,desc,action,level,icon:Icon})=><article key={title} className={level}><div className="worker-hazard-detail-head"><i><Icon size={20}/></i><p><strong>{title}</strong><small>{time}</small></p><b>● {level==='danger'?'위험':'주의'}</b></div><span><MapPin size={14}/>{loc}</span><p>{desc}</p><em>{level==='danger'?'⊘':'⚠'} {action}</em></article>)}</div>
-</WorkerScaffold>}
+export default function WorkerHazards() {
+  const {
+    detections,
+    hazardLoading,
+    hazardError,
+    hazardStreamConnected,
+  } = useDetections();
+
+  const profile = getWorkerProfile();
+
+  const hazards = useMemo(
+    () =>
+      detections
+        .filter(
+          (item) =>
+            item.category === 'external' &&
+            detectionBelongsToWorker(
+              item,
+              profile
+            )
+        )
+        .sort(
+          (a, b) =>
+            new Date(b.occurredAt || 0).getTime() -
+            new Date(a.occurredAt || 0).getTime()
+        ),
+    [
+      detections,
+      profile.employeeNo,
+      profile.name,
+      profile.helmetNo,
+    ]
+  );
+
+  return (
+    <WorkerScaffold
+      active="home"
+      title="주변 위험요인 상세"
+      back
+    >
+      <div
+        className={`worker-filter-banner ${
+          hazardError ? 'danger' : 'normal'
+        }`}
+      >
+        <span>
+          {hazardError
+            ? `위험 이벤트 연동 실패: ${hazardError}`
+            : hazardLoading
+              ? '위험 이벤트를 불러오는 중입니다.'
+              : hazardStreamConnected
+                ? `● 실시간 연결 · ${profile.name} 관련 ${hazards.length}건`
+                : '실시간 위험 이벤트 재연결 중'}
+        </span>
+      </div>
+
+      <div className="worker-hazard-detail-list">
+        {hazards.length > 0 ? (
+          hazards.map((item) => {
+            const Icon = hazardIcon(item.kind);
+
+            return (
+              <article
+                key={item.id}
+                className={item.level}
+              >
+                <div className="worker-hazard-detail-head">
+                  <i>
+                    <Icon size={20} />
+                  </i>
+
+                  <p>
+                    <strong>{item.type}</strong>
+                    <small>
+                      {item.dateLabel}{' '}
+                      {item.time}
+                    </small>
+                  </p>
+
+                  <b>
+                    ●{' '}
+                    {item.level === 'danger'
+                      ? '위험'
+                      : '주의'}
+                  </b>
+                </div>
+
+                <span>
+                  <MapPin size={14} />
+                  {item.zone || '-'}
+                </span>
+
+                <p>
+                  {item.detailDescription ||
+                    item.rawEvent?.description ||
+                    '위험 이벤트가 감지되었습니다.'}
+                </p>
+
+                <em>
+                  {item.level === 'danger'
+                    ? '⊘'
+                    : '⚠'}{' '}
+                  {item.actionText ||
+                    '현장 안전에 주의하세요.'}
+                </em>
+              </article>
+            );
+          })
+        ) : (
+          <div className="records-empty">
+            현재 이 작업자에게 발생한 외부 위험
+            이벤트가 없습니다.
+          </div>
+        )}
+      </div>
+    </WorkerScaffold>
+  );
+}

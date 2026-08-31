@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   Bell,
@@ -15,7 +15,10 @@ import {
   Users,
   X,
 } from 'lucide-react';
+import { useDetections } from '../context/DetectionContext';
 import { getWorkerProfile } from '../utils/workerProfile';
+import { detectionBelongsToWorker } from '../utils/workerRealtime';
+import { getDefaultWorkerProfile } from '../utils/defaultWorkerProfiles';
 
 const WORK_STATUS_META = {
   '근무 중': { key: 'work', label: '작업 중', description: '현재 현장 작업 중입니다.' },
@@ -54,9 +57,31 @@ export function WorkerHeader({ title, subtitle, back = false, onMenu }) {
 }
 
 export function WorkerBottomNav({ active = 'home' }) {
+  const { detections } = useDetections();
+  const profile = getWorkerProfile();
+
+  const workerAlertCount = useMemo(
+    () =>
+      detections.filter((item) =>
+        detectionBelongsToWorker(item, profile)
+      ).length,
+    [
+      detections,
+      profile.employeeNo,
+      profile.name,
+      profile.helmetNo,
+    ]
+  );
+
   const items = [
     { key: 'home', label: '홈', to: '/worker/home', icon: Home },
-    { key: 'alerts', label: '알림', to: '/worker/alerts', icon: Bell, badge: 3 },
+    {
+      key: 'alerts',
+      label: '알림',
+      to: '/worker/alerts',
+      icon: Bell,
+      badge: workerAlertCount,
+    },
     { key: 'sos', label: 'SOS', to: '/worker/sos', icon: ShieldAlert },
     { key: 'nearby', label: '주변', to: '/worker/nearby', icon: Users },
   ];
@@ -67,7 +92,7 @@ export function WorkerBottomNav({ active = 'home' }) {
         <NavLink key={key} to={to} className={`worker-bottom-item ${active === key ? 'active' : ''} ${key === 'sos' ? 'sos' : ''}`}>
           <span className="worker-bottom-icon-wrap">
             <Icon size={20} />
-            {badge ? <b>{badge}</b> : null}
+            {badge > 0 ? <b>{badge > 9 ? '9+' : badge}</b> : null}
           </span>
           <small>{label}</small>
         </NavLink>
@@ -101,6 +126,9 @@ export function WorkerDrawer({ open, onClose }) {
   if (!open) return null;
 
   const statusMeta = getWorkStatusMeta(workStatus);
+  const profilePhoto =
+    profile.photo ||
+    getDefaultWorkerProfile(profile.helmetNo || profile.helmetId);
 
   const logout = () => {
     localStorage.removeItem('safehelmet_worker_session');
@@ -117,12 +145,12 @@ export function WorkerDrawer({ open, onClose }) {
     <div className="worker-drawer-overlay" onClick={onClose}>
       <aside className="worker-drawer" onClick={(e) => e.stopPropagation()}>
         <div className={`worker-drawer-head ${statusMeta.key}`}>
-          <div className={`worker-drawer-symbol ${profile.photo ? 'has-photo' : ''}`}>
-            {profile.photo ? <img src={profile.photo} alt="프로필" /> : <HardHat size={24} />}
+          <div className={`worker-drawer-symbol ${profilePhoto ? 'has-photo' : ''}`}>
+            {profilePhoto ? <img src={profilePhoto} alt="프로필" /> : <HardHat size={24} />}
           </div>
           <button onClick={onClose}><X size={20} /></button>
-          <h2>{profile.name || '김현석'}</h2>
-          <p>사번: {profile.employeeNo || 'WK-20241103'} · {profile.location || 'B구역 3층'}</p>
+          <h2>{profile.name || '작업자'}</h2>
+          <p>사번: {profile.employeeNo || '-'} · {profile.location || '-'}</p>
           <div className="worker-drawer-status-wrap"><span className={`worker-drawer-status ${statusMeta.key}`}>{statusMeta.label}</span><small>{statusMeta.description}</small></div>
         </div>
         <div className="worker-drawer-menu">

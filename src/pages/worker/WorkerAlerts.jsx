@@ -1,27 +1,165 @@
-import { useState } from 'react';
+import {
+  useMemo,
+  useState,
+} from 'react';
 import { useNavigate } from 'react-router-dom';
 import { WorkerScaffold } from '../../components/WorkerMobileUI';
+import { useDetections } from '../../context/DetectionContext';
+import { getWorkerProfile } from '../../utils/workerProfile';
+import { detectionBelongsToWorker } from '../../utils/workerRealtime';
 
-const items=[
- {cat:'external',level:'warning',time:'10:24',title:'물웅덩이 감지',desc:'작업 구역 바닥이 미끄럽습니다.'},
- {cat:'external',level:'danger',time:'10:26',title:'난간 없는 구간 접근',desc:'추락 위험 구역에 접근 중입니다.'},
- {cat:'health',level:'warning',time:'10:27',title:'피로도 이상',desc:'피로도 2단계가 감지되었습니다. 휴식이 필요합니다.'},
- {cat:'fall',level:'danger',time:'10:28',title:'추락 감지',desc:'추락이 감지되었습니다. 즉시 확인이 필요합니다.'},
- {cat:'health',level:'warning',time:'09:45',title:'심박 이상',desc:'심박수가 110 bpm으로 높습니다.'},
- {cat:'external',level:'warning',time:'09:12',title:'장애물 감지',desc:'이동 경로에 장애물이 감지되었습니다.'},
+const tabs = [
+  ['all', '전체'],
+  ['external', '외부요인'],
+  ['health', '건강'],
+  ['fall', '추락'],
 ];
 
-export default function WorkerAlerts(){
-  const [tab,setTab]=useState('all');
-  const navigate=useNavigate();
-  const filtered=tab==='all'?items:items.filter(i=>i.cat===tab);
-  const openItem=(item)=>{
-    if(item.cat==='external') navigate('/worker/hazards');
-    else if(item.cat==='health') navigate('/worker/health');
-    else navigate('/worker/fall-alert');
+export default function WorkerAlerts() {
+  const [tab, setTab] = useState('all');
+  const navigate = useNavigate();
+
+  const {
+    detections,
+    hazardLoading,
+    hazardError,
+    hazardStreamConnected,
+  } = useDetections();
+
+  const profile = getWorkerProfile();
+
+  const items = useMemo(
+    () =>
+      detections
+        .filter((item) =>
+          detectionBelongsToWorker(
+            item,
+            profile
+          )
+        )
+        .sort(
+          (a, b) =>
+            new Date(b.occurredAt || 0).getTime() -
+            new Date(a.occurredAt || 0).getTime()
+        ),
+    [
+      detections,
+      profile.employeeNo,
+      profile.name,
+      profile.helmetNo,
+    ]
+  );
+
+  const filtered =
+    tab === 'all'
+      ? items
+      : items.filter(
+          (item) => item.category === tab
+        );
+
+  const counts = useMemo(
+    () => ({
+      all: items.length,
+      external: items.filter(
+        (item) =>
+          item.category === 'external'
+      ).length,
+      health: items.filter(
+        (item) => item.category === 'health'
+      ).length,
+      fall: items.filter(
+        (item) => item.category === 'fall'
+      ).length,
+    }),
+    [items]
+  );
+
+  const openItem = (item) => {
+    if (item.category === 'external') {
+      navigate('/worker/hazards');
+    } else if (item.category === 'health') {
+      navigate('/worker/health');
+    } else {
+      navigate('/worker/fall-alert');
+    }
   };
-  return <WorkerScaffold active="alerts" title="알림">
-    <div className="worker-alert-tabs">{[['all','전체'],['external','외부요인'],['health','건강'],['fall','추락']].map(([k,l])=><button key={k} className={tab===k?'active':''} onClick={()=>setTab(k)}>{l}</button>)}</div>
-    <div className="worker-alert-list">{filtered.map((a)=><button type="button" key={a.title+a.time} className={`worker-alert-card ${a.level}`} onClick={()=>openItem(a)}><div><span>● {a.level==='danger'?'위험':'주의'}</span><time>{a.time}</time></div><strong>{a.title}</strong><p>{a.desc}</p></button>)}</div>
-  </WorkerScaffold>
+
+  return (
+    <WorkerScaffold
+      active="alerts"
+      title="알림"
+    >
+      <div className="worker-alert-tabs">
+        {tabs.map(([key, label]) => (
+          <button
+            key={key}
+            className={
+              tab === key ? 'active' : ''
+            }
+            onClick={() => setTab(key)}
+          >
+            {label}{' '}
+            {counts[key] > 0
+              ? counts[key]
+              : ''}
+          </button>
+        ))}
+      </div>
+
+      <div
+        className={`worker-filter-banner ${
+          hazardError ? 'danger' : 'normal'
+        }`}
+      >
+        <span>
+          {hazardError
+            ? `알림 연동 실패: ${hazardError}`
+            : hazardLoading
+              ? '알림을 불러오는 중입니다.'
+              : hazardStreamConnected
+                ? `● 실시간 위험 알림 연결됨 · ${items.length}건`
+                : '실시간 위험 알림 재연결 중'}
+        </span>
+      </div>
+
+      <div className="worker-alert-list">
+        {filtered.length > 0 ? (
+          filtered.map((item) => (
+            <button
+              type="button"
+              key={item.id}
+              className={`worker-alert-card ${item.level}`}
+              onClick={() =>
+                openItem(item)
+              }
+            >
+              <div>
+                <span>
+                  ●{' '}
+                  {item.level === 'danger'
+                    ? '위험'
+                    : '주의'}
+                </span>
+                <time>{item.time}</time>
+              </div>
+
+              <strong>{item.type}</strong>
+
+              <p>
+                {item.detailDescription ||
+                  item.rawEvent?.description ||
+                  `${item.name} · ${item.zone}`}
+              </p>
+            </button>
+          ))
+        ) : (
+          <div className="records-empty">
+            {tab === 'all'
+              ? '현재 이 작업자에게 발생한 위험 알림이 없습니다.'
+              : '해당 유형의 알림이 없습니다.'}
+          </div>
+        )}
+      </div>
+    </WorkerScaffold>
+  );
 }

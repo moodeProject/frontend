@@ -8,12 +8,10 @@ import {
   Search,
   TriangleAlert,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import TopHeader from '../components/TopHeader';
 import { useDetections } from '../context/DetectionContext';
-import { useWorkers } from '../context/WorkerContext';
-import { getWorkerAlerts } from '../api/workerStatus';
 
 const tabs = [
   { key: 'all', label: '전체' },
@@ -36,171 +34,123 @@ function iconForDetection(item) {
 }
 
 function detailHref(item) {
-  if (item.category === 'fall') return '/incident';
-  if (item.category === 'external') return `/detections/${item.id}`;
-  if (item.category === 'health') return `/detections/health/${item.id}`;
-  return '/detections';
-}
-
-function isAbnormal(value) {
-  return Boolean(value) && String(value).toUpperCase() !== 'NORMAL';
-}
-
-function deriveDeviceId(worker) {
-  if (worker?.deviceId) return String(worker.deviceId);
-
-  const helmetId = worker?.helmetId || worker?.id || '';
-  if (/^H-\d+$/i.test(helmetId)) {
-    return helmetId.replace(/^H-/i, 'DEV-');
+  if (item.category === 'fall') {
+    return `/incident/${item.id}`;
   }
 
-  return '';
+  if (item.category === 'health') {
+    return `/detections/health/${item.id}`;
+  }
+
+  return `/detections/${item.id}`;
 }
 
-function formatRecordedAt(recordedAt) {
-  if (!recordedAt) {
-    return {
-      dateLabel: '--.--',
-      time: '--:--',
-    };
-  }
-
-  const date = new Date(recordedAt);
-
-  if (Number.isNaN(date.getTime())) {
-    return {
-      dateLabel: '--.--',
-      time: '--:--',
-    };
-  }
+function processLabel(item) {
+  if (item.statusLabel) return item.statusLabel;
 
   return {
-    dateLabel: `${String(date.getMonth() + 1).padStart(2, '0')}.${String(
-      date.getDate()
-    ).padStart(2, '0')}`,
-    time: date.toLocaleTimeString('ko-KR', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    }),
-  };
+    UNHANDLED: '미처리',
+    IN_PROGRESS: '처리중',
+    RESOLVED: '처리완료',
+  }[String(item.status ?? '').toUpperCase()] || item.process || '미처리';
 }
 
-function convertAlertToRecord(alert, workers) {
-  const worker = workers.find(
-    (item) => deriveDeviceId(item) === String(alert.deviceId)
-  );
+function processClass(item) {
+  const status = String(item.status ?? '').toUpperCase();
 
-  const { dateLabel, time } = formatRecordedAt(alert.recordedAt);
-  const danger = isAbnormal(alert.fallState);
+  if (status === 'RESOLVED') return 'confirmed';
+  if (status === 'IN_PROGRESS') return 'processing';
+  if (status === 'UNHANDLED') return 'unprocessed';
 
-  return {
-    id: `server-fall-${alert.deviceId}-${alert.recordedAt || Math.random()}`,
-    category: 'fall',
-    kind: 'fall',
-    level: danger ? 'danger' : 'warning',
-    type: danger ? '추락 감지' : '추락 감지 이력',
-    name: worker?.name || alert.deviceId || '미확인 작업자',
-    zone: worker?.zone || worker?.detailLocation || '-',
-    dateLabel,
-    time,
-    process: '미처리',
-    processClass: 'unprocessed',
-    source: 'server',
-    deviceId: alert.deviceId,
-    fallState: alert.fallState,
-    healthState: alert.healthState,
-    heartRate: alert.heartRate,
-    spo2: alert.spo2,
-    fallConfidence: alert.fallConfidence,
-    recordedAt: alert.recordedAt,
-  };
+  if (item.processClass === 'completed') return 'confirmed';
+  return item.processClass || 'unprocessed';
+}
+
+function levelLabel(item) {
+  if (item.rawEvent?.severityLabel) {
+    return item.rawEvent.severityLabel;
+  }
+
+  return item.level === 'danger' ? '위험' : '주의';
 }
 
 export default function Records() {
-  const { detections } = useDetections();
-  const { workers } = useWorkers();
+  const {
+    detections,
+    refreshHazardEvents,
+    hazardLoading,
+    hazardError,
+    hazardSummary,
+    hazardStreamConnected,
+  } = useDetections();
 
   const [tab, setTab] = useState('all');
   const [search, setSearch] = useState('');
-  const [serverFallRecords, setServerFallRecords] = useState([]);
-  const [alertsLoading, setAlertsLoading] = useState(false);
-  const [alertsError, setAlertsError] = useState('');
 
-  const refreshAlerts = useCallback(async () => {
-    setAlertsLoading(true);
-    setAlertsError('');
-
-    try {
-      const alerts = await getWorkerAlerts();
-
-      const converted = alerts
-        .map((alert) => convertAlertToRecord(alert, workers))
-        .sort((a, b) => {
-          const aTime = new Date(a.recordedAt || 0).getTime();
-          const bTime = new Date(b.recordedAt || 0).getTime();
-          return bTime - aTime;
-        });
-
-      setServerFallRecords(converted);
-      return alerts;
-    } catch (error) {
-      console.error('추락 감지 이력 조회 실패:', error);
-      setAlertsError(
-        error?.message || '추락 감지 이력을 불러오지 못했습니다.'
-      );
-      throw error;
-    } finally {
-      setAlertsLoading(false);
+  const counts = useMemo(() => {
+    if (hazardSummary) {
+      return {
+        all: hazardSummary.all ?? detections.length,
+        external:
+          hazardSummary.external ??
+          detections.filter((item) => item.category === 'external').length,
+        health:
+          hazardSummary.health ??
+          detections.filter((item) => item.category === 'health').length,
+        fall:
+          hazardSummary.fall ??
+          detections.filter((item) => item.category === 'fall').length,
+      };
     }
-  }, [workers]);
 
-  useEffect(() => {
-    refreshAlerts().catch(() => {});
-  }, [refreshAlerts]);
-
-  const mergedRecords = useMemo(() => {
-    // 추락 기록은 실제 서버 API를 사용하고,
-    // 외부요인/건강은 해당 API 연결 전까지 기존 데이터를 유지합니다.
-    const nonFallMockRecords = detections.filter(
-      (item) => item.category !== 'fall'
-    );
-
-    return [...serverFallRecords, ...nonFallMockRecords];
-  }, [detections, serverFallRecords]);
+    return {
+      all: detections.length,
+      external: detections.filter((item) => item.category === 'external').length,
+      health: detections.filter((item) => item.category === 'health').length,
+      fall: detections.filter((item) => item.category === 'fall').length,
+    };
+  }, [hazardSummary, detections]);
 
   const rows = useMemo(() => {
     const query = search.trim().toLowerCase();
 
-    return mergedRecords.filter((item) => {
-      const tabMatch = tab === 'all' || item.category === tab;
+    return [...detections]
+      .sort((a, b) => {
+        const aTime = new Date(a.occurredAt || 0).getTime();
+        const bTime = new Date(b.occurredAt || 0).getTime();
+        return bTime - aTime;
+      })
+      .filter((item) => {
+        const tabMatch = tab === 'all' || item.category === tab;
 
-      const searchMatch =
-        !query ||
-        [
-          item.name,
-          item.type,
-          item.zone,
-          item.process,
-          item.deviceId,
-          item.fallState,
-          item.healthState,
-        ].some((value) =>
-          String(value ?? '')
-            .toLowerCase()
-            .includes(query)
-        );
+        const searchMatch =
+          !query ||
+          [
+            item.name,
+            item.employeeNo,
+            item.type,
+            item.zone,
+            item.helmetNo,
+            item.statusLabel,
+            item.process,
+            item.rawEvent?.hazardType,
+            item.rawEvent?.severityLabel,
+          ].some((value) =>
+            String(value ?? '')
+              .toLowerCase()
+              .includes(query)
+          );
 
-      return tabMatch && searchMatch;
-    });
-  }, [tab, search, mergedRecords]);
+        return tabMatch && searchMatch;
+      });
+  }, [tab, search, detections]);
 
   return (
     <>
       <TopHeader
         title="사고·알림 기록"
-        subtitle="이벤트 처리 이력"
-        onRefresh={refreshAlerts}
+        subtitle="실제 이상 감지 이벤트 처리 이력"
+        onRefresh={refreshHazardEvents}
       />
 
       <div className="page-body records-page">
@@ -212,7 +162,7 @@ export default function Records() {
                 className={tab === item.key ? 'active' : ''}
                 onClick={() => setTab(item.key)}
               >
-                {item.label}
+                {item.label} {counts[item.key] ?? 0}
               </button>
             ))}
           </div>
@@ -222,22 +172,26 @@ export default function Records() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="검색"
+              placeholder="작업자·유형·위치 검색"
             />
           </label>
         </div>
 
-        {alertsLoading && (
-          <div className="records-empty">
-            실제 추락 감지 이력을 불러오는 중입니다.
-          </div>
-        )}
-
-        {alertsError && (
-          <div className="records-empty">
-            추락 이력 연동 실패: {alertsError}
-          </div>
-        )}
+        <div
+          className={`worker-filter-banner ${
+            hazardError ? 'danger' : 'normal'
+          }`}
+        >
+          <span>
+            {hazardError
+              ? `사고·알림 기록 API 연동 실패: ${hazardError}`
+              : hazardLoading
+                ? '사고·알림 기록을 불러오는 중입니다.'
+                : hazardStreamConnected
+                  ? '● 실시간 위험 이벤트 기록 연결됨'
+                  : '위험 이벤트 실시간 연결 재시도 중'}
+          </span>
+        </div>
 
         <section className="panel records-table">
           <div className="records-row records-head">
@@ -259,42 +213,54 @@ export default function Records() {
                 key={item.id}
               >
                 <time>
-                  {item.dateLabel || '08.09'}&nbsp; {item.time}
+                  {item.dateLabel || '--.--'}&nbsp; {item.time || '--:--'}
                 </time>
 
-                <strong>{item.name}</strong>
+                <strong>
+                  {item.name || '미확인 작업자'}
+                </strong>
 
                 <span
                   className={`record-type ${item.level} ${item.kind}`}
                 >
                   <Icon size={13} />
-                  {item.type}
+                  {item.type || '이상 감지'}
                 </span>
 
-                <span className="record-zone">{item.zone}</span>
+                <span className="record-zone">
+                  {item.zone || '-'}
+                </span>
 
                 <span>
                   <span className={`record-risk ${item.level}`}>
-                    ● {item.level === 'danger' ? '위험' : '주의'}
+                    ● {levelLabel(item)}
                   </span>
                 </span>
 
                 <span>
                   <span
-                    className={`record-process ${item.processClass}`}
+                    className={`record-process ${processClass(item)}`}
                   >
-                    {item.process}
+                    {processLabel(item)}
                   </span>
                 </span>
 
                 <Link
                   className="record-detail"
                   to={detailHref(item)}
-                  title={
-                    item.source === 'server'
-                      ? `${item.deviceId} · 심박 ${item.heartRate ?? '-'} bpm · SpO₂ ${item.spo2 ?? '-'}`
-                      : undefined
-                  }
+                  title={[
+                    item.employeeNo,
+                    item.helmetNo,
+                    item.confidence != null
+                      ? `신뢰도 ${Math.round(
+                          Number(item.confidence) <= 1
+                            ? Number(item.confidence) * 100
+                            : Number(item.confidence)
+                        )}%`
+                      : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
                 >
                   <Eye size={13} />
                   상세
@@ -303,11 +269,13 @@ export default function Records() {
             );
           })}
 
-          {!alertsLoading && rows.length === 0 && (
+          {!hazardLoading && rows.length === 0 && (
             <div className="records-empty">
-              {tab === 'fall'
-                ? '현재 서버에 저장된 추락 감지 이력이 없습니다.'
-                : '검색 결과가 없습니다.'}
+              {search
+                ? '검색 조건에 맞는 기록이 없습니다.'
+                : tab === 'all'
+                  ? '현재 서버에 저장된 사고·알림 기록이 없습니다.'
+                  : `${tabs.find((item) => item.key === tab)?.label} 기록이 없습니다.`}
             </div>
           )}
         </section>

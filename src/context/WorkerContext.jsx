@@ -1,29 +1,66 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { workers as initialWorkers } from '../data/mockData';
 import { getAllWorkerStatuses } from '../api/workerStatus';
+import { getDefaultWorkerProfile } from '../utils/defaultWorkerProfiles';
 
 const WorkerContext = createContext(null);
 const STORAGE_KEY = 'safehelmet-workers-v3';
 
 function deriveDeviceId(worker) {
   if (worker.deviceId) return worker.deviceId;
+
   const helmetId = worker.helmetId || worker.id || '';
-  if (/^H-\d+$/i.test(helmetId)) return helmetId.replace(/^H-/i, 'DEV-');
+
+  if (/^H-\d+$/i.test(helmetId)) {
+    return helmetId.replace(/^H-/i, 'DEV-');
+  }
+
   return '';
 }
 
+function isUserUploadedProfile(value) {
+  const src = String(value || '');
+  return src.startsWith('data:') || src.startsWith('blob:');
+}
+
 function normalizeWorker(worker) {
+  const defaultProfile = getDefaultWorkerProfile(worker);
+  const currentProfile = worker.profileImage || '';
+
   return {
     ...worker,
-    employeeNumber: worker.employeeNumber || worker.workerCode || '',
-    workerCode: worker.workerCode || worker.employeeNumber || '',
+    employeeNumber:
+      worker.employeeNumber || worker.workerCode || '',
+    workerCode:
+      worker.workerCode || worker.employeeNumber || '',
     phone: worker.phone || '',
     deviceId: deriveDeviceId(worker),
+
+    // 사용자가 직접 업로드한 사진은 유지하고,
+    // 기존 정적 mock 프로필/빈 프로필에는 제공된 현장 작업자 사진을 적용합니다.
+    profileImage: isUserUploadedProfile(currentProfile)
+      ? currentProfile
+      : defaultProfile || currentProfile,
+
+    // "센서 연결됨"과 "실제 서버 데이터 존재"를 구분하기 위한 값입니다.
+    serverDataConnected:
+      worker.serverDataConnected === true ||
+      Boolean(worker.recordedAt),
   };
 }
 
 function isAbnormal(value) {
-  return Boolean(value) && String(value).toUpperCase() !== 'NORMAL';
+  return (
+    Boolean(value) &&
+    String(value).toUpperCase() !== 'NORMAL'
+  );
 }
 
 function mergeSensorStatus(worker, sensor) {
@@ -41,24 +78,40 @@ function mergeSensorStatus(worker, sensor) {
     issue = '추락 감지됨';
   } else if (healthAbnormal) {
     status = 'warning';
-    issue = sensor.healthState === 'NORMAL' ? '건강 이상 감지' : `건강 이상 · ${sensor.healthState}`;
-    fatigue = Math.max(Number(worker.fatigue) || 1, 2);
+    issue =
+      sensor.healthState === 'NORMAL'
+        ? '건강 이상 감지'
+        : `건강 이상 · ${sensor.healthState}`;
+    fatigue = Math.max(
+      Number(worker.fatigue) || 1,
+      2
+    );
   }
 
   const heartRate = Number(sensor.heartRate);
 
   return normalizeWorker({
     ...worker,
-    deviceId: sensor.deviceId || worker.deviceId,
+    deviceId:
+      sensor.deviceId || worker.deviceId,
     status,
     issue,
     fatigue,
-    heartRate: Number.isFinite(heartRate) && heartRate > 0 ? heartRate : worker.heartRate,
+    heartRate:
+      Number.isFinite(heartRate) &&
+      heartRate > 0
+        ? heartRate
+        : worker.heartRate,
     spo2: sensor.spo2 ?? worker.spo2,
-    fallState: sensor.fallState ?? worker.fallState,
-    healthState: sensor.healthState ?? worker.healthState,
-    fallConfidence: sensor.fallConfidence ?? worker.fallConfidence,
-    recordedAt: sensor.recordedAt ?? worker.recordedAt,
+    fallState:
+      sensor.fallState ?? worker.fallState,
+    healthState:
+      sensor.healthState ?? worker.healthState,
+    fallConfidence:
+      sensor.fallConfidence ??
+      worker.fallConfidence,
+    recordedAt:
+      sensor.recordedAt ?? worker.recordedAt,
     ax: sensor.ax ?? worker.ax,
     ay: sensor.ay ?? worker.ay,
     az: sensor.az ?? worker.az,
@@ -66,61 +119,98 @@ function mergeSensorStatus(worker, sensor) {
     gy: sensor.gy ?? worker.gy,
     gz: sensor.gz ?? worker.gz,
     sensorConnected: true,
+    serverDataConnected: true,
   });
 }
 
 export function WorkerProvider({ children }) {
   const [workers, setWorkers] = useState(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      const source = saved ? JSON.parse(saved) : initialWorkers;
+      const saved = localStorage.getItem(
+        STORAGE_KEY
+      );
+
+      const source = saved
+        ? JSON.parse(saved)
+        : initialWorkers;
+
       return source.map(normalizeWorker);
     } catch {
       return initialWorkers.map(normalizeWorker);
     }
   });
 
-  const [sensorLoading, setSensorLoading] = useState(false);
-  const [sensorError, setSensorError] = useState('');
-  const [lastSensorUpdated, setLastSensorUpdated] = useState(null);
+  const [sensorLoading, setSensorLoading] =
+    useState(false);
+
+  const [sensorError, setSensorError] =
+    useState('');
+
+  const [
+    lastSensorUpdated,
+    setLastSensorUpdated,
+  ] = useState(null);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(workers));
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(workers)
+    );
   }, [workers]);
 
-  const refreshWorkerStatuses = useCallback(async () => {
-    setSensorLoading(true);
-    setSensorError('');
+  const refreshWorkerStatuses =
+    useCallback(async () => {
+      setSensorLoading(true);
+      setSensorError('');
 
-    try {
-      const statuses = await getAllWorkerStatuses();
+      try {
+        const statuses =
+          await getAllWorkerStatuses();
 
-      setWorkers((prev) => {
-        const byDeviceId = new Map(
-          statuses
-            .filter((item) => item?.deviceId)
-            .map((item) => [String(item.deviceId), item])
+        setWorkers((prev) => {
+          const byDeviceId = new Map(
+            statuses
+              .filter(
+                (item) => item?.deviceId
+              )
+              .map((item) => [
+                String(item.deviceId),
+                item,
+              ])
+          );
+
+          return prev.map((worker) => {
+            const normalized =
+              normalizeWorker(worker);
+
+            const deviceId =
+              deriveDeviceId(normalized);
+
+            return mergeSensorStatus(
+              normalized,
+              byDeviceId.get(String(deviceId))
+            );
+          });
+        });
+
+        setLastSensorUpdated(new Date());
+        return statuses;
+      } catch (error) {
+        console.error(
+          '작업자 센서 상태 조회 실패:',
+          error
         );
 
-        return prev.map((worker) => {
-          const deviceId = deriveDeviceId(worker);
-          return mergeSensorStatus(
-            normalizeWorker(worker),
-            byDeviceId.get(String(deviceId))
-          );
-        });
-      });
+        setSensorError(
+          error?.message ||
+            '작업자 상태를 불러오지 못했습니다.'
+        );
 
-      setLastSensorUpdated(new Date());
-      return statuses;
-    } catch (error) {
-      console.error('작업자 센서 상태 조회 실패:', error);
-      setSensorError(error?.message || '작업자 상태를 불러오지 못했습니다.');
-      throw error;
-    } finally {
-      setSensorLoading(false);
-    }
-  }, []);
+        throw error;
+      } finally {
+        setSensorLoading(false);
+      }
+    }, []);
 
   useEffect(() => {
     refreshWorkerStatuses().catch(() => {});
@@ -129,44 +219,60 @@ export function WorkerProvider({ children }) {
       refreshWorkerStatuses().catch(() => {});
     }, 10000);
 
-    return () => window.clearInterval(timer);
+    return () =>
+      window.clearInterval(timer);
   }, [refreshWorkerStatuses]);
 
-  const api = useMemo(() => ({
-    workers,
-    sensorLoading,
-    sensorError,
-    lastSensorUpdated,
-    refreshWorkerStatuses,
+  const api = useMemo(
+    () => ({
+      workers,
+      sensorLoading,
+      sensorError,
+      lastSensorUpdated,
+      refreshWorkerStatuses,
 
-    addWorker(worker) {
-      setWorkers((prev) => [...prev, normalizeWorker(worker)]);
-    },
+      addWorker(worker) {
+        setWorkers((prev) => [
+          ...prev,
+          normalizeWorker(worker),
+        ]);
+      },
 
-    updateWorker(id, patch) {
-      setWorkers((prev) =>
-        prev.map((worker) =>
-          worker.id === id
-            ? normalizeWorker({ ...worker, ...patch })
-            : worker
-        )
-      );
-    },
+      updateWorker(id, patch) {
+        setWorkers((prev) =>
+          prev.map((worker) =>
+            worker.id === id
+              ? normalizeWorker({
+                  ...worker,
+                  ...patch,
+                })
+              : worker
+          )
+        );
+      },
 
-    deleteWorker(id) {
-      setWorkers((prev) => prev.filter((worker) => worker.id !== id));
-    },
+      deleteWorker(id) {
+        setWorkers((prev) =>
+          prev.filter(
+            (worker) => worker.id !== id
+          )
+        );
+      },
 
-    resetWorkers() {
-      setWorkers(initialWorkers.map(normalizeWorker));
-    },
-  }), [
-    workers,
-    sensorLoading,
-    sensorError,
-    lastSensorUpdated,
-    refreshWorkerStatuses,
-  ]);
+      resetWorkers() {
+        setWorkers(
+          initialWorkers.map(normalizeWorker)
+        );
+      },
+    }),
+    [
+      workers,
+      sensorLoading,
+      sensorError,
+      lastSensorUpdated,
+      refreshWorkerStatuses,
+    ]
+  );
 
   return (
     <WorkerContext.Provider value={api}>
@@ -177,6 +283,12 @@ export function WorkerProvider({ children }) {
 
 export function useWorkers() {
   const context = useContext(WorkerContext);
-  if (!context) throw new Error('useWorkers must be used inside WorkerProvider');
+
+  if (!context) {
+    throw new Error(
+      'useWorkers must be used inside WorkerProvider'
+    );
+  }
+
   return context;
 }

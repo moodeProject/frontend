@@ -71,6 +71,7 @@ export default function App() {
                 <Route path="/detections" element={<Detections />} />
                 <Route path="/detections/health/:id" element={<HealthDetectionDetail />} />
                 <Route path="/detections/:id" element={<ExternalDetectionDetail />} />
+                <Route path="/incident/:id" element={<IncidentDetail />} />
                 <Route path="/incident" element={<IncidentDetail />} />
                 <Route path="/workers" element={<Workers />} />
                 <Route path="/workers/:workerId" element={<WorkerDetail />} />
@@ -80,6 +81,8 @@ export default function App() {
                 <Route path="/mypage" element={<MyPage />} />
               </Route>
             </Route>
+
+            {/* API 테스트 전용 */}
             <Route path="/sensor-test" element={<SensorApiTest />} />
           </Routes>
         </BrowserRouter>

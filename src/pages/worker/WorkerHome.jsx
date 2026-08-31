@@ -1,53 +1,407 @@
-import { useState } from 'react';
-import { Clock3, Heart, LocateFixed, MapPin, Radio, ShieldCheck, Siren, Thermometer, TriangleAlert, Wifi } from 'lucide-react';
+import {
+  Clock3,
+  Heart,
+  LocateFixed,
+  MapPin,
+  Radio,
+  ShieldCheck,
+  Siren,
+  TriangleAlert,
+  Wifi,
+} from 'lucide-react';
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { useNavigate } from 'react-router-dom';
 import { WorkerScaffold } from '../../components/WorkerMobileUI';
+import { useDetections } from '../../context/DetectionContext';
+import { getWorkerStatus } from '../../api/workerStatus';
 import { getWorkerProfile } from '../../utils/workerProfile';
+import {
+  detectionBelongsToWorker,
+  formatSensorTime,
+  getWorkerDeviceId,
+  isNormalState,
+  sensorUiStatus,
+} from '../../utils/workerRealtime';
 
 export default function WorkerHome() {
   const navigate = useNavigate();
-  const [drawerKey] = useState(0);
   const profile = getWorkerProfile();
 
+  const {
+    detections,
+    hazardStreamConnected,
+  } = useDetections();
+
+  const [sensor, setSensor] = useState(null);
+  const [sensorLoading, setSensorLoading] = useState(true);
+  const [sensorError, setSensorError] = useState('');
+
+  const deviceId = getWorkerDeviceId(profile);
+
+  useEffect(() => {
+    let active = true;
+
+    const load = async () => {
+      if (!deviceId) {
+        if (active) {
+          setSensor(null);
+          setSensorError('연결된 deviceId가 없습니다.');
+          setSensorLoading(false);
+        }
+        return;
+      }
+
+      try {
+        const data = await getWorkerStatus(deviceId);
+
+        if (active) {
+          setSensor(data);
+          setSensorError('');
+        }
+      } catch (error) {
+        if (active) {
+          setSensor(null);
+          setSensorError(
+            error?.message ||
+              '최신 센서 상태를 불러오지 못했습니다.'
+          );
+        }
+      } finally {
+        if (active) setSensorLoading(false);
+      }
+    };
+
+    load();
+
+    const timer = window.setInterval(load, 10000);
+
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [deviceId]);
+
+  const myEvents = useMemo(
+    () =>
+      detections
+        .filter((item) =>
+          detectionBelongsToWorker(item, profile)
+        )
+        .sort(
+          (a, b) =>
+            new Date(b.occurredAt || 0).getTime() -
+            new Date(a.occurredAt || 0).getTime()
+        ),
+    [
+      detections,
+      profile.employeeNo,
+      profile.name,
+      profile.helmetNo,
+    ]
+  );
+
+  const externalHazards = myEvents
+    .filter((item) => item.category === 'external')
+    .slice(0, 2);
+
+  const latestHealth = myEvents.find(
+    (item) => item.category === 'health'
+  );
+
+  const uiStatus = sensorUiStatus(sensor);
+
+  const sensorConnected = Boolean(sensor);
+  const fallNormal = sensor
+    ? isNormalState(sensor.fallState)
+    : null;
+
+  const healthNormal = sensor
+    ? isNormalState(sensor.healthState)
+    : null;
+
   return (
-    <WorkerScaffold key={drawerKey} active="home" title={`${profile.name || '김현석'} 작업자님`} subtitle="오늘도 안전하게 작업하세요" className="worker-home-page">
+    <WorkerScaffold
+      active="home"
+      title={`${profile.name || '작업자'} 작업자님`}
+      subtitle="오늘도 안전하게 작업하세요"
+      className="worker-home-page"
+    >
       <div className="worker-home-statusline">
-        <span><ShieldCheck size={14} /> 안전모 연결됨</span>
-        <span><Wifi size={14} /> 센서 연결됨</span>
+        <span>
+          <ShieldCheck size={14} />
+          {profile.helmetConnected !== false
+            ? '안전모 연결됨'
+            : '안전모 연결 확인 필요'}
+        </span>
+
+        <span>
+          <Wifi size={14} />
+          {sensorConnected
+            ? `센서 연결됨 · ${formatSensorTime(
+                sensor.recordedAt
+              )}`
+            : sensorLoading
+              ? '센서 확인 중'
+              : '센서 데이터 없음'}
+        </span>
       </div>
 
-      <section className="worker-state-card warning">
-        <div className="worker-state-card-head"><strong><TriangleAlert size={16} /> 현재 상태</strong><span>⚠ 주의</span></div>
-        <div className="worker-state-row"><span><MapPin size={17} /> 위치</span><b>{profile.location || 'B구역 3층'}</b></div>
-        <div className="worker-state-row"><span><ShieldCheck size={17} /> 안전모</span><b className="ok">착용 중 ✓</b></div>
-        <div className="worker-state-row"><span><Radio size={17} /> 센서</span><b className="ok">정상 연결</b></div>
-      </section>
+      {sensorError && (
+        <div className="worker-filter-banner danger">
+          <span>
+            {deviceId || 'deviceId'} · {sensorError}
+          </span>
+        </div>
+      )}
 
-      <section className="worker-white-card">
-        <div className="worker-card-title"><strong>건강 상태</strong><button onClick={() => navigate('/worker/health')}>상세보기 ›</button></div>
-        <div className="worker-fatigue-row"><span>피로도</span><div className="worker-fatigue-bars"><i /><i /><i /></div><b>2단계 주의</b></div>
-        <div className="worker-health-mini-grid">
-          <div><Heart size={18} /><span>심박수</span><strong>92 <small>bpm</small></strong></div>
-          <div><Thermometer size={18} /><span>열사병</span><strong>주의</strong></div>
+      <section
+        className={`worker-state-card ${
+          uiStatus.key === 'danger'
+            ? 'danger'
+            : uiStatus.key === 'warning'
+              ? 'warning'
+              : 'normal'
+        }`}
+      >
+        <div className="worker-state-card-head">
+          <strong>
+            <TriangleAlert size={16} /> 현재 상태
+          </strong>
+          <span>
+            {uiStatus.key === 'danger'
+              ? '● 위험'
+              : uiStatus.key === 'warning'
+                ? '● 주의'
+                : uiStatus.key === 'normal'
+                  ? '● 정상'
+                  : '● 확인 필요'}
+          </span>
+        </div>
+
+        <div className="worker-state-row">
+          <span>
+            <MapPin size={17} /> 위치
+          </span>
+          <b>{profile.location || '-'}</b>
+        </div>
+
+        <div className="worker-state-row">
+          <span>
+            <ShieldCheck size={17} /> 안전모
+          </span>
+          <b className="ok">
+            {profile.helmetNo || '-'}
+          </b>
+        </div>
+
+        <div className="worker-state-row">
+          <span>
+            <Radio size={17} /> 센서
+          </span>
+          <b className={sensorConnected ? 'ok' : ''}>
+            {sensorConnected
+              ? deviceId
+              : '최신 데이터 없음'}
+          </b>
         </div>
       </section>
 
       <section className="worker-white-card">
-        <div className="worker-card-title"><strong>주변 위험요인</strong><span className="worker-count-pill">2건</span></div>
-        <button className="worker-hazard-row" onClick={() => navigate('/worker/hazards')}><i>♨</i><div><strong>물웅덩이 감지</strong><small>바닥이 미끄럽습니다</small></div><b>• 주의</b></button>
-        <button className="worker-hazard-row" onClick={() => navigate('/worker/hazards')}><i><TriangleAlert size={18} /></i><div><strong>장애물 감지</strong><small>이동 경로 주의</small></div><b>• 주의</b></button>
-        <button className="worker-section-link" onClick={() => navigate('/worker/hazards')}>상세보기 ›</button>
+        <div className="worker-card-title">
+          <strong>건강 상태</strong>
+          <button
+            onClick={() =>
+              navigate('/worker/health')
+            }
+          >
+            상세보기 ›
+          </button>
+        </div>
+
+        <div className="worker-fatigue-row">
+          <span>건강 상태</span>
+          <div className="worker-fatigue-bars">
+            <i />
+            <i />
+            <i />
+          </div>
+          <b>
+            {!sensor
+              ? '확인 필요'
+              : healthNormal
+                ? '정상'
+                : '주의'}
+          </b>
+        </div>
+
+        <div className="worker-health-mini-grid">
+          <div>
+            <Heart size={18} />
+            <span>심박수</span>
+            <strong>
+              {sensor?.heartRate ?? '-'}{' '}
+              <small>bpm</small>
+            </strong>
+          </div>
+
+          <div>
+            <TriangleAlert size={18} />
+            <span>건강 이벤트</span>
+            <strong>
+              {latestHealth?.type ||
+                (!sensor
+                  ? '데이터 없음'
+                  : healthNormal
+                    ? '정상'
+                    : sensor.healthState)}
+            </strong>
+          </div>
+        </div>
       </section>
 
-      <section className="worker-fall-ok-card">
-        <div><ShieldCheck size={22} /><p><strong>추락 감지 없음</strong><small>추락 감지 센서 정상 작동 중</small></p></div>
-        <button onClick={() => navigate('/worker/fall-alert')}><Siren size={14} /> 테스트</button>
+      <section className="worker-white-card">
+        <div className="worker-card-title">
+          <strong>주변 위험요인</strong>
+          <span className="worker-count-pill">
+            {
+              myEvents.filter(
+                (item) =>
+                  item.category === 'external'
+              ).length
+            }
+            건
+          </span>
+        </div>
+
+        {externalHazards.length > 0 ? (
+          externalHazards.map((item) => (
+            <button
+              className="worker-hazard-row"
+              key={item.id}
+              onClick={() =>
+                navigate('/worker/hazards')
+              }
+            >
+              <i>
+                <TriangleAlert size={18} />
+              </i>
+
+              <div>
+                <strong>{item.type}</strong>
+                <small>
+                  {item.detailDescription ||
+                    item.rawEvent?.description ||
+                    item.zone}
+                </small>
+              </div>
+
+              <b>
+                ●{' '}
+                {item.level === 'danger'
+                  ? '위험'
+                  : '주의'}
+              </b>
+            </button>
+          ))
+        ) : (
+          <div className="records-empty">
+            {hazardStreamConnected
+              ? '현재 작업자에게 발생한 외부 위험 이벤트가 없습니다.'
+              : '위험 이벤트 연결을 확인 중입니다.'}
+          </div>
+        )}
+
+        <button
+          className="worker-section-link"
+          onClick={() =>
+            navigate('/worker/hazards')
+          }
+        >
+          상세보기 ›
+        </button>
+      </section>
+
+      <section
+        className={
+          fallNormal === false
+            ? 'worker-fall-ok-card danger'
+            : 'worker-fall-ok-card'
+        }
+      >
+        <div>
+          {fallNormal === false ? (
+            <TriangleAlert size={22} />
+          ) : (
+            <ShieldCheck size={22} />
+          )}
+
+          <p>
+            <strong>
+              {!sensor
+                ? '추락 상태 확인 필요'
+                : fallNormal
+                  ? '추락 감지 없음'
+                  : `추락 상태: ${sensor.fallState}`}
+            </strong>
+            <small>
+              {!sensor
+                ? '최신 센서 데이터가 없습니다.'
+                : `신뢰도 ${
+                    sensor.fallConfidence ?? '-'
+                  } · ${formatSensorTime(
+                    sensor.recordedAt
+                  )}`}
+            </small>
+          </p>
+        </div>
+
+        <button
+          onClick={() =>
+            navigate('/worker/fall-alert')
+          }
+        >
+          <Siren size={14} />
+          상세
+        </button>
       </section>
 
       <div className="worker-home-actions">
-        <button onClick={() => navigate('/worker/attendance')}><Clock3 size={23} />근태 보기</button>
-        <button className="outline" onClick={() => alert('현재 위치: B구역 3층')}><LocateFixed size={23} />위치 확인</button>
-        <button className="danger" onClick={() => navigate('/worker/sos')}><Siren size={23} />SOS 요청</button>
+        <button
+          onClick={() =>
+            navigate('/worker/attendance')
+          }
+        >
+          <Clock3 size={23} />
+          근태 보기
+        </button>
+
+        <button
+          className="outline"
+          onClick={() =>
+            alert(
+              `현재 위치: ${
+                profile.location || '-'
+              }`
+            )
+          }
+        >
+          <LocateFixed size={23} />
+          위치 확인
+        </button>
+
+        <button
+          className="danger"
+          onClick={() =>
+            navigate('/worker/sos')
+          }
+        >
+          <Siren size={23} />
+          SOS 요청
+        </button>
       </div>
     </WorkerScaffold>
   );

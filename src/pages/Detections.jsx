@@ -31,7 +31,7 @@ const levelLabel = { danger: '위험', warning: '주의' };
 
 export default function Detections() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { detections } = useDetections();
+  const { detections, refreshHazardEvents, hazardLoading, hazardError, hazardStreamConnected } = useDetections();
   const active = searchParams.get('tab') || 'all';
 
   const counts = {
@@ -47,7 +47,7 @@ export default function Detections() {
 
   return (
     <>
-      <TopHeader title="이상 감지" subtitle="외부요인 · 건강 · 추락" />
+      <TopHeader title="이상 감지" subtitle="외부요인 · 건강 · 추락" onRefresh={refreshHazardEvents} />
       <div className="page-body detections-page">
         <div className="detection-tabs" role="tablist" aria-label="이상 감지 분류">
           {tabs.map((tab) => (
@@ -62,6 +62,18 @@ export default function Detections() {
           ))}
         </div>
 
+        <div className={`worker-filter-banner ${hazardError ? 'danger' : 'normal'}`}>
+          <span>
+            {hazardError
+              ? `이상 감지 API 연동 실패: ${hazardError}`
+              : hazardLoading
+                ? '실제 이상 감지 이벤트를 불러오는 중입니다.'
+                : hazardStreamConnected
+                  ? '● 실시간 이상 감지 연결됨'
+                  : '실시간 이상 감지 재연결 대기 중'}
+          </span>
+        </div>
+
         <section className="panel detection-table-wrap">
           <div className="detection-table detection-table-head">
             <span>위험도</span>
@@ -74,8 +86,8 @@ export default function Detections() {
           </div>
 
           {rows.map((item) => {
-            const { Icon, className } = typeMeta[item.kind];
-            const detailTo = item.kind === 'fall' ? '/incident' : item.category === 'health' ? `/detections/health/${item.id}` : `/detections/${item.id}`;
+            const { Icon, className } = typeMeta[item.kind] || typeMeta.obstacle;
+            const detailTo = item.kind === 'fall' ? `/incident/${item.id}` : item.category === 'health' ? `/detections/health/${item.id}` : `/detections/${item.id}`;
             return (
               <div className={`detection-table detection-table-row ${item.level}`} key={item.id}>
                 <div><span className={`risk-chip ${item.level}`}>● {levelLabel[item.level]}</span></div>
@@ -88,6 +100,12 @@ export default function Detections() {
               </div>
             );
           })}
+
+          {!hazardLoading && rows.length === 0 && (
+            <div className="records-empty">
+              현재 서버에 저장된 이상 감지 이벤트가 없습니다.
+            </div>
+          )}
         </section>
       </div>
     </>
