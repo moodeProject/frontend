@@ -1,3 +1,4 @@
+import SensorApiTest from './pages/SensorApiTest'
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -79,6 +80,7 @@ export default function App() {
                 <Route path="/mypage" element={<MyPage />} />
               </Route>
             </Route>
+            <Route path="/sensor-test" element={<SensorApiTest />} />
           </Routes>
         </BrowserRouter>
         </NotificationProvider>

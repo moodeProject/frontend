@@ -10,7 +10,7 @@ import { useWorkers } from '../context/WorkerContext';
 const labelMap = { normal: '정상', warning: '주의', danger: '위험' };
 
 export default function Dashboard() {
-  const { workers } = useWorkers();
+  const { workers, refreshWorkerStatuses } = useWorkers();
   const [expandedStatus, setExpandedStatus] = useState('');
   const navigate = useNavigate();
   const riskyWorkers = workers.filter((w) => w.status !== 'normal');
@@ -37,7 +37,7 @@ export default function Dashboard() {
 
   return (
     <>
-      <TopHeader title="통합 모니터링" subtitle="현장 전체 실시간 현황" />
+      <TopHeader title="통합 모니터링" subtitle="현장 전체 실시간 현황" onRefresh={refreshWorkerStatuses} />
       <div className="page-body dashboard-page">
         <section className="summary-grid">
           {summary.map(({ key, label, value, unit, icon: Icon }) => {

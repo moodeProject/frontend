@@ -1,13 +1,55 @@
 import { ArrowDownRight, Camera, ChevronLeft, Cpu, HardHat, Heart, MapPin, Package, Phone, RefreshCw, Trash2, Wifi } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import ActionToast from '../components/ActionToast';
 import DeleteWorkerModal from '../components/DeleteWorkerModal';
 import StatusBadge from '../components/StatusBadge';
 import TopHeader from '../components/TopHeader';
 import { useWorkers } from '../context/WorkerContext';
+import { getWorkerStatus } from '../api/workerStatus';
 
 const labels = { normal: '정상', warning: '주의', danger: '위험' };
+
+function isAbnormal(value) {
+  return Boolean(value) && String(value).toUpperCase() !== 'NORMAL';
+}
+
+function statusPatchFromSensor(worker, sensor) {
+  const fallAbnormal = isAbnormal(sensor?.fallState);
+  const healthAbnormal = isAbnormal(sensor?.healthState);
+
+  let status = 'normal';
+  let issue = '정상 작업 중';
+
+  if (fallAbnormal) {
+    status = 'danger';
+    issue = '추락 감지됨';
+  } else if (healthAbnormal) {
+    status = 'warning';
+    issue = `건강 이상 · ${sensor.healthState}`;
+  }
+
+  const heartRate = Number(sensor?.heartRate);
+
+  return {
+    deviceId: sensor?.deviceId || worker.deviceId,
+    status,
+    issue,
+    heartRate: Number.isFinite(heartRate) && heartRate > 0 ? heartRate : worker.heartRate,
+    spo2: sensor?.spo2 ?? worker.spo2,
+    fallState: sensor?.fallState ?? worker.fallState,
+    healthState: sensor?.healthState ?? worker.healthState,
+    fallConfidence: sensor?.fallConfidence ?? worker.fallConfidence,
+    recordedAt: sensor?.recordedAt ?? worker.recordedAt,
+    ax: sensor?.ax ?? worker.ax,
+    ay: sensor?.ay ?? worker.ay,
+    az: sensor?.az ?? worker.az,
+    gx: sensor?.gx ?? worker.gx,
+    gy: sensor?.gy ?? worker.gy,
+    gz: sensor?.gz ?? worker.gz,
+    sensorConnected: true,
+  };
+}
 
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
@@ -45,6 +87,32 @@ export default function WorkerDetail() {
   const [reconnectingHelmet, setReconnectingHelmet] = useState(false);
   const [toast, setToast] = useState('');
   const imageInput = useRef(null);
+  const [sensorLoading, setSensorLoading] = useState(false);
+  const [sensorError, setSensorError] = useState('');
+
+  const refreshDetailStatus = useCallback(async () => {
+    if (!worker?.deviceId) return null;
+
+    setSensorLoading(true);
+    setSensorError('');
+
+    try {
+      const sensor = await getWorkerStatus(worker.deviceId);
+      updateWorker(worker.id, statusPatchFromSensor(worker, sensor));
+      return sensor;
+    } catch (error) {
+      console.error('작업자 상세 센서 상태 조회 실패:', error);
+      setSensorError(error?.message || '작업자 상세 상태를 불러오지 못했습니다.');
+      throw error;
+    } finally {
+      setSensorLoading(false);
+    }
+  }, [worker?.id, worker?.deviceId, updateWorker]);
+
+  useEffect(() => {
+    if (!worker?.deviceId) return;
+    refreshDetailStatus().catch(() => {});
+  }, [worker?.id, worker?.deviceId]);
 
   if (!worker) {
     return <><TopHeader title="작업자 상태" subtitle="전체 작업자 현황"/><div className="page-body"><div className="panel worker-not-found">삭제되었거나 존재하지 않는 작업자입니다.<Link to="/workers">작업자 목록으로</Link></div></div></>;
@@ -104,12 +172,22 @@ export default function WorkerDetail() {
 
   return (
     <>
-      <TopHeader title="작업자 상태" subtitle="전체 작업자 현황" />
+      <TopHeader title="작업자 상태" subtitle="전체 작업자 현황" onRefresh={refreshDetailStatus} />
       <div className="page-body worker-detail-page">
         <div className="worker-detail-actions">
           <Link className="detail-back" to="/workers"><ChevronLeft size={16}/> 작업자 목록</Link>
           <div className="worker-detail-action-buttons"><button className="reconnect-worker-helmet-btn" onClick={reconnectHelmet} disabled={reconnectingHelmet || !worker.helmetId}><RefreshCw size={14} className={reconnectingHelmet ? 'spin' : ''}/> {reconnectingHelmet ? '재연결 중' : '헬멧 재연결'}</button><button className="delete-worker-btn" onClick={() => setDeleteOpen(true)}><Trash2 size={14}/> 작업자 삭제</button></div>
         </div>
+
+        {(sensorLoading || sensorError) && (
+          <div className={`worker-filter-banner ${sensorError ? 'danger' : 'normal'}`}>
+            <span>
+              {sensorLoading
+                ? `${worker.deviceId} 최신 센서 상태를 불러오는 중입니다.`
+                : `상세 센서 연동 실패: ${sensorError}`}
+            </span>
+          </div>
+        )}
 
         <section className="panel worker-profile-panel">
           <div className={`detail-profile-avatar ${worker.status}`} onClick={() => imageInput.current?.click()} title="프로필 사진 변경">
@@ -126,6 +204,9 @@ export default function WorkerDetail() {
               <span><HardHat size={13}/> {worker.helmetId}</span>
               <span><Phone size={13}/> {worker.phone || '연락처 미등록'}</span>
               <span className={worker.sensorConnected ? 'sensor-ok' : ''}><Wifi size={13}/> {worker.sensorConnected ? '센서 연결됨' : '센서 연결 끊김'}</span>
+              {worker.deviceId && <span><Cpu size={13}/> {worker.deviceId}</span>}
+              {worker.spo2 != null && <span>SpO₂ {worker.spo2}</span>}
+              {worker.recordedAt && <span>센서 갱신 {new Date(worker.recordedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>}
             </div>
             <button className="change-photo-text" onClick={() => imageInput.current?.click()}><Camera size={12}/> 프로필 사진 변경</button>
             {imageError && <small className="profile-image-error">{imageError}</small>}

@@ -2,6 +2,7 @@ import { AlertTriangle, Bell, CheckCheck, ChevronRight, RefreshCw } from 'lucide
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useNotifications } from '../context/NotificationContext';
+import { useWorkers } from '../context/WorkerContext';
 
 function getSavedUpdateTime(pathname) {
   try {
@@ -15,6 +16,9 @@ export default function TopHeader({ title, subtitle, onRefresh }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
+  const { workers } = useWorkers();
+  const dangerCount = workers.filter((worker) => worker.status === 'danger').length;
+  const warningCount = workers.filter((worker) => worker.status === 'warning').length;
   const [open, setOpen] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const [lastUpdated, setLastUpdated] = useState(() => getSavedUpdateTime(location.pathname));
@@ -84,8 +88,8 @@ export default function TopHeader({ title, subtitle, onRefresh }) {
       <div className="header-right">
         <span className="date">{dateLabel}</span>
         <span className="clock">· {clockLabel}</span>
-        <span className="header-pill danger">● 위험 1명</span>
-        <span className="header-pill warning">● 주의 3명</span>
+        <span className="header-pill danger">● 위험 {dangerCount}명</span>
+        <span className="header-pill warning">● 주의 {warningCount}명</span>
         <div className="page-refresh-wrap" title={`${title} 페이지 데이터 갱신`}>
           <span>마지막 업데이트 {formatTime(lastUpdated)}</span>
           <button className={`page-refresh-btn ${refreshing ? 'refreshing' : ''}`} onClick={handleRefresh} aria-label={`${title} 새로고침`}>

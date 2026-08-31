@@ -10,7 +10,7 @@ const STATUS_ORDER = { danger: 0, warning: 1, normal: 2 };
 const STATUS_LABEL = { danger: '위험', warning: '주의', normal: '정상' };
 
 export default function Workers() {
-  const { workers, addWorker } = useWorkers();
+  const { workers, addWorker, refreshWorkerStatuses, sensorLoading, sensorError } = useWorkers();
   const [search, setSearch] = useState('');
   const [addOpen, setAddOpen] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -40,13 +40,22 @@ export default function Workers() {
 
   return (
     <>
-      <TopHeader title="작업자 상태" subtitle="전체 작업자 현황" />
+      <TopHeader title="작업자 상태" subtitle="전체 작업자 현황" onRefresh={refreshWorkerStatuses} />
       <div className="page-body workers-page">
         <div className="worker-toolbar">
           <div className="search-box"><Search size={15}/><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="작업자 이름 또는 ID 검색" /></div>
           <div className="worker-count"><b>{workers.length}명</b> 등록 중 · <span className="red">위험 {counts.danger || 0}</span> <span className="orange">주의 {counts.warning || 0}</span> <span className="green">정상 {counts.normal || 0}</span></div>
           <button className="primary-btn" onClick={() => setAddOpen(true)}><Plus size={17}/> 작업자 추가</button>
         </div>
+        {(sensorLoading || sensorError) && (
+          <div className={`worker-filter-banner ${sensorError ? 'danger' : 'normal'}`}>
+            <span>
+              {sensorLoading
+                ? '실시간 센서 상태를 불러오는 중입니다.'
+                : `센서 연동 실패: ${sensorError}`}
+            </span>
+          </div>
+        )}
         {statusFilter !== 'all' && (
           <div className={`worker-filter-banner ${statusFilter}`}>
             <span>{STATUS_LABEL[statusFilter]} 작업자만 표시 중</span>
