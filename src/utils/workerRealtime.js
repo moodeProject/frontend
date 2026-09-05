@@ -63,6 +63,10 @@ export function sensorUiStatus(sensor) {
 
   const fallNormal = isNormalState(sensor.fallState);
   const healthNormal = isNormalState(sensor.healthState);
+  const posture = String(sensor.posture || '').toUpperCase();
+  const postureAbnormal =
+    sensor.postureAbnormal === true ||
+    String(sensor.postureAbnormal).toLowerCase() === 'true';
 
   if (!fallNormal) {
     return {
@@ -72,11 +76,30 @@ export function sensorUiStatus(sensor) {
     };
   }
 
+  if (postureAbnormal && posture === 'COLLAPSE') {
+    return {
+      key: 'danger',
+      label: '위험',
+      description: '쓰러짐 자세가 감지되었습니다.',
+    };
+  }
+
   if (!healthNormal) {
     return {
       key: 'warning',
       label: '주의',
       description: '건강 이상 상태가 감지되었습니다.',
+    };
+  }
+
+  if (postureAbnormal) {
+    return {
+      key: 'warning',
+      label: '주의',
+      description:
+        posture === 'STUMBLE'
+          ? '휘청거림이 감지되었습니다.'
+          : '자세 이상이 감지되었습니다.',
     };
   }
 
@@ -99,4 +122,38 @@ export function formatSensorTime(value) {
     second: '2-digit',
     hour12: false,
   });
+}
+
+
+export function postureLabel(value) {
+  const posture = String(value || '').toUpperCase();
+
+  return {
+    STABLE: '정상 자세',
+    STUMBLE: '휘청거림',
+    COLLAPSE: '쓰러짐',
+  }[posture] || '확인 필요';
+}
+
+export function postureTone(sensor) {
+  if (!sensor) return 'unknown';
+
+  const posture = String(sensor.posture || '').toUpperCase();
+  const abnormal =
+    sensor.postureAbnormal === true ||
+    String(sensor.postureAbnormal).toLowerCase() === 'true';
+
+  if (!abnormal) return 'normal';
+  if (posture === 'COLLAPSE') return 'danger';
+  return 'warning';
+}
+
+export function isPostureAbnormal(sensor) {
+  return Boolean(
+    sensor &&
+      (
+        sensor.postureAbnormal === true ||
+        String(sensor.postureAbnormal).toLowerCase() === 'true'
+      )
+  );
 }

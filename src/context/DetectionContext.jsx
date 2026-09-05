@@ -245,6 +245,19 @@ export function DetectionProvider({ children }) {
 
   const refreshingRef = useRef(false);
 
+  const queryHazardEvents = useCallback(async (params = {}) => {
+    const page = await getHazardEvents(params);
+
+    return {
+      events: page.content.map(toUiEvent),
+      summary: page.summary,
+      page: page.page,
+      size: page.size,
+      totalElements: page.totalElements,
+      totalPages: page.totalPages,
+    };
+  }, []);
+
   const refreshHazardEvents = useCallback(async (params = {}) => {
     if (refreshingRef.current) return [];
 
@@ -253,8 +266,8 @@ export function DetectionProvider({ children }) {
     setHazardError('');
 
     try {
-      const page = await getHazardEvents(params);
-      const events = page.content.map(toUiEvent);
+      const page = await queryHazardEvents(params);
+      const events = page.events;
 
       setDetections(events);
       setHazardSummary(page.summary);
@@ -272,7 +285,7 @@ export function DetectionProvider({ children }) {
       refreshingRef.current = false;
       setHazardLoading(false);
     }
-  }, []);
+  }, [queryHazardEvents]);
 
   useEffect(() => {
     refreshHazardEvents().catch(() => {});
@@ -369,6 +382,7 @@ export function DetectionProvider({ children }) {
       completeDetection,
 
       refreshHazardEvents,
+      queryHazardEvents,
 
       hazardSummary,
       hazardLoading,
@@ -380,6 +394,7 @@ export function DetectionProvider({ children }) {
       detections,
       unresolvedDangerCount,
       refreshHazardEvents,
+      queryHazardEvents,
       hazardSummary,
       hazardLoading,
       hazardError,

@@ -1,12 +1,11 @@
 /**
  * API 클라이언트 기본 설정
  *
- * .env
- * VITE_API_URL=http://13.209.96.183:8080
+ * 백엔드 연동 시 VITE_API_URL 환경 변수만 설정하면 됩니다.
+ * .env 파일에 아래 내용 추가:
+ *   VITE_API_URL=http://localhost:8080
  */
-
-const BASE_URL =
-  import.meta.env.VITE_API_URL ?? 'http://localhost:8080'
+const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8080'
 
 async function request(method, path, body) {
   const token = localStorage.getItem('auth_token')
@@ -15,60 +14,25 @@ async function request(method, path, body) {
     method,
     headers: {
       'Content-Type': 'application/json',
-      ...(token
-        ? { Authorization: `Bearer ${token}` }
-        : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    ...(body !== undefined
-      ? { body: JSON.stringify(body) }
-      : {}),
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   })
 
-  // 204 No Content
-  if (res.status === 204) {
-    return null
-  }
-
-  const text = await res.text()
-
-  // 응답이 JSON인지 일반 문자열인지 안전하게 처리
-  let data = null
-
-  if (text) {
-    try {
-      data = JSON.parse(text)
-    } catch {
-      data = text
-    }
-  }
-
   if (!res.ok) {
-    const message =
-      data?.message ||
-      data?.error ||
-      `${res.status} ${res.statusText}`
-
-    throw new Error(message)
+    const errorData = await res.json().catch(() => ({}))
+    throw new Error(errorData.message ?? `${res.status} ${res.statusText}`)
   }
 
-  return data
+  // 204 No Content 등 body 없는 응답 처리
+  const text = await res.text()
+  return text ? JSON.parse(text) : null
 }
 
 export const api = {
-  get: (path) =>
-    request('GET', path),
-
-  post: (path, body) =>
-    request('POST', path, body),
-
-  put: (path, body) =>
-    request('PUT', path, body),
-
-  patch: (path, body) =>
-    request('PATCH', path, body),
-
-  delete: (path) =>
-    request('DELETE', path),
+  get:    (path)       => request('GET',    path),
+  post:   (path, body) => request('POST',   path, body),
+  put:    (path, body) => request('PUT',    path, body),
+  patch:  (path, body) => request('PATCH',  path, body),
+  delete: (path)       => request('DELETE', path),
 }
-
-export { BASE_URL }

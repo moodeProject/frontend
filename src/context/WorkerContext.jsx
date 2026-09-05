@@ -53,6 +53,9 @@ function normalizeWorker(worker) {
     serverDataConnected:
       worker.serverDataConnected === true ||
       Boolean(worker.recordedAt),
+
+    posture: worker.posture || '',
+    postureAbnormal: worker.postureAbnormal === true,
   };
 }
 
@@ -68,6 +71,12 @@ function mergeSensorStatus(worker, sensor) {
 
   const fallAbnormal = isAbnormal(sensor.fallState);
   const healthAbnormal = isAbnormal(sensor.healthState);
+  const posture = String(
+    sensor.posture ?? worker.posture ?? ''
+  ).toUpperCase();
+  const postureAbnormal =
+    sensor.postureAbnormal === true ||
+    String(sensor.postureAbnormal).toLowerCase() === 'true';
 
   let status = 'normal';
   let issue = '정상 작업 중';
@@ -76,6 +85,9 @@ function mergeSensorStatus(worker, sensor) {
   if (fallAbnormal) {
     status = 'danger';
     issue = '추락 감지됨';
+  } else if (postureAbnormal && posture === 'COLLAPSE') {
+    status = 'danger';
+    issue = '쓰러짐 감지';
   } else if (healthAbnormal) {
     status = 'warning';
     issue =
@@ -86,6 +98,12 @@ function mergeSensorStatus(worker, sensor) {
       Number(worker.fatigue) || 1,
       2
     );
+  } else if (postureAbnormal) {
+    status = 'warning';
+    issue =
+      posture === 'STUMBLE'
+        ? '휘청거림 감지'
+        : `자세 이상 · ${posture || 'UNKNOWN'}`;
   }
 
   const heartRate = Number(sensor.heartRate);
@@ -110,6 +128,12 @@ function mergeSensorStatus(worker, sensor) {
     fallConfidence:
       sensor.fallConfidence ??
       worker.fallConfidence,
+    posture:
+      sensor.posture ?? worker.posture,
+    postureAbnormal:
+      sensor.postureAbnormal ??
+      worker.postureAbnormal ??
+      false,
     recordedAt:
       sensor.recordedAt ?? worker.recordedAt,
     ax: sensor.ax ?? worker.ax,

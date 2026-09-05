@@ -1,4 +1,4 @@
-import { ArrowDownRight, Camera, ChevronLeft, Cpu, HardHat, Heart, MapPin, Package, Phone, RefreshCw, Trash2, Wifi } from 'lucide-react';
+import { Activity, ArrowDownRight, Camera, ChevronLeft, Cpu, HardHat, Heart, MapPin, Package, Phone, RefreshCw, Trash2, Wifi } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import ActionToast from '../components/ActionToast';
@@ -7,6 +7,10 @@ import StatusBadge from '../components/StatusBadge';
 import TopHeader from '../components/TopHeader';
 import { useWorkers } from '../context/WorkerContext';
 import { getWorkerStatus } from '../api/workerStatus';
+import {
+  postureLabel,
+  postureTone,
+} from '../utils/workerRealtime';
 
 const labels = { normal: '정상', warning: '주의', danger: '위험' };
 
@@ -17,6 +21,10 @@ function isAbnormal(value) {
 function statusPatchFromSensor(worker, sensor) {
   const fallAbnormal = isAbnormal(sensor?.fallState);
   const healthAbnormal = isAbnormal(sensor?.healthState);
+  const posture = String(sensor?.posture || '').toUpperCase();
+  const postureAbnormal =
+    sensor?.postureAbnormal === true ||
+    String(sensor?.postureAbnormal).toLowerCase() === 'true';
 
   let status = 'normal';
   let issue = '정상 작업 중';
@@ -24,9 +32,18 @@ function statusPatchFromSensor(worker, sensor) {
   if (fallAbnormal) {
     status = 'danger';
     issue = '추락 감지됨';
+  } else if (postureAbnormal && posture === 'COLLAPSE') {
+    status = 'danger';
+    issue = '쓰러짐 감지';
   } else if (healthAbnormal) {
     status = 'warning';
     issue = `건강 이상 · ${sensor.healthState}`;
+  } else if (postureAbnormal) {
+    status = 'warning';
+    issue =
+      posture === 'STUMBLE'
+        ? '휘청거림 감지'
+        : '자세 이상 감지';
   }
 
   const heartRate = Number(sensor?.heartRate);
@@ -40,6 +57,11 @@ function statusPatchFromSensor(worker, sensor) {
     fallState: sensor?.fallState ?? worker.fallState,
     healthState: sensor?.healthState ?? worker.healthState,
     fallConfidence: sensor?.fallConfidence ?? worker.fallConfidence,
+    posture: sensor?.posture ?? worker.posture,
+    postureAbnormal:
+      sensor?.postureAbnormal ??
+      worker.postureAbnormal ??
+      false,
     recordedAt: sensor?.recordedAt ?? worker.recordedAt,
     ax: sensor?.ax ?? worker.ax,
     ay: sensor?.ay ?? worker.ay,
@@ -64,6 +86,8 @@ function fileToDataUrl(file) {
 function StatusCard({ type, level, title, value, worker }) {
   const icons = { external: Package, health: Heart, fall: ArrowDownRight };
   const Icon = icons[type];
+  const movementTone = postureTone(worker);
+
   return (
     <section className={`worker-status-card ${level}`}>
       <div className="worker-status-title"><span className={`status-card-icon ${level}`}><Icon size={18}/></span><strong>{title}</strong></div>
@@ -73,7 +97,18 @@ function StatusCard({ type, level, title, value, worker }) {
           <strong className={`status-card-value ${level}`}>{worker.heartRate} bpm</strong>
           <div className="detail-fatigue"><div className={`fatigue-bar level-${worker.fatigue}`}><i/><i/><i/></div><b>{worker.fatigue}단계</b></div>
         </>
-      ) : <strong className={`status-card-value ${level}`}>{value}</strong>}
+      ) : type === 'fall' ? (
+        <>
+          <strong className={`status-card-value ${level}`}>{value}</strong>
+          <div className={`detail-posture-state ${movementTone}`}>
+            <Activity size={14}/>
+            <span>움직임</span>
+            <b>{worker.serverDataConnected ? postureLabel(worker.posture) : '데이터 대기'}</b>
+          </div>
+        </>
+      ) : (
+        <strong className={`status-card-value ${level}`}>{value}</strong>
+      )}
     </section>
   );
 }
@@ -120,7 +155,17 @@ export default function WorkerDetail() {
   }
 
   const healthLevel = worker.heartRate >= 85 || worker.fatigue >= 2 ? 'warning' : 'normal';
-  const fallLevel = worker.status === 'danger' && worker.issue.includes('추락') ? 'danger' : 'normal';
+  const movementTone = postureTone(worker);
+  const fallDetected =
+    worker.status === 'danger' &&
+    worker.issue.includes('추락');
+  const fallLevel = fallDetected
+    ? 'danger'
+    : movementTone === 'danger'
+      ? 'danger'
+      : movementTone === 'warning'
+        ? 'warning'
+        : 'normal';
   const externalLevel = worker.issue.includes('물웅덩이') || worker.issue.includes('장애물') ? 'warning' : 'normal';
 
   const changeImage = async (event) => {
@@ -209,6 +254,12 @@ export default function WorkerDetail() {
                 {worker.serverDataConnected ? '실시간 센서 데이터 연결됨' : '서버 센서 데이터 대기'}
               </span>
               {worker.deviceId && <span><Cpu size={13}/> {worker.deviceId}</span>}
+              {worker.serverDataConnected && (
+                <span className={`posture-meta ${postureTone(worker)}`}>
+                  <Activity size={13}/>
+                  움직임 {postureLabel(worker.posture)}
+                </span>
+              )}
               {worker.spo2 != null && <span>SpO₂ {worker.spo2}</span>}
               {worker.recordedAt && <span>센서 갱신 {new Date(worker.recordedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>}
             </div>
@@ -220,7 +271,19 @@ export default function WorkerDetail() {
         <div className="worker-status-grid">
           <StatusCard type="external" title="외부요인" level={externalLevel} value={externalLevel === 'normal' ? '위험 요소 없음' : worker.issue} worker={worker}/>
           <StatusCard type="health" title="건강" level={healthLevel} worker={worker}/>
-          <StatusCard type="fall" title="추락" level={fallLevel} value={fallLevel === 'danger' ? '추락 감지됨' : '감지 없음'} worker={worker}/>
+          <StatusCard
+            type="fall"
+            title="추락"
+            level={fallLevel}
+            value={
+              fallDetected
+                ? '추락 감지됨'
+                : worker.postureAbnormal
+                  ? '자세 이상 감지'
+                  : '감지 없음'
+            }
+            worker={worker}
+          />
         </div>
       </div>
       <DeleteWorkerModal worker={worker} open={deleteOpen} onClose={() => setDeleteOpen(false)} onDelete={handleDelete}/>

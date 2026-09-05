@@ -136,3 +136,201 @@
     display:none;
   }
 }
+
+
+/* =========================================================
+   Posture status
+   ========================================================= */
+
+.posture-metric b,
+.detail-posture-state,
+.posture-meta,
+.posture-result{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+}
+.posture-metric.normal b,
+.detail-posture-state.normal,
+.posture-meta.normal,
+.posture-result.normal{
+  color:#079c49;
+}
+.posture-metric.warning b,
+.detail-posture-state.warning,
+.posture-meta.warning,
+.posture-result.warning{
+  color:#f07a00;
+}
+.posture-metric.danger b,
+.detail-posture-state.danger,
+.posture-meta.danger,
+.posture-result.danger{
+  color:#ef3344;
+}
+.posture-metric.unknown b,
+.detail-posture-state.unknown,
+.posture-meta.unknown,
+.posture-result.unknown{
+  color:#94a3b8;
+}
+.detail-posture-state{
+  margin-top:14px;
+  padding-top:11px;
+  border-top:1px solid #eef2f6;
+  font-size:11px;
+}
+.detail-posture-state span{
+  color:#8290a3;
+}
+.detail-posture-state b{
+  margin-left:auto;
+}
+.worker-state-row.movement.normal b{
+  color:#079c49;
+}
+.worker-state-row.movement.warning b{
+  color:#f07a00;
+}
+.worker-state-row.movement.danger b{
+  color:#ef3344;
+}
+
+/* =========================================================
+   Date range filter
+   ========================================================= */
+
+.detection-filter-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  margin-bottom:14px;
+}
+.date-range-filter{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  min-height:42px;
+  padding:5px 6px 5px 10px;
+  border:1px solid #e3e9f0;
+  border-radius:12px;
+  background:#fff;
+  box-shadow:0 1px 2px rgba(15,23,42,.02);
+}
+.date-range-title{
+  display:flex;
+  align-items:center;
+  gap:5px;
+  padding-right:3px;
+  color:#64748b;
+  white-space:nowrap;
+}
+.date-range-title strong{
+  font-size:10px;
+}
+.date-quick-actions{
+  display:flex;
+  gap:4px;
+}
+.date-quick-actions button,
+.date-reset-btn{
+  height:30px;
+  padding:0 8px;
+  border:1px solid #e5eaf0;
+  border-radius:8px;
+  background:#f8fafc;
+  color:#64748b;
+  font-size:9px;
+  font-weight:700;
+  cursor:pointer;
+}
+.date-quick-actions button:hover,
+.date-reset-btn:hover{
+  border-color:#bfd3ff;
+  background:#f3f7ff;
+  color:#2563eb;
+}
+.date-input-range{
+  display:flex;
+  align-items:center;
+  gap:5px;
+}
+.date-input-range input{
+  width:116px;
+  height:30px;
+  padding:0 7px;
+  border:1px solid #dfe6ee;
+  border-radius:8px;
+  background:#fff;
+  color:#334155;
+  font-size:9px;
+  font-weight:600;
+  outline:none;
+}
+.date-input-range input:focus{
+  border-color:#77a7ff;
+  box-shadow:0 0 0 2px rgba(37,99,235,.08);
+}
+.date-input-range span{
+  color:#94a3b8;
+  font-size:10px;
+}
+.date-apply-btn{
+  height:30px;
+  padding:0 10px;
+  border:0;
+  border-radius:8px;
+  display:flex;
+  align-items:center;
+  gap:5px;
+  background:#246bfe;
+  color:#fff;
+  font-size:9px;
+  font-weight:800;
+  cursor:pointer;
+}
+.date-apply-btn:disabled{
+  opacity:.55;
+  cursor:default;
+}
+.date-reset-btn{
+  display:flex;
+  align-items:center;
+  gap:4px;
+}
+.records-filter-actions{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.records-toolbar{
+  gap:14px;
+}
+
+@media(max-width:1400px){
+  .detection-filter-row,
+  .records-toolbar{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+  .records-filter-actions{
+    width:100%;
+    justify-content:space-between;
+  }
+}
+
+@media(max-width:980px){
+  .date-range-filter{
+    width:100%;
+    flex-wrap:wrap;
+  }
+  .date-quick-actions{
+    order:3;
+    width:100%;
+  }
+  .records-filter-actions{
+    flex-direction:column;
+    align-items:stretch;
+  }
+}

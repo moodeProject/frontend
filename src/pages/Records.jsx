@@ -8,10 +8,18 @@ import {
   Search,
   TriangleAlert,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { Link } from 'react-router-dom';
+import DateRangeFilter from '../components/DateRangeFilter';
 import TopHeader from '../components/TopHeader';
 import { useDetections } from '../context/DetectionContext';
+import { useWorkers } from '../context/WorkerContext';
+import { getWorkerAlerts } from '../api/workerStatus';
 
 const tabs = [
   { key: 'all', label: '전체' },
@@ -33,19 +41,93 @@ function iconForDetection(item) {
   return categoryIcons[item.category] || Activity;
 }
 
-function detailHref(item) {
-  if (item.category === 'fall') {
-    return `/incident/${item.id}`;
+function deriveDeviceId(worker) {
+  if (worker?.deviceId) return String(worker.deviceId);
+
+  const helmetId = String(
+    worker?.helmetId || worker?.id || ''
+  );
+
+  return /^H-\d+$/i.test(helmetId)
+    ? helmetId.replace(/^H-/i, 'DEV-')
+    : '';
+}
+
+function formatDateTime(value) {
+  if (!value) {
+    return {
+      dateLabel: '--.--',
+      time: '--:--',
+    };
   }
 
-  if (item.category === 'health') {
-    return `/detections/health/${item.id}`;
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return {
+      dateLabel: '--.--',
+      time: '--:--',
+    };
   }
 
-  return `/detections/${item.id}`;
+  return {
+    dateLabel: `${String(date.getMonth() + 1).padStart(2, '0')}.${String(
+      date.getDate()
+    ).padStart(2, '0')}`,
+    time: date.toLocaleTimeString('ko-KR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }),
+  };
+}
+
+function sensorAlertToRecord(alert, workers) {
+  const worker = workers.find(
+    (item) =>
+      deriveDeviceId(item) === String(alert.deviceId)
+  );
+
+  const { dateLabel, time } = formatDateTime(
+    alert.recordedAt
+  );
+
+  return {
+    id: `sensor-fall-${alert.deviceId}-${alert.recordedAt || 'latest'}`,
+    source: 'sensor-alert',
+    category: 'fall',
+    kind: 'fall',
+    level:
+      String(alert.fallState || '').toUpperCase() === 'NORMAL'
+        ? 'warning'
+        : 'danger',
+    type: '추락 감지',
+    name: worker?.name || alert.deviceId || '미확인 작업자',
+    employeeNo:
+      worker?.employeeNumber || worker?.workerCode,
+    zone: worker?.zone || '-',
+    helmetNo: worker?.helmetId,
+    dateLabel,
+    time,
+    occurredAt: alert.recordedAt,
+    recordedAt: alert.recordedAt,
+    deviceId: alert.deviceId,
+    process: '센서 감지',
+    processClass: 'unprocessed',
+    fallState: alert.fallState,
+    heartRate: alert.heartRate,
+    spo2: alert.spo2,
+    fallConfidence: alert.fallConfidence,
+    posture: alert.posture,
+    postureAbnormal: alert.postureAbnormal,
+  };
 }
 
 function processLabel(item) {
+  if (item.source === 'sensor-alert') {
+    return '센서 감지';
+  }
+
   if (item.statusLabel) return item.statusLabel;
 
   return {
@@ -56,6 +138,10 @@ function processLabel(item) {
 }
 
 function processClass(item) {
+  if (item.source === 'sensor-alert') {
+    return 'unprocessed';
+  }
+
   const status = String(item.status ?? '').toUpperCase();
 
   if (status === 'RESOLVED') return 'confirmed';
@@ -74,83 +160,184 @@ function levelLabel(item) {
   return item.level === 'danger' ? '위험' : '주의';
 }
 
+function detailHref(item) {
+  if (item.source === 'sensor-alert') {
+    const qs = new URLSearchParams();
+
+    if (item.recordedAt) {
+      qs.set('recordedAt', item.recordedAt);
+    }
+
+    return `/sensor-fall/${encodeURIComponent(
+      item.deviceId
+    )}${qs.toString() ? `?${qs}` : ''}`;
+  }
+
+  if (item.category === 'fall') {
+    return `/incident/${item.id}`;
+  }
+
+  if (item.category === 'health') {
+    return `/detections/health/${item.id}`;
+  }
+
+  return `/detections/${item.id}`;
+}
+
+function isInDateRange(item, range) {
+  if (!range.start && !range.end) return true;
+
+  const value =
+    item.occurredAt ||
+    item.recordedAt ||
+    item.rawEvent?.occurredAt;
+
+  if (!value) return false;
+
+  const timestamp = new Date(value).getTime();
+
+  if (!Number.isFinite(timestamp)) return false;
+
+  if (range.start) {
+    const start = new Date(
+      `${range.start}T00:00:00`
+    ).getTime();
+
+    if (timestamp < start) return false;
+  }
+
+  if (range.end) {
+    const end = new Date(
+      `${range.end}T23:59:59.999`
+    ).getTime();
+
+    if (timestamp > end) return false;
+  }
+
+  return true;
+}
+
 export default function Records() {
   const {
     detections,
     refreshHazardEvents,
     hazardLoading,
     hazardError,
-    hazardSummary,
     hazardStreamConnected,
   } = useDetections();
 
+  const { workers } = useWorkers();
+
+  const [fallAlerts, setFallAlerts] = useState([]);
+  const [fallLoading, setFallLoading] = useState(false);
+  const [fallError, setFallError] = useState('');
   const [tab, setTab] = useState('all');
   const [search, setSearch] = useState('');
+  const [dateRange, setDateRange] = useState({
+    start: '',
+    end: '',
+  });
 
-  const counts = useMemo(() => {
-    if (hazardSummary) {
-      return {
-        all: hazardSummary.all ?? detections.length,
-        external:
-          hazardSummary.external ??
-          detections.filter((item) => item.category === 'external').length,
-        health:
-          hazardSummary.health ??
-          detections.filter((item) => item.category === 'health').length,
-        fall:
-          hazardSummary.fall ??
-          detections.filter((item) => item.category === 'fall').length,
-      };
+  const loadFallAlerts = useCallback(async () => {
+    setFallLoading(true);
+    setFallError('');
+
+    try {
+      const alerts = await getWorkerAlerts();
+      setFallAlerts(
+        alerts.map((item) =>
+          sensorAlertToRecord(item, workers)
+        )
+      );
+    } catch (error) {
+      setFallError(
+        error?.message ||
+          '추락 감지 이력을 불러오지 못했습니다.'
+      );
+    } finally {
+      setFallLoading(false);
     }
+  }, [workers]);
 
-    return {
-      all: detections.length,
-      external: detections.filter((item) => item.category === 'external').length,
-      health: detections.filter((item) => item.category === 'health').length,
-      fall: detections.filter((item) => item.category === 'fall').length,
-    };
-  }, [hazardSummary, detections]);
+  useEffect(() => {
+    loadFallAlerts();
+  }, [loadFallAlerts]);
+
+  const visibleItems = useMemo(
+    () =>
+      [...detections, ...fallAlerts]
+        .filter((item) =>
+          isInDateRange(item, dateRange)
+        )
+        .sort(
+          (a, b) =>
+            new Date(
+              b.occurredAt || b.recordedAt || 0
+            ).getTime() -
+            new Date(
+              a.occurredAt || a.recordedAt || 0
+            ).getTime()
+        ),
+    [detections, fallAlerts, dateRange]
+  );
+
+  const counts = useMemo(
+    () => ({
+      all: visibleItems.length,
+      external: visibleItems.filter(
+        (item) => item.category === 'external'
+      ).length,
+      health: visibleItems.filter(
+        (item) => item.category === 'health'
+      ).length,
+      fall: visibleItems.filter(
+        (item) => item.category === 'fall'
+      ).length,
+    }),
+    [visibleItems]
+  );
 
   const rows = useMemo(() => {
     const query = search.trim().toLowerCase();
 
-    return [...detections]
-      .sort((a, b) => {
-        const aTime = new Date(a.occurredAt || 0).getTime();
-        const bTime = new Date(b.occurredAt || 0).getTime();
-        return bTime - aTime;
-      })
-      .filter((item) => {
-        const tabMatch = tab === 'all' || item.category === tab;
+    return visibleItems.filter((item) => {
+      const tabMatch =
+        tab === 'all' || item.category === tab;
 
-        const searchMatch =
-          !query ||
-          [
-            item.name,
-            item.employeeNo,
-            item.type,
-            item.zone,
-            item.helmetNo,
-            item.statusLabel,
-            item.process,
-            item.rawEvent?.hazardType,
-            item.rawEvent?.severityLabel,
-          ].some((value) =>
-            String(value ?? '')
-              .toLowerCase()
-              .includes(query)
-          );
+      const searchMatch =
+        !query ||
+        [
+          item.name,
+          item.employeeNo,
+          item.type,
+          item.zone,
+          item.helmetNo,
+          item.deviceId,
+          item.statusLabel,
+          item.process,
+        ].some((value) =>
+          String(value ?? '')
+            .toLowerCase()
+            .includes(query)
+        );
 
-        return tabMatch && searchMatch;
-      });
-  }, [tab, search, detections]);
+      return tabMatch && searchMatch;
+    });
+  }, [tab, search, visibleItems]);
+
+  const refreshPage = async () => {
+    await Promise.allSettled([
+      refreshHazardEvents(),
+      loadFallAlerts(),
+    ]);
+  };
 
   return (
     <>
       <TopHeader
         title="사고·알림 기록"
         subtitle="실제 이상 감지 이벤트 처리 이력"
-        onRefresh={refreshHazardEvents}
+        onRefresh={refreshPage}
       />
 
       <div className="page-body records-page">
@@ -171,21 +358,47 @@ export default function Records() {
             <Search size={14} />
             <input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(event) =>
+                setSearch(event.target.value)
+              }
               placeholder="작업자·유형·위치 검색"
             />
           </label>
         </div>
 
+        <div className="admin-date-filter-row records-date-filter-row">
+          <DateRangeFilter
+            value={dateRange}
+            onChange={setDateRange}
+            onReset={() =>
+              setDateRange({
+                start: '',
+                end: '',
+              })
+            }
+          />
+        </div>
+
         <div
           className={`worker-filter-banner ${
-            hazardError ? 'danger' : 'normal'
+            hazardError || fallError
+              ? 'danger'
+              : 'normal'
           }`}
         >
           <span>
-            {hazardError
-              ? `사고·알림 기록 API 연동 실패: ${hazardError}`
-              : hazardLoading
+            {hazardError || fallError
+              ? [
+                  hazardError
+                    ? `위험 이벤트 API: ${hazardError}`
+                    : '',
+                  fallError
+                    ? `추락 이력 API: ${fallError}`
+                    : '',
+                ]
+                  .filter(Boolean)
+                  .join(' / ')
+              : hazardLoading || fallLoading
                 ? '사고·알림 기록을 불러오는 중입니다.'
                 : hazardStreamConnected
                   ? '● 실시간 위험 이벤트 기록 연결됨'
@@ -201,7 +414,7 @@ export default function Records() {
             <span>위치</span>
             <span>위험도</span>
             <span>처리 상태</span>
-            <span></span>
+            <span />
           </div>
 
           {rows.map((item) => {
@@ -213,7 +426,9 @@ export default function Records() {
                 key={item.id}
               >
                 <time>
-                  {item.dateLabel || '--.--'}&nbsp; {item.time || '--:--'}
+                  {item.dateLabel || '--.--'}
+                  &nbsp;
+                  {item.time || '--:--'}
                 </time>
 
                 <strong>
@@ -232,7 +447,9 @@ export default function Records() {
                 </span>
 
                 <span>
-                  <span className={`record-risk ${item.level}`}>
+                  <span
+                    className={`record-risk ${item.level}`}
+                  >
                     ● {levelLabel(item)}
                   </span>
                 </span>
@@ -248,19 +465,6 @@ export default function Records() {
                 <Link
                   className="record-detail"
                   to={detailHref(item)}
-                  title={[
-                    item.employeeNo,
-                    item.helmetNo,
-                    item.confidence != null
-                      ? `신뢰도 ${Math.round(
-                          Number(item.confidence) <= 1
-                            ? Number(item.confidence) * 100
-                            : Number(item.confidence)
-                        )}%`
-                      : '',
-                  ]
-                    .filter(Boolean)
-                    .join(' · ')}
                 >
                   <Eye size={13} />
                   상세
@@ -269,15 +473,17 @@ export default function Records() {
             );
           })}
 
-          {!hazardLoading && rows.length === 0 && (
-            <div className="records-empty">
-              {search
-                ? '검색 조건에 맞는 기록이 없습니다.'
-                : tab === 'all'
-                  ? '현재 서버에 저장된 사고·알림 기록이 없습니다.'
-                  : `${tabs.find((item) => item.key === tab)?.label} 기록이 없습니다.`}
-            </div>
-          )}
+          {!hazardLoading &&
+            !fallLoading &&
+            rows.length === 0 && (
+              <div className="records-empty">
+                {search
+                  ? '검색 조건에 맞는 기록이 없습니다.'
+                  : dateRange.start || dateRange.end
+                    ? '선택한 기간에 저장된 사고·알림 기록이 없습니다.'
+                    : '현재 서버에 저장된 사고·알림 기록이 없습니다.'}
+              </div>
+            )}
         </section>
       </div>
     </>

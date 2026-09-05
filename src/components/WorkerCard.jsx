@@ -1,4 +1,5 @@
 import {
+  Activity,
   Heart,
   MapPin,
   Wifi,
@@ -6,6 +7,10 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import StatusBadge from './StatusBadge';
+import {
+  postureLabel,
+  postureTone,
+} from '../utils/workerRealtime';
 
 const labels = {
   normal: '정상',
@@ -20,6 +25,8 @@ export default function WorkerCard({
   const hasServerData =
     worker.serverDataConnected === true ||
     Boolean(worker.recordedAt);
+
+  const movementTone = postureTone(worker);
 
   return (
     <Link
@@ -113,6 +120,16 @@ export default function WorkerCard({
           </div>
 
           <b>{worker.fatigue}단계</b>
+        </div>
+
+        <div className={`metric-row posture-metric ${movementTone}`}>
+          <span>움직임</span>
+          <b>
+            <Activity size={14} />
+            {hasServerData
+              ? postureLabel(worker.posture)
+              : '데이터 대기'}
+          </b>
         </div>
 
         <div

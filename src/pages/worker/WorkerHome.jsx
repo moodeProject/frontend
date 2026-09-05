@@ -24,6 +24,8 @@ import {
   formatSensorTime,
   getWorkerDeviceId,
   isNormalState,
+  postureLabel,
+  postureTone,
   sensorUiStatus,
 } from '../../utils/workerRealtime';
 
@@ -123,6 +125,8 @@ export default function WorkerHome() {
     ? isNormalState(sensor.healthState)
     : null;
 
+  const movementTone = postureTone(sensor);
+
   return (
     <WorkerScaffold
       active="home"
@@ -206,6 +210,17 @@ export default function WorkerHome() {
             {sensorConnected
               ? deviceId
               : '최신 데이터 없음'}
+          </b>
+        </div>
+
+        <div className={`worker-state-row movement ${movementTone}`}>
+          <span>
+            <TriangleAlert size={17} /> 움직임
+          </span>
+          <b>
+            {sensorConnected
+              ? postureLabel(sensor?.posture)
+              : '데이터 없음'}
           </b>
         </div>
       </section>

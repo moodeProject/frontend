@@ -27,6 +27,10 @@ import {
   getHazardEvent,
   runHazardEventAction,
 } from '../api/hazardEvents';
+import {
+  postureLabel,
+  postureTone,
+} from '../utils/workerRealtime';
 
 function getAdminId() {
   try {
@@ -290,6 +294,10 @@ export default function IncidentDetail() {
     '즉시 작업자 상태와 현장 위험 요소를 확인하세요.';
 
   const confidence = confidenceValue(detail, worker);
+  const movementTone = postureTone(worker);
+  const postureAbnormal =
+    worker?.postureAbnormal === true ||
+    String(worker?.postureAbnormal).toLowerCase() === 'true';
 
   const relatedEvents = useMemo(() => {
     if (!occurredAt) return [];
@@ -734,6 +742,26 @@ export default function IncidentDetail() {
                 추락 상태{' '}
                 <b>
                   {worker?.fallState || '-'}
+                </b>
+              </div>
+
+              <div>
+                자세 변화{' '}
+                <b className={`posture-result ${movementTone}`}>
+                  {worker?.serverDataConnected
+                    ? postureAbnormal
+                      ? '감지됨'
+                      : '정상'
+                    : '-'}
+                </b>
+              </div>
+
+              <div>
+                자세 상태{' '}
+                <b className={`posture-result ${movementTone}`}>
+                  {worker?.serverDataConnected
+                    ? postureLabel(worker?.posture)
+                    : '-'}
                 </b>
               </div>
 
