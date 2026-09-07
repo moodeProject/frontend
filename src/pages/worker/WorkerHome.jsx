@@ -25,6 +25,72 @@ import {
   sensorUiStatus,
 } from '../../utils/workerRealtime';
 import '../../styles/workerDangerTextWhiteFix.css';
+import '../../styles/workerFallDetailButtonFix.css';
+
+
+function normalizeZone(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/[()\[\]{}]/g, '');
+}
+
+function zoneBase(value) {
+  const normalized = normalizeZone(value);
+
+  if (!normalized) return '';
+
+  /*
+   * 예:
+   * B구역       -> b구역
+   * B구역 3층   -> b구역
+   * A구역-2층   -> a구역
+   */
+  const koreanArea =
+    normalized.match(/^([a-z0-9가-힣]+구역)/);
+
+  if (koreanArea) {
+    return koreanArea[1];
+  }
+
+  /*
+   * 영문 Zone 형태도 대응
+   * Zone B / Zone-B / B Zone
+   */
+  const zonePrefix =
+    normalized.match(/^(zone[a-z0-9]+)/);
+
+  if (zonePrefix) {
+    return zonePrefix[1];
+  }
+
+  return normalized;
+}
+
+function zonesMatch(workerZone, eventZone) {
+  const worker = normalizeZone(workerZone);
+  const event = normalizeZone(eventZone);
+
+  if (!worker || !event) return false;
+
+  if (
+    worker === event ||
+    worker.includes(event) ||
+    event.includes(worker)
+  ) {
+    return true;
+  }
+
+  const workerBase = zoneBase(workerZone);
+  const eventBase = zoneBase(eventZone);
+
+  return Boolean(
+    workerBase &&
+      eventBase &&
+      workerBase === eventBase
+  );
+}
 
 export default function WorkerHome() {
   const navigate = useNavigate();
@@ -94,9 +160,64 @@ export default function WorkerHome() {
     ]
   );
 
-  const externalHazards = myEvents
-    .filter((item) => item.category === 'external')
-    .slice(0, 2);
+  const currentZone =
+    currentWorker?.zone ||
+    profile.location ||
+    '';
+
+  /*
+   * 건강/추락은 작업자 개인 기준으로 유지.
+   * 외부요인은 작업자 이름/헬멧 ID가 없어도
+   * 현재 작업자의 구역과 hazard-event 구역이 같으면
+   * "주변 위험요인"으로 표시합니다.
+   */
+  const nearbyExternalEvents = useMemo(
+    () =>
+      detections
+        .filter(
+          (item) =>
+            item.category === 'external'
+        )
+        .filter((item) => {
+          const eventZone =
+            item.zone ||
+            item.location ||
+            item.rawEvent?.zone ||
+            item.rawEvent?.location ||
+            item.rawEvent?.area ||
+            '';
+
+          return (
+            detectionBelongsToWorker(
+              item,
+              profile
+            ) ||
+            zonesMatch(
+              currentZone,
+              eventZone
+            )
+          );
+        })
+        .sort(
+          (a, b) =>
+            new Date(
+              b.occurredAt || 0
+            ).getTime() -
+            new Date(
+              a.occurredAt || 0
+            ).getTime()
+        ),
+    [
+      detections,
+      currentZone,
+      profile.employeeNo,
+      profile.name,
+      profile.helmetNo,
+    ]
+  );
+
+  const externalHazards =
+    nearbyExternalEvents.slice(0, 2);
 
   const latestHealth = myEvents.find(
     (item) => item.category === 'health'
@@ -301,12 +422,7 @@ export default function WorkerHome() {
         <div className="worker-card-title">
           <strong>주변 위험요인</strong>
           <span className="worker-count-pill">
-            {
-              myEvents.filter(
-                (item) =>
-                  item.category === 'external'
-              ).length
-            }
+            {nearbyExternalEvents.length}
             건
           </span>
         </div>
@@ -329,7 +445,11 @@ export default function WorkerHome() {
                 <small>
                   {item.detailDescription ||
                     item.rawEvent?.description ||
-                    item.zone}
+                    item.zone ||
+                    item.location ||
+                    item.rawEvent?.zone ||
+                    item.rawEvent?.location ||
+                    '외부 위험요인 감지'}
                 </small>
               </div>
 
@@ -344,7 +464,7 @@ export default function WorkerHome() {
         ) : (
           <div className="records-empty">
             {hazardStreamConnected
-              ? '현재 작업자에게 발생한 외부 위험 이벤트가 없습니다.'
+              ? '현재 작업 구역에 감지된 외부 위험 이벤트가 없습니다.'
               : '위험 이벤트 연결을 확인 중입니다.'}
           </div>
         )}
@@ -398,8 +518,8 @@ export default function WorkerHome() {
             navigate('/worker/fall-alert')
           }
         >
-          <Siren size={15} />
-          상세
+          <Siren size={16} />
+          상세보기
         </button>
       </section>
 

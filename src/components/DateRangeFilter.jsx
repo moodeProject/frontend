@@ -95,7 +95,7 @@ export default function DateRangeFilter({
         onClick={onReset}
       >
         <RotateCcw size={13} />
-        전체
+        초기화
       </button>
     </div>
   );

@@ -1,0 +1,17 @@
+/* 추락 상태 카드의 상세 버튼 가독성 보정 */
+.urgent-fall-detail-btn {
+  min-width: 108px !important;
+  height: 46px !important;
+  padding: 0 18px !important;
+  gap: 7px !important;
+  font-size: 15px !important;
+  font-weight: 800 !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+}
+
+.urgent-fall-detail-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
