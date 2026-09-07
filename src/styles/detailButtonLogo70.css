@@ -1,0 +1,84 @@
+
+/* =========================================================
+   추락 상세 - 영상/상세 갱신 버튼 여백 보완
+   ========================================================= */
+
+/* 현재 구조의 버튼 + 이후 class명이 붙어도 같이 적용 */
+.video-panel > button:last-of-type,
+.video-panel .video-refresh-btn,
+.video-panel .refresh-detail-btn,
+.video-panel .video-detail-refresh-btn {
+  width: auto !important;
+  min-width: 154px !important;
+  height: 42px !important;
+
+  /* 버튼 안쪽 좌우 여백 */
+  padding-left: 22px !important;
+  padding-right: 22px !important;
+
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+
+  margin-top: 14px !important;
+  margin-left: 10px !important;
+  margin-right: 10px !important;
+
+  border-radius: 10px !important;
+  white-space: nowrap !important;
+  font-weight: 700 !important;
+}
+
+/* =========================================================
+   SAFE:ON 로고 - 현재 보이는 크기의 약 70%
+   ========================================================= */
+
+/*
+  이전 패치에서 약 172px 정도로 보이던 로고를
+  시각적으로 70% 수준(약 120px)으로 축소.
+*/
+.sidebar .brand img,
+.sidebar .brand svg,
+.sidebar .brand-logo,
+.sidebar .sidebar-logo,
+.sidebar .safeon-logo,
+.sidebar .safeon-wordmark,
+.sidebar [class*="brand"] img,
+.sidebar [class*="logo"] img,
+.sidebar img[alt*="SAFE"],
+.sidebar img[alt*="Safe"],
+.sidebar img[alt*="safe"],
+.sidebar img[alt*="logo"],
+.sidebar img[alt*="Logo"] {
+  max-width: 120px !important;
+  max-height: 37px !important;
+  width: auto !important;
+  height: auto !important;
+  object-fit: contain !important;
+}
+
+/* 텍스트 조합형 로고일 경우도 약 70%로 축소 */
+.sidebar .brand-title,
+.sidebar [class*="brand-title"],
+.sidebar [class*="logo-title"] {
+  font-size: 14px !important;
+  line-height: 1 !important;
+}
+
+.sidebar .brand-sub,
+.sidebar [class*="brand-sub"],
+.sidebar [class*="logo-sub"] {
+  font-size: 6px !important;
+  letter-spacing: .14em !important;
+}
+
+/* 로고가 작아진 만큼 영역도 살짝 정리 */
+.sidebar .brand,
+.sidebar [class*="sidebar-brand"] {
+  min-height: 66px !important;
+  padding-top: 12px !important;
+  padding-bottom: 12px !important;
+  padding-left: 18px !important;
+  padding-right: 18px !important;
+}

@@ -20,6 +20,7 @@ import { useNotifications } from '../context/NotificationContext';
 import { useDetections } from '../context/DetectionContext';
 import { useWorkers } from '../context/WorkerContext';
 import '../styles/realtimeEnhancements.css';
+import '../styles/autoNotificationPopup.css';
 
 function getSavedUpdateTime(pathname) {
   try {
@@ -120,6 +121,10 @@ export default function TopHeader({
   ].join(' / ');
 
   const [open, setOpen] = useState(false);
+  const [realtimeArrival, setRealtimeArrival] =
+    useState(false);
+
+  const realtimePulseTimerRef = useRef(null);
 
   const [now, setNow] = useState(
     () => new Date()
@@ -174,6 +179,55 @@ export default function TopHeader({
         'mousedown',
         close
       );
+  }, []);
+
+
+  useEffect(() => {
+    const showRealtimeNotification = () => {
+      // 새 이벤트 발생 즉시 알림창을 자동으로 엽니다.
+      // 알림 자체는 읽음 처리하지 않으므로 NEW/배지 상태는 유지됩니다.
+      setOpen(true);
+      setRealtimeArrival(true);
+
+      if (realtimePulseTimerRef.current) {
+        window.clearTimeout(
+          realtimePulseTimerRef.current
+        );
+      }
+
+      realtimePulseTimerRef.current =
+        window.setTimeout(() => {
+          setRealtimeArrival(false);
+        }, 2600);
+    };
+
+    window.addEventListener(
+      'safeon-realtime-hazard',
+      showRealtimeNotification
+    );
+
+    window.addEventListener(
+      'safeon-notification-created',
+      showRealtimeNotification
+    );
+
+    return () => {
+      window.removeEventListener(
+        'safeon-realtime-hazard',
+        showRealtimeNotification
+      );
+
+      window.removeEventListener(
+        'safeon-notification-created',
+        showRealtimeNotification
+      );
+
+      if (realtimePulseTimerRef.current) {
+        window.clearTimeout(
+          realtimePulseTimerRef.current
+        );
+      }
+    };
   }, []);
 
   const dateLabel = useMemo(
@@ -326,6 +380,10 @@ export default function TopHeader({
           <button
             className={`bell-btn ${
               open ? 'active' : ''
+            } ${
+              realtimeArrival
+                ? 'realtime-arrival'
+                : ''
             }`}
             onClick={() =>
               setOpen((value) => !value)
@@ -349,7 +407,13 @@ export default function TopHeader({
           </button>
 
           {open && (
-            <div className="notification-popover">
+            <div
+              className={`notification-popover ${
+                realtimeArrival
+                  ? 'realtime-arrival'
+                  : ''
+              }`}
+            >
               <div className="notification-popover-head">
                 <div>
                   <strong>알림</strong>

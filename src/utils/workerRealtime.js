@@ -52,6 +52,20 @@ export function isNormalState(value) {
   return String(value || '').toUpperCase() === 'NORMAL';
 }
 
+function isTrue(value) {
+  return value === true || String(value).toLowerCase() === 'true';
+}
+
+function isHeatRiskAbnormal(sensor) {
+  const level = String(sensor?.heatRiskLevel || '').toUpperCase();
+
+  return Boolean(
+    isTrue(sensor?.heatRiskAbnormal) ||
+      isTrue(sensor?.externalHeatWarning) ||
+      (level && level !== 'NORMAL')
+  );
+}
+
 export function sensorUiStatus(sensor) {
   if (!sensor) {
     return {
@@ -64,9 +78,7 @@ export function sensorUiStatus(sensor) {
   const fallNormal = isNormalState(sensor.fallState);
   const healthNormal = isNormalState(sensor.healthState);
   const posture = String(sensor.posture || '').toUpperCase();
-  const postureAbnormal =
-    sensor.postureAbnormal === true ||
-    String(sensor.postureAbnormal).toLowerCase() === 'true';
+  const postureAbnormal = isTrue(sensor.postureAbnormal);
 
   if (!fallNormal) {
     return {
@@ -81,6 +93,22 @@ export function sensorUiStatus(sensor) {
       key: 'danger',
       label: '위험',
       description: '쓰러짐 자세가 감지되었습니다.',
+    };
+  }
+
+  if (isHeatRiskAbnormal(sensor)) {
+    return {
+      key: 'warning',
+      label: '주의',
+      description: '온열질환 위험 신호가 감지되었습니다.',
+    };
+  }
+
+  if (isTrue(sensor.fatigueAbnormal)) {
+    return {
+      key: 'warning',
+      label: '주의',
+      description: '피로도 이상 신호가 감지되었습니다.',
     };
   }
 
@@ -124,7 +152,6 @@ export function formatSensorTime(value) {
   });
 }
 
-
 export function postureLabel(value) {
   const posture = String(value || '').toUpperCase();
 
@@ -139,9 +166,7 @@ export function postureTone(sensor) {
   if (!sensor) return 'unknown';
 
   const posture = String(sensor.posture || '').toUpperCase();
-  const abnormal =
-    sensor.postureAbnormal === true ||
-    String(sensor.postureAbnormal).toLowerCase() === 'true';
+  const abnormal = isTrue(sensor.postureAbnormal);
 
   if (!abnormal) return 'normal';
   if (posture === 'COLLAPSE') return 'danger';
@@ -149,11 +174,5 @@ export function postureTone(sensor) {
 }
 
 export function isPostureAbnormal(sensor) {
-  return Boolean(
-    sensor &&
-      (
-        sensor.postureAbnormal === true ||
-        String(sensor.postureAbnormal).toLowerCase() === 'true'
-      )
-  );
+  return Boolean(sensor && isTrue(sensor.postureAbnormal));
 }

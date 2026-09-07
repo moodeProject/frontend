@@ -167,18 +167,11 @@ function toUiEvent(event) {
 
   const { time, dateLabel } = toDateLabels(event?.occurredAt);
 
-  // 화면에는 사람이 읽는 구역명(name)을 사용하고,
-  // 필터/분류 등 내부 로직에는 변하지 않는 code를 별도로 보관합니다.
   const zoneName =
     event?.zone?.name ||
-    (typeof event?.zone === 'string' ? event.zone : '') ||
-    event?.zoneName ||
-    '-';
-
-  const zoneCode =
     event?.zone?.code ||
-    event?.zoneCode ||
-    null;
+    (typeof event?.zone === 'string' ? event.zone : '') ||
+    '-';
 
   const workerName =
     event?.worker?.name ||
@@ -206,7 +199,7 @@ function toUiEvent(event) {
 
     zone: zoneName,
     zoneId: event?.zone?.id,
-    zoneCode,
+    zoneCode: event?.zone?.code,
 
     helmetNo: event?.helmetNo,
     confidence: event?.confidence,
@@ -305,9 +298,52 @@ export function DetectionProvider({ children }) {
         setHazardStreamConnected(true);
       },
 
-      onHazard: () => {
+      onHazard: (data) => {
         setHazardStreamConnected(true);
-        refreshHazardEvents().catch(() => {});
+
+        // 실제 SSE 신규 이벤트가 수신된 경우에만
+        // 목록을 갱신한 뒤 상단 알림창을 자동으로 열도록 알립니다.
+        refreshHazardEvents()
+          .then((events) => {
+            const eventId =
+              data?.eventId ??
+              data?.id ??
+              data?.event?.eventId ??
+              null;
+
+            const newest =
+              (eventId &&
+                events.find(
+                  (item) =>
+                    String(item.id) ===
+                    String(eventId)
+                )) ||
+              events[0] ||
+              null;
+
+            window.dispatchEvent(
+              new CustomEvent(
+                'safeon-realtime-hazard',
+                {
+                  detail: {
+                    eventId:
+                      newest?.id ??
+                      eventId,
+                    level:
+                      newest?.level ??
+                      'warning',
+                    title:
+                      newest?.type ??
+                      '새 이상 감지',
+                    occurredAt:
+                      newest?.occurredAt ??
+                      new Date().toISOString(),
+                  },
+                }
+              )
+            );
+          })
+          .catch(() => {});
       },
 
       onClipReady: (data) => {

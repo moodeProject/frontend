@@ -9,15 +9,11 @@ import {
   TriangleAlert,
   Wifi,
 } from 'lucide-react';
-import {
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { WorkerScaffold } from '../../components/WorkerMobileUI';
 import { useDetections } from '../../context/DetectionContext';
-import { getWorkerStatus } from '../../api/workerStatus';
+import { useWorkers } from '../../context/WorkerContext';
 import { getWorkerProfile } from '../../utils/workerProfile';
 import {
   detectionBelongsToWorker,
@@ -38,54 +34,45 @@ export default function WorkerHome() {
     hazardStreamConnected,
   } = useDetections();
 
-  const [sensor, setSensor] = useState(null);
-  const [sensorLoading, setSensorLoading] = useState(true);
-  const [sensorError, setSensorError] = useState('');
+  const {
+    workers,
+    sensorLoading,
+    sensorError,
+    refreshWorkerStatuses,
+  } = useWorkers();
 
   const deviceId = getWorkerDeviceId(profile);
 
+  const currentWorker = useMemo(
+    () =>
+      workers.find(
+        (worker) =>
+          (deviceId &&
+            String(worker.deviceId || '') ===
+              String(deviceId)) ||
+          (profile.helmetNo &&
+            String(worker.helmetId || '') ===
+              String(profile.helmetNo)) ||
+          (profile.name &&
+            String(worker.name || '') ===
+              String(profile.name))
+      ) || null,
+    [
+      workers,
+      deviceId,
+      profile.helmetNo,
+      profile.name,
+    ]
+  );
+
+  const sensor =
+    currentWorker?.serverDataConnected
+      ? currentWorker
+      : null;
+
   useEffect(() => {
-    let active = true;
-
-    const load = async () => {
-      if (!deviceId) {
-        if (active) {
-          setSensor(null);
-          setSensorError('연결된 deviceId가 없습니다.');
-          setSensorLoading(false);
-        }
-        return;
-      }
-
-      try {
-        const data = await getWorkerStatus(deviceId);
-
-        if (active) {
-          setSensor(data);
-          setSensorError('');
-        }
-      } catch (error) {
-        if (active) {
-          setSensor(null);
-          setSensorError(
-            error?.message ||
-              '최신 센서 상태를 불러오지 못했습니다.'
-          );
-        }
-      } finally {
-        if (active) setSensorLoading(false);
-      }
-    };
-
-    load();
-
-    const timer = window.setInterval(load, 10000);
-
-    return () => {
-      active = false;
-      window.clearInterval(timer);
-    };
-  }, [deviceId]);
+    refreshWorkerStatuses().catch(() => {});
+  }, [refreshWorkerStatuses]);
 
   const myEvents = useMemo(
     () =>
@@ -190,7 +177,7 @@ export default function WorkerHome() {
           <span>
             <MapPin size={17} /> 위치
           </span>
-          <b>{profile.location || '-'}</b>
+          <b>{currentWorker?.zone || profile.location || '-'}</b>
         </div>
 
         <div className="worker-state-row">
@@ -198,7 +185,7 @@ export default function WorkerHome() {
             <ShieldCheck size={17} /> 안전모
           </span>
           <b className="ok">
-            {profile.helmetNo || '-'}
+            {currentWorker?.helmetId || profile.helmetNo || '-'}
           </b>
         </div>
 

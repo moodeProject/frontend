@@ -1,94 +1,86 @@
-/* Shared SafeHelmet brand styles
-   ------------------------------------------------------------
-   One logo system is used for both the admin sidebar and auth screens.
-   Brand mark: blue rounded square + white shield
-   Lockup: SAFE HELMET / SAFETY MANAGEMENT SYSTEM
-*/
-
+/* SAFE:ON shared branding */
 .safehelmet-brand {
-  --brand-blue: #1767ff;
   display: flex;
-  align-items: center;
   box-sizing: border-box;
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+  transition: opacity .16s ease, transform .16s ease;
 }
 
-.safehelmet-brand__mark {
-  flex: 0 0 auto;
-  background: var(--brand-blue);
-  color: #fff;
-  display: grid;
-  place-items: center;
+.safehelmet-brand:hover {
+  opacity: .94;
 }
 
-.safehelmet-brand__copy {
-  min-width: 0;
+.safehelmet-brand:active {
+  transform: translateY(1px);
 }
 
-.safehelmet-brand__title {
-  font-weight: 900;
-  line-height: 1;
-  letter-spacing: .055em;
-  white-space: nowrap;
+.safehelmet-brand:focus-visible {
+  outline: 2px solid #2f7cff;
+  outline-offset: -3px;
+  border-radius: 10px;
+}
+
+.safehelmet-brand__logo {
+  display: block;
+  object-fit: contain;
+  object-position: left center;
+  pointer-events: none;
 }
 
 .safehelmet-brand__subtitle {
-  line-height: 1;
+  display: block;
   white-space: nowrap;
+  line-height: 1;
   text-transform: uppercase;
 }
 
-/* Admin sidebar */
+/* 관리자 사이드바 */
 .safehelmet-brand--sidebar {
   height: 70px;
-  gap: 11px;
-  padding: 0 17px;
+  padding: 11px 17px 9px;
   border-bottom: 1px solid #203142;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
 }
 
-.safehelmet-brand--sidebar .safehelmet-brand__mark {
-  width: 29px;
-  height: 29px;
-  border-radius: 8px;
-}
-
-.safehelmet-brand--sidebar .safehelmet-brand__title {
-  color: #fff;
-  font-size: 13px;
+.safehelmet-brand--sidebar .safehelmet-brand__logo {
+  width: 168px;
+  max-width: 100%;
+  height: 35px;
 }
 
 .safehelmet-brand--sidebar .safehelmet-brand__subtitle {
-  margin-top: 5px;
+  margin-top: 2px;
+  margin-left: 3px;
   color: #6f8499;
-  font-size: 6.7px;
-  font-weight: 600;
-  letter-spacing: .11em;
+  font-size: 6.5px;
+  font-weight: 700;
+  letter-spacing: .13em;
 }
 
-/* Login / account auth */
+/* 로그인 / 계정 화면 */
 .safehelmet-brand--auth {
+  width: fit-content;
+  margin: 0 auto 28px;
   flex-direction: column;
+  align-items: center;
   justify-content: center;
   text-align: center;
-  margin: 0 auto 30px;
 }
 
-.safehelmet-brand--auth .safehelmet-brand__mark {
-  width: 42px;
-  height: 42px;
-  margin-bottom: 14px;
-  border-radius: 13px;
-  box-shadow: 0 7px 14px rgba(23, 103, 255, .22);
-}
-
-.safehelmet-brand--auth .safehelmet-brand__title {
-  color: #172033;
-  font-size: 14px;
+.safehelmet-brand--auth .safehelmet-brand__logo {
+  width: min(280px, 72vw);
+  height: auto;
+  object-position: center;
 }
 
 .safehelmet-brand--auth .safehelmet-brand__subtitle {
-  margin-top: 6px;
-  color: #a0abba;
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: .15em;
+  margin-top: 5px;
+  color: #8d99aa;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .16em;
 }

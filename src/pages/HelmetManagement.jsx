@@ -1,10 +1,12 @@
 import { Link2, MoreHorizontal, Plus, RefreshCw, Search, Wifi } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AddHelmetModal from '../components/AddHelmetModal';
 import ConnectHelmetModal from '../components/ConnectHelmetModal';
 import ActionToast from '../components/ActionToast';
 import TopHeader from '../components/TopHeader';
 import { useWorkers } from '../context/WorkerContext';
+import { getAllWorkerStatuses } from '../api/workerStatus';
+import '../styles/safeonSync.css';
 
 const STORAGE_KEY = 'safehelmet-helmets-v1';
 const initialHelmets = [
@@ -17,6 +19,61 @@ const initialHelmets = [
   { helmetNumber: 'H-007', workerId: '', workerName: '미연결', deviceId: 'DEV-007', sensorConnected: false, lastCommunication: '3분 전', status: 'disconnected' },
 ];
 
+
+function formatRelativeTime(value) {
+  if (!value) return '-';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+
+  const diff = Math.max(0, Date.now() - date.getTime());
+  const seconds = Math.floor(diff / 1000);
+
+  if (seconds < 10) return '방금 전';
+  if (seconds < 60) return `${seconds}초 전`;
+
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}분 전`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}시간 전`;
+
+  return date.toLocaleDateString('ko-KR', {
+    month: '2-digit',
+    day: '2-digit',
+  });
+}
+
+function classifyServerStatus(status) {
+  if (!status) return 'disconnected';
+
+  const fallAbnormal =
+    Boolean(status.fallState) &&
+    String(status.fallState).toUpperCase() !== 'NORMAL';
+
+  const healthAbnormal =
+    Boolean(status.healthState) &&
+    String(status.healthState).toUpperCase() !== 'NORMAL';
+
+  const posture = String(status.posture || '').toUpperCase();
+  const postureAbnormal =
+    status.postureAbnormal === true ||
+    String(status.postureAbnormal).toLowerCase() === 'true';
+
+  if (
+    fallAbnormal ||
+    (postureAbnormal && posture === 'COLLAPSE')
+  ) {
+    return 'danger';
+  }
+
+  if (healthAbnormal || postureAbnormal) {
+    return 'warning';
+  }
+
+  return 'normal';
+}
+
 function loadHelmets() {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -27,7 +84,11 @@ function loadHelmets() {
 }
 
 export default function HelmetManagement() {
-  const { workers, updateWorker } = useWorkers();
+  const {
+    workers,
+    updateWorker,
+    refreshWorkerStatuses,
+  } = useWorkers();
   const [helmets, setHelmets] = useState(loadHelmets);
   const [search, setSearch] = useState('');
   const [registerOpen, setRegisterOpen] = useState(false);
@@ -36,6 +97,9 @@ export default function HelmetManagement() {
   const [menuFor, setMenuFor] = useState('');
   const [toast, setToast] = useState('');
   const [reconnectingFor, setReconnectingFor] = useState('');
+  const [serverStatuses, setServerStatuses] = useState([]);
+  const [serverLoading, setServerLoading] = useState(false);
+  const [serverError, setServerError] = useState('');
   const menuRef = useRef(null);
 
   useEffect(() => localStorage.setItem(STORAGE_KEY, JSON.stringify(helmets)), [helmets]);
@@ -46,31 +110,164 @@ export default function HelmetManagement() {
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
   }, []);
+  const refreshHelmetServerStatus = useCallback(async () => {
+    setServerLoading(true);
+    setServerError('');
+
+    try {
+      const statuses = await getAllWorkerStatuses();
+      setServerStatuses(statuses);
+      return statuses;
+    } catch (error) {
+      console.error('헬멧 서버 상태 조회 실패:', error);
+      setServerError(
+        error?.message ||
+          '헬멧 센서 상태를 불러오지 못했습니다.'
+      );
+      return [];
+    } finally {
+      setServerLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     const syncHelmets = () => setHelmets(loadHelmets());
+
     const refreshPage = (event) => {
-      if (!event.detail?.path || event.detail.path === '/helmets') syncHelmets();
+      if (
+        !event.detail?.path ||
+        event.detail.path === '/helmets'
+      ) {
+        syncHelmets();
+        refreshHelmetServerStatus();
+      }
     };
-    window.addEventListener('safehelmet-worker-helmet-reconnected', syncHelmets);
-    window.addEventListener('safehelmet-helmets-updated', syncHelmets);
-    window.addEventListener('safehelmet-page-refresh', refreshPage);
+
+    window.addEventListener(
+      'safehelmet-worker-helmet-reconnected',
+      syncHelmets
+    );
+    window.addEventListener(
+      'safehelmet-helmets-updated',
+      syncHelmets
+    );
+    window.addEventListener(
+      'safehelmet-page-refresh',
+      refreshPage
+    );
     window.addEventListener('storage', syncHelmets);
+
     return () => {
-      window.removeEventListener('safehelmet-worker-helmet-reconnected', syncHelmets);
-      window.removeEventListener('safehelmet-helmets-updated', syncHelmets);
-      window.removeEventListener('safehelmet-page-refresh', refreshPage);
+      window.removeEventListener(
+        'safehelmet-worker-helmet-reconnected',
+        syncHelmets
+      );
+      window.removeEventListener(
+        'safehelmet-helmets-updated',
+        syncHelmets
+      );
+      window.removeEventListener(
+        'safehelmet-page-refresh',
+        refreshPage
+      );
       window.removeEventListener('storage', syncHelmets);
     };
-  }, []);
+  }, [refreshHelmetServerStatus]);
+
+  useEffect(() => {
+    refreshHelmetServerStatus();
+
+    const timer = window.setInterval(
+      refreshHelmetServerStatus,
+      10000
+    );
+
+    return () => window.clearInterval(timer);
+  }, [refreshHelmetServerStatus]);
+
+  const viewHelmets = useMemo(() => {
+    const byDeviceId = new Map(
+      serverStatuses
+        .filter((item) => item?.deviceId)
+        .map((item) => [
+          String(item.deviceId),
+          item,
+        ])
+    );
+
+    return helmets.map((helmet) => {
+      const serverStatus = byDeviceId.get(
+        String(helmet.deviceId)
+      );
+
+      const worker =
+        workers.find(
+          (item) =>
+            String(item.deviceId || '') ===
+              String(helmet.deviceId) ||
+            String(item.helmetId || '') ===
+              String(helmet.helmetNumber)
+        ) || null;
+
+      const riskLevel =
+        classifyServerStatus(serverStatus);
+
+      const sensorConnected = Boolean(serverStatus);
+
+      return {
+        ...helmet,
+        workerId:
+          worker?.id || helmet.workerId,
+        workerName:
+          worker?.name ||
+          helmet.workerName ||
+          '미연결',
+        sensorConnected,
+        serverStatus,
+        riskLevel,
+        lastCommunication: serverStatus
+          ? formatRelativeTime(serverStatus.recordedAt)
+          : '-',
+        status: helmet.workerId || worker
+          ? sensorConnected
+            ? 'inUse'
+            : 'disconnected'
+          : sensorConnected
+            ? 'standby'
+            : 'disconnected',
+      };
+    });
+  }, [helmets, workers, serverStatuses]);
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return helmets;
-    return helmets.filter((item) => [item.helmetNumber, item.workerName, item.deviceId].some((value) => String(value).toLowerCase().includes(query)));
-  }, [helmets, search]);
 
-  const inUse = helmets.filter((item) => item.status === 'inUse').length;
-  const disconnected = helmets.filter((item) => item.status === 'disconnected').length;
+    if (!query) return viewHelmets;
+
+    return viewHelmets.filter((item) =>
+      [
+        item.helmetNumber,
+        item.workerName,
+        item.deviceId,
+      ].some((value) =>
+        String(value)
+          .toLowerCase()
+          .includes(query)
+      )
+    );
+  }, [viewHelmets, search]);
+
+  const inUse = viewHelmets.filter(
+    (item) => item.status === 'inUse'
+  ).length;
+
+  const disconnected = viewHelmets.filter(
+    (item) => item.status === 'disconnected'
+  ).length;
+
+  const dangerCount = viewHelmets.filter(
+    (item) => item.riskLevel === 'danger'
+  ).length;
 
   const addHelmet = (helmet) => {
     setHelmets((prev) => [...prev, helmet]);
@@ -108,33 +305,32 @@ export default function HelmetManagement() {
     setToast(`${helmetNumber} 헬멧을 ${worker.name} 작업자에게 재연결했습니다.`);
   };
 
-  const reconnectDevice = (helmetNumber) => {
-    const target = helmets.find((item) => item.helmetNumber === helmetNumber);
+  const reconnectDevice = async (helmetNumber) => {
+    const target = viewHelmets.find(
+      (item) => item.helmetNumber === helmetNumber
+    );
+
     if (!target) return;
+
     setReconnectingFor(helmetNumber);
-    setToast(`${helmetNumber} 헬멧 연결을 다시 확인하고 있습니다.`);
-    window.setTimeout(() => {
-      const nextHelmets = helmets.map((item) => item.helmetNumber === helmetNumber ? {
-        ...item,
-        sensorConnected: true,
-        lastCommunication: '방금 전',
-        status: item.workerId ? 'inUse' : 'standby',
-      } : item);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextHelmets));
-      setHelmets(nextHelmets);
-      if (target.workerId) updateWorker(target.workerId, { helmetId: helmetNumber, sensorConnected: true });
-      try {
-        const currentWorker = JSON.parse(localStorage.getItem('safehelmet_worker_profile') || '{}');
-        if (currentWorker.helmetNo === helmetNumber) {
-          const updatedProfile = { ...currentWorker, helmetConnected: true, sensorConnected: true, helmetLastConnectedAt: new Date().toISOString() };
-          localStorage.setItem('safehelmet_worker_profile', JSON.stringify(updatedProfile));
-          window.dispatchEvent(new CustomEvent('safehelmet-worker-profile-updated', { detail: updatedProfile }));
-        }
-      } catch {}
-      window.dispatchEvent(new Event('safehelmet-helmets-updated'));
+    setToast(
+      `${helmetNumber} 서버 센서 상태를 다시 확인하고 있습니다.`
+    );
+
+    try {
+      await Promise.allSettled([
+        refreshHelmetServerStatus(),
+        refreshWorkerStatuses?.(),
+      ]);
+
+      setToast(
+        target.serverStatus
+          ? `${helmetNumber} 최신 서버 상태를 갱신했습니다.`
+          : `${helmetNumber}의 서버 센서 데이터가 아직 확인되지 않습니다.`
+      );
+    } finally {
       setReconnectingFor('');
-      setToast(`${helmetNumber} 헬멧과 센서가 재연결되었습니다.`);
-    }, 650);
+    }
   };
 
   const unassign = (helmetNumber) => {
@@ -153,7 +349,7 @@ export default function HelmetManagement() {
 
   return (
     <>
-      <TopHeader title="헬멧 관리" subtitle="스마트 안전모 등록 및 연결" />
+      <TopHeader title="헬멧 관리" subtitle="스마트 안전모 등록 및 연결" onRefresh={() => Promise.allSettled([refreshHelmetServerStatus(), refreshWorkerStatuses?.()])} />
       <div className="page-body helmets-page">
         <div className="helmet-title-row">
           <div><h2>헬멧 관리</h2><p>스마트 안전모를 등록하고 작업자와 연결합니다.</p></div>
@@ -164,9 +360,19 @@ export default function HelmetManagement() {
         </div>
 
         <div className="helmet-stats">
-          <div className="helmet-stat"><span>전체</span><strong>{helmets.length}</strong></div>
+          <div className="helmet-stat"><span>전체</span><strong>{viewHelmets.length}</strong></div>
           <div className="helmet-stat"><span>사용 중</span><strong className="blue">{inUse}</strong></div>
           <div className="helmet-stat"><span>연결 끊김</span><strong className="red">{disconnected}</strong></div>
+        </div>
+
+        <div className={`worker-filter-banner ${serverError ? 'danger' : 'normal'}`}>
+          <span>
+            {serverError
+              ? `헬멧 서버 상태 연동 실패: ${serverError}`
+              : serverLoading
+                ? '헬멧 센서 서버 상태를 확인 중입니다.'
+                : `● 작업자 상태 API 연동됨 · 위험 헬멧 ${dangerCount}개`}
+          </span>
         </div>
 
         <label className="helmet-search"><Search size={14}/><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="헬멧 번호 또는 작업자 검색" /></label>
@@ -178,7 +384,26 @@ export default function HelmetManagement() {
               <strong>{helmet.helmetNumber}</strong>
               <span className={helmet.workerName === '미연결' ? 'muted' : ''}>{helmet.workerName}</span>
               <code>{helmet.deviceId}</code>
-              <span className={`sensor-state ${helmet.sensorConnected ? 'connected' : 'disconnected'}`}><Wifi size={13}/>{helmet.sensorConnected ? '연결' : '미연결'}</span>
+              <span
+                className={`sensor-state ${
+                  helmet.riskLevel === 'danger'
+                    ? 'danger'
+                    : helmet.riskLevel === 'warning'
+                      ? 'warning'
+                      : helmet.sensorConnected
+                        ? 'connected'
+                        : 'disconnected'
+                }`}
+              >
+                <Wifi size={13}/>
+                {helmet.riskLevel === 'danger'
+                  ? '위험'
+                  : helmet.riskLevel === 'warning'
+                    ? '주의'
+                    : helmet.sensorConnected
+                      ? '연결'
+                      : '미연결'}
+              </span>
               <span className="muted">{helmet.lastCommunication}</span>
               <span><span className={`helmet-status ${helmet.status}`}>{helmet.status === 'inUse' ? '사용중' : helmet.status === 'standby' ? '대기' : '연결 끊김'}</span></span>
               <div className="helmet-row-actions" ref={menuFor === helmet.helmetNumber ? menuRef : null}>

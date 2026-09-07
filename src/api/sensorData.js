@@ -1,5 +1,11 @@
 import { api } from './client'
 
+function toOptionalNumber(value) {
+  if (value === '' || value === undefined || value === null) return undefined
+  const number = Number(value)
+  return Number.isFinite(number) ? number : undefined
+}
+
 export async function sendSensorData(sensorData) {
   const response = await api.post('/api/sensor-data', {
     deviceId: sensorData.deviceId,
@@ -14,6 +20,9 @@ export async function sendSensorData(sensorData) {
     posture: sensorData.posture,
     healthAbnormal: Boolean(sensorData.healthAbnormal),
     level: sensorData.level,
+    hrv: toOptionalNumber(sensorData.hrv),
+    fatigueAbnormal: Boolean(sensorData.fatigueAbnormal),
+    heatRiskAbnormal: Boolean(sensorData.heatRiskAbnormal),
     zoneId: sensorData.zoneId || undefined,
   })
 

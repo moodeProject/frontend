@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { sendSensorData } from '../api/sensorData'
-import { getWorkerStatus } from '../api/workerStatus'
+import {
+  getWorkerHeatRisk,
+  getWorkerStatus,
+} from '../api/workerStatus'
 
 const POSTURE_TESTS = {
   STABLE: {
@@ -15,8 +18,11 @@ const POSTURE_TESTS = {
       gz: '0.1',
       heartRate: '78',
       spo2: '98',
+      hrv: '42',
       posture: 'STABLE',
       healthAbnormal: false,
+      fatigueAbnormal: false,
+      heatRiskAbnormal: false,
       level: 'NORMAL',
     },
   },
@@ -32,8 +38,11 @@ const POSTURE_TESTS = {
       gz: '0.9',
       heartRate: '88',
       spo2: '97',
+      hrv: '31',
       posture: 'STUMBLE',
       healthAbnormal: false,
+      fatigueAbnormal: false,
+      heatRiskAbnormal: false,
       level: 'NORMAL',
     },
   },
@@ -49,9 +58,41 @@ const POSTURE_TESTS = {
       gz: '2.1',
       heartRate: '94',
       spo2: '96',
+      hrv: '26',
       posture: 'COLLAPSE',
       healthAbnormal: false,
+      fatigueAbnormal: false,
+      heatRiskAbnormal: false,
       level: 'NORMAL',
+    },
+  },
+}
+
+const HEALTH_TESTS = {
+  FATIGUE: {
+    label: '피로도 이상',
+    patch: {
+      heartRate: '96',
+      spo2: '96',
+      hrv: '20',
+      healthAbnormal: true,
+      fatigueAbnormal: true,
+      heatRiskAbnormal: false,
+      posture: 'STABLE',
+      level: 'WARNING',
+    },
+  },
+  HEAT: {
+    label: '온열질환 위험',
+    patch: {
+      heartRate: '104',
+      spo2: '95',
+      hrv: '18',
+      healthAbnormal: true,
+      fatigueAbnormal: true,
+      heatRiskAbnormal: true,
+      posture: 'STABLE',
+      level: 'WARNING',
     },
   },
 }
@@ -60,6 +101,7 @@ export default function SensorApiTest() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
   const [verifyResult, setVerifyResult] = useState(null)
+  const [heatRiskResult, setHeatRiskResult] = useState(null)
   const [testStatus, setTestStatus] = useState(null)
   const [error, setError] = useState('')
 
@@ -75,11 +117,22 @@ export default function SensorApiTest() {
 
   const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms))
 
-  const verifyPosture = async (deviceId, expectedPosture, expectedAbnormal) => {
+  const verifyLatest = async (
+    deviceId,
+    expectedPosture = null,
+    expectedAbnormal = null
+  ) => {
     await wait(500)
 
-    const latest = await getWorkerStatus(deviceId)
+    const [latest, heatRisk] = await Promise.all([
+      getWorkerStatus(deviceId),
+      getWorkerHeatRisk(deviceId).catch(() => null),
+    ])
+
     setVerifyResult(latest)
+    setHeatRiskResult(heatRisk)
+
+    if (!expectedPosture) return latest
 
     const actualPosture = String(latest?.posture || '').toUpperCase()
     const actualAbnormal =
@@ -101,24 +154,27 @@ export default function SensorApiTest() {
     return latest
   }
 
-  const send = async (payload, expectedPosture = null, expectedAbnormal = null) => {
+  const send = async (
+    payload,
+    expectedPosture = null,
+    expectedAbnormal = null
+  ) => {
     setLoading(true)
     setError('')
     setResult(null)
     setVerifyResult(null)
+    setHeatRiskResult(null)
     setTestStatus(null)
 
     try {
       const data = await sendSensorData(payload)
       setResult(data)
 
-      if (expectedPosture) {
-        await verifyPosture(
-          payload.deviceId,
-          expectedPosture,
-          expectedAbnormal
-        )
-      }
+      await verifyLatest(
+        payload.deviceId,
+        expectedPosture,
+        expectedAbnormal
+      )
     } catch (err) {
       setError(err.message || '센서 데이터 전송/검증에 실패했습니다.')
     } finally {
@@ -139,7 +195,7 @@ export default function SensorApiTest() {
     )
   }
 
-  const runPreset = async (posture) => {
+  const runPosturePreset = async (posture) => {
     const preset = POSTURE_TESTS[posture]
     const payload = {
       ...form,
@@ -154,6 +210,18 @@ export default function SensorApiTest() {
       posture,
       preset.expectedAbnormal
     )
+  }
+
+  const runHealthPreset = async (type) => {
+    const preset = HEALTH_TESTS[type]
+    const payload = {
+      ...form,
+      ...POSTURE_TESTS.STABLE.form,
+      ...preset.patch,
+    }
+
+    setForm(payload)
+    await send(payload, 'STABLE', false)
   }
 
   const inputStyle = {
@@ -180,9 +248,9 @@ export default function SensorApiTest() {
     <div style={{ maxWidth: 900, margin: '40px auto', padding: 24, fontFamily: 'sans-serif' }}>
       <h1>센서 API 테스트</h1>
       <p>
-        자세 상태 테스트용 페이지입니다.
-        전송 후 <code>GET /api/workers/{'{deviceId}'}</code>를 다시 호출하여
-        <b> posture / postureAbnormal</b> 값까지 자동 검증합니다.
+        최신 API의 자세·HRV·피로도·온열질환 필드를 함께 전송합니다.
+        전송 후 <code>GET /api/workers/{'{deviceId}'}</code>와{' '}
+        <code>GET /api/workers/{'{deviceId}'}/heat-risk</code>를 다시 호출합니다.
       </p>
 
       <section
@@ -194,43 +262,26 @@ export default function SensorApiTest() {
           background: '#f8fafc',
         }}
       >
-        <strong>DEV-001 박민수 자세 테스트</strong>
+        <strong>DEV-001 박민수 테스트</strong>
         <p style={{ margin: '7px 0 14px', color: '#64748b', fontSize: 14 }}>
-          아래 버튼 하나만 누르면 센서 전송 → 최신 상태 조회 → PASS/FAIL 확인까지 자동으로 진행합니다.
+          버튼 하나로 센서 전송 → 최신 상태 조회 → 건강 상세 조회까지 진행합니다.
         </p>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-          <button
-            type="button"
-            disabled={loading}
-            style={presetButtonStyle}
-            onClick={() => runPreset('STABLE')}
-          >
-            정상 복구
-            <br />
-            <small>STABLE / false</small>
+          <button type="button" disabled={loading} style={presetButtonStyle} onClick={() => runPosturePreset('STABLE')}>
+            정상 복구<br /><small>STABLE / 정상</small>
           </button>
-
-          <button
-            type="button"
-            disabled={loading}
-            style={presetButtonStyle}
-            onClick={() => runPreset('STUMBLE')}
-          >
-            휘청거림 테스트
-            <br />
-            <small>STUMBLE / true</small>
+          <button type="button" disabled={loading} style={presetButtonStyle} onClick={() => runPosturePreset('STUMBLE')}>
+            휘청거림 테스트<br /><small>STUMBLE / true</small>
           </button>
-
-          <button
-            type="button"
-            disabled={loading}
-            style={presetButtonStyle}
-            onClick={() => runPreset('COLLAPSE')}
-          >
-            쓰러짐 테스트
-            <br />
-            <small>COLLAPSE / true</small>
+          <button type="button" disabled={loading} style={presetButtonStyle} onClick={() => runPosturePreset('COLLAPSE')}>
+            쓰러짐 테스트<br /><small>COLLAPSE / true</small>
+          </button>
+          <button type="button" disabled={loading} style={presetButtonStyle} onClick={() => runHealthPreset('FATIGUE')}>
+            피로도 테스트<br /><small>fatigueAbnormal = true</small>
+          </button>
+          <button type="button" disabled={loading} style={presetButtonStyle} onClick={() => runHealthPreset('HEAT')}>
+            온열위험 테스트<br /><small>heatRiskAbnormal = true</small>
           </button>
         </div>
       </section>
@@ -238,11 +289,7 @@ export default function SensorApiTest() {
       <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 12 }}>
         <label>
           Device ID
-          <input
-            style={inputStyle}
-            value={form.deviceId}
-            onChange={e => update('deviceId', e.target.value)}
-          />
+          <input style={inputStyle} value={form.deviceId} onChange={e => update('deviceId', e.target.value)} />
         </label>
 
         <label>
@@ -268,11 +315,7 @@ export default function SensorApiTest() {
           {['ax', 'ay', 'az'].map(key => (
             <label key={key}>
               {key}
-              <input
-                style={inputStyle}
-                value={form[key]}
-                onChange={e => update(key, e.target.value)}
-              />
+              <input style={inputStyle} value={form[key]} onChange={e => update(key, e.target.value)} />
             </label>
           ))}
         </div>
@@ -281,42 +324,29 @@ export default function SensorApiTest() {
           {['gx', 'gy', 'gz'].map(key => (
             <label key={key}>
               {key}
-              <input
-                style={inputStyle}
-                value={form[key]}
-                onChange={e => update(key, e.target.value)}
-              />
+              <input style={inputStyle} value={form[key]} onChange={e => update(key, e.target.value)} />
             </label>
           ))}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
           <label>
             심박수
-            <input
-              style={inputStyle}
-              value={form.heartRate}
-              onChange={e => update('heartRate', e.target.value)}
-            />
+            <input style={inputStyle} value={form.heartRate} onChange={e => update('heartRate', e.target.value)} />
           </label>
-
           <label>
             SpO2
-            <input
-              style={inputStyle}
-              value={form.spo2}
-              onChange={e => update('spo2', e.target.value)}
-            />
+            <input style={inputStyle} value={form.spo2} onChange={e => update('spo2', e.target.value)} />
+          </label>
+          <label>
+            HRV
+            <input style={inputStyle} value={form.hrv} onChange={e => update('hrv', e.target.value)} />
           </label>
         </div>
 
         <label>
           자세
-          <select
-            style={inputStyle}
-            value={form.posture}
-            onChange={e => update('posture', e.target.value)}
-          >
+          <select style={inputStyle} value={form.posture} onChange={e => update('posture', e.target.value)}>
             <option value="STABLE">STABLE - 정상 자세</option>
             <option value="STUMBLE">STUMBLE - 휘청거림</option>
             <option value="COLLAPSE">COLLAPSE - 쓰러짐</option>
@@ -325,21 +355,23 @@ export default function SensorApiTest() {
 
         <label>
           Level
-          <input
-            style={inputStyle}
-            value={form.level}
-            onChange={e => update('level', e.target.value)}
-          />
+          <input style={inputStyle} value={form.level} onChange={e => update('level', e.target.value)} />
         </label>
 
-        <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <input
-            type="checkbox"
-            checked={form.healthAbnormal}
-            onChange={e => update('healthAbnormal', e.target.checked)}
-          />
-          건강 이상 여부
-        </label>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 18 }}>
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input type="checkbox" checked={form.healthAbnormal} onChange={e => update('healthAbnormal', e.target.checked)} />
+            건강 이상
+          </label>
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input type="checkbox" checked={form.fatigueAbnormal} onChange={e => update('fatigueAbnormal', e.target.checked)} />
+            피로도 이상
+          </label>
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input type="checkbox" checked={form.heatRiskAbnormal} onChange={e => update('heatRiskAbnormal', e.target.checked)} />
+            온열질환 위험
+          </label>
+        </div>
 
         <button
           type="submit"
@@ -359,15 +391,7 @@ export default function SensorApiTest() {
       </form>
 
       {error && (
-        <pre
-          style={{
-            marginTop: 24,
-            padding: 16,
-            background: '#fff1f2',
-            whiteSpace: 'pre-wrap',
-            borderRadius: 10,
-          }}
-        >
+        <pre style={{ marginTop: 24, padding: 16, background: '#fff1f2', whiteSpace: 'pre-wrap', borderRadius: 10 }}>
           ❌ {error}
         </pre>
       )}
@@ -385,12 +409,10 @@ export default function SensorApiTest() {
           <h2 style={{ marginTop: 0 }}>
             {testStatus.passed ? '✅ 자세 API 테스트 PASS' : '❌ 자세 API 테스트 FAIL'}
           </h2>
-
           <div>
             기대값: <b>{testStatus.expectedPosture}</b> / postureAbnormal{' '}
             <b>{String(testStatus.expectedAbnormal)}</b>
           </div>
-
           <div style={{ marginTop: 6 }}>
             실제값: <b>{testStatus.actualPosture || '-'}</b> / postureAbnormal{' '}
             <b>{String(testStatus.actualAbnormal)}</b>
@@ -401,15 +423,7 @@ export default function SensorApiTest() {
       {result && (
         <div style={{ marginTop: 24 }}>
           <h2>POST 응답 결과</h2>
-          <div
-            style={{
-              marginBottom: 10,
-              padding: '10px 12px',
-              borderRadius: 8,
-              background: '#eff6ff',
-              color: '#1e3a8a',
-            }}
-          >
+          <div style={{ marginBottom: 10, padding: '10px 12px', borderRadius: 8, background: '#eff6ff', color: '#1e3a8a' }}>
             전송 zoneId: <b>{form.zoneId || '-'}</b> · 서버 응답 zoneId:{' '}
             <b>{result?.zoneId ?? result?.data?.zoneId ?? '-'}</b>
           </div>
@@ -424,6 +438,15 @@ export default function SensorApiTest() {
           <h2>GET 최신 상태 검증 결과</h2>
           <pre style={{ padding: 16, background: '#eef6ff', overflow: 'auto', borderRadius: 10 }}>
             {JSON.stringify(verifyResult, null, 2)}
+          </pre>
+        </div>
+      )}
+
+      {heatRiskResult && (
+        <div style={{ marginTop: 24 }}>
+          <h2>GET 온열질환·피로도 상세 결과</h2>
+          <pre style={{ padding: 16, background: '#fff7ed', overflow: 'auto', borderRadius: 10 }}>
+            {JSON.stringify(heatRiskResult, null, 2)}
           </pre>
         </div>
       )}

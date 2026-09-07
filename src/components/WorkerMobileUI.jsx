@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   Bell,
   BookOpen,
@@ -16,9 +16,34 @@ import {
   X,
 } from 'lucide-react';
 import { useDetections } from '../context/DetectionContext';
+import { useWorkers } from '../context/WorkerContext';
 import { getWorkerProfile } from '../utils/workerProfile';
-import { detectionBelongsToWorker } from '../utils/workerRealtime';
+import {
+  detectionBelongsToWorker,
+  getWorkerDeviceId,
+} from '../utils/workerRealtime';
 import { getDefaultWorkerProfile } from '../utils/defaultWorkerProfiles';
+import '../styles/safeonSync.css';
+
+
+function findCurrentWorker(workers, profile) {
+  const deviceId = getWorkerDeviceId(profile);
+
+  return (
+    workers.find(
+      (worker) =>
+        (deviceId &&
+          String(worker.deviceId || '') ===
+            String(deviceId)) ||
+        (profile.helmetNo &&
+          String(worker.helmetId || '') ===
+            String(profile.helmetNo)) ||
+        (profile.name &&
+          String(worker.name || '') ===
+            String(profile.name))
+    ) || null
+  );
+}
 
 const WORK_STATUS_META = {
   '근무 중': { key: 'work', label: '작업 중', description: '현재 현장 작업 중입니다.' },
@@ -58,7 +83,10 @@ export function WorkerHeader({ title, subtitle, back = false, onMenu }) {
 
 export function WorkerBottomNav({ active = 'home' }) {
   const { detections } = useDetections();
+  const { workers } = useWorkers();
   const profile = getWorkerProfile();
+  const currentWorker = findCurrentWorker(workers, profile);
+  const dangerActive = currentWorker?.status === 'danger';
 
   const workerAlertCount = useMemo(
     () =>
@@ -89,7 +117,17 @@ export function WorkerBottomNav({ active = 'home' }) {
   return (
     <nav className="worker-bottom-nav">
       {items.map(({ key, label, to, icon: Icon, badge }) => (
-        <NavLink key={key} to={to} className={`worker-bottom-item ${active === key ? 'active' : ''} ${key === 'sos' ? 'sos' : ''}`}>
+        <NavLink
+          key={key}
+          to={to}
+          className={`worker-bottom-item ${
+            active === key ? 'active' : ''
+          } ${key === 'sos' ? 'sos' : ''} ${
+            key === 'sos' && dangerActive
+              ? 'danger-active'
+              : ''
+          }`}
+        >
           <span className="worker-bottom-icon-wrap">
             <Icon size={20} />
             {badge > 0 ? <b>{badge > 9 ? '9+' : badge}</b> : null}
@@ -125,7 +163,14 @@ export function WorkerDrawer({ open, onClose }) {
 
   if (!open) return null;
 
-  const statusMeta = getWorkStatusMeta(workStatus);
+  const { workers } = useWorkers();
+  const currentWorker = findCurrentWorker(workers, profile);
+
+  const statusMeta =
+    currentWorker?.status === 'danger'
+      ? WORK_STATUS_META['위험']
+      : getWorkStatusMeta(workStatus);
+
   const profilePhoto =
     profile.photo ||
     getDefaultWorkerProfile(profile.helmetNo || profile.helmetId);
@@ -170,14 +215,105 @@ export function WorkerDrawer({ open, onClose }) {
   );
 }
 
-export function WorkerScaffold({ children, active = 'home', title, subtitle, back = false, hideNav = false, header = true, className = '' }) {
+export function WorkerScaffold({
+  children,
+  active = 'home',
+  title,
+  subtitle,
+  back = false,
+  hideNav = false,
+  header = true,
+  className = '',
+}) {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { workers } = useWorkers();
+  const profile = getWorkerProfile();
+
+  const currentWorker = useMemo(
+    () => findCurrentWorker(workers, profile),
+    [
+      workers,
+      profile.name,
+      profile.helmetNo,
+      profile.employeeNo,
+    ]
+  );
+
+  useEffect(() => {
+    if (!currentWorker || currentWorker.status !== 'danger') {
+      return;
+    }
+
+    if (location.pathname === '/worker/sos') {
+      return;
+    }
+
+    const dangerKey = [
+      currentWorker.deviceId || '',
+      currentWorker.recordedAt || '',
+      currentWorker.fallState || '',
+      currentWorker.posture || '',
+    ].join('|');
+
+    const lastShown =
+      sessionStorage.getItem(
+        'safeon-worker-danger-sos-key'
+      ) || '';
+
+    if (dangerKey && dangerKey !== lastShown) {
+      sessionStorage.setItem(
+        'safeon-worker-danger-sos-key',
+        dangerKey
+      );
+
+      navigate(
+        `/worker/sos?auto=1&reason=${encodeURIComponent(
+          currentWorker.issue || '위험 상태 감지'
+        )}`,
+        { replace: false }
+      );
+    }
+  }, [
+    currentWorker,
+    location.pathname,
+    navigate,
+  ]);
+
   return (
-    <div className={`worker-mobile-shell ${className}`}>
-      {header && <WorkerHeader title={title} subtitle={subtitle} back={back} onMenu={() => setDrawerOpen(true)} />}
-      <main className={`worker-mobile-content ${hideNav ? 'no-nav' : ''}`}>{children}</main>
-      {!hideNav && <WorkerBottomNav active={active} />}
-      <WorkerDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+    <div
+      className={`worker-mobile-shell ${className} ${
+        currentWorker?.status === 'danger'
+          ? 'worker-danger-active'
+          : ''
+      }`}
+    >
+      {header && (
+        <WorkerHeader
+          title={title}
+          subtitle={subtitle}
+          back={back}
+          onMenu={() => setDrawerOpen(true)}
+        />
+      )}
+
+      <main
+        className={`worker-mobile-content ${
+          hideNav ? 'no-nav' : ''
+        }`}
+      >
+        {children}
+      </main>
+
+      {!hideNav && (
+        <WorkerBottomNav active={active} />
+      )}
+
+      <WorkerDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+      />
     </div>
   );
 }

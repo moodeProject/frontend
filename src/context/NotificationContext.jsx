@@ -240,6 +240,21 @@ export function NotificationProvider({ children }) {
       ),
     ]);
 
+    // SOS/관리자 호출 등 새 수동 알림도
+    // 벨을 클릭하지 않아도 즉시 팝업으로 보여줍니다.
+    window.dispatchEvent(
+      new CustomEvent(
+        'safeon-notification-created',
+        {
+          detail: {
+            id: item.id,
+            level: item.level,
+            title: item.title,
+          },
+        }
+      )
+    );
+
     return item;
   }, []);
 

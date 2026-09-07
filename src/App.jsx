@@ -1,5 +1,6 @@
 import SensorApiTest from './pages/SensorApiTest'
 import './styles/safehelmet.css';
+import './styles/detailButtonLogo70.css';
 import './styles/designPreservingPatch.css';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import Layout from './components/Layout';

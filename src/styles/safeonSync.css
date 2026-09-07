@@ -1,0 +1,156 @@
+
+/* =========================================================
+   SAFE:ON sync / danger / SOS / helmet server integration
+   ========================================================= */
+
+/* SAFE:ON 로고가 부담스럽지 않게 조금 축소 */
+.sidebar .brand img,
+.sidebar .brand-logo,
+.sidebar-logo,
+.safeon-logo,
+.brand .safeon-wordmark {
+  max-width: 148px !important;
+  max-height: 42px !important;
+  width: auto !important;
+  height: auto !important;
+  object-fit: contain;
+}
+
+.sidebar .brand {
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+.sidebar .brand-title {
+  font-size: 15px;
+  letter-spacing: .02em;
+}
+
+/* 관리자 작업자 카드 위험 상태는 확실히 빨간색 */
+.worker-card.danger {
+  border-color: #ff7a84 !important;
+  background: linear-gradient(
+    180deg,
+    #fff7f7 0%,
+    #ffffff 46%
+  ) !important;
+  box-shadow: 0 0 0 1px rgba(239, 51, 68, .04);
+}
+
+.worker-card.danger .worker-dot {
+  background: #ef3344 !important;
+}
+
+.worker-card.danger .issue-row,
+.issue-row.danger {
+  color: #e52d3f !important;
+  background: #fff0f1 !important;
+}
+
+.worker-card.danger .worker-title-row strong {
+  color: #111827;
+}
+
+/* 헬멧 센서 상태 위험/주의 */
+.sensor-state.danger {
+  color: #ef3344 !important;
+  font-weight: 800;
+}
+
+.sensor-state.warning {
+  color: #f07a00 !important;
+  font-weight: 800;
+}
+
+.sensor-state.connected {
+  color: #08a64d;
+}
+
+.helmet-row:has(.sensor-state.danger) {
+  background: #fffafa;
+}
+
+/* 근로자 홈 위험 상태 */
+.worker-state-card.danger {
+  border-color: #ff7a84 !important;
+  background: #fff2f3 !important;
+}
+
+.worker-state-card.danger .worker-state-card-head,
+.worker-state-card.danger .worker-state-card-head span {
+  color: #e52d3f !important;
+}
+
+.worker-fall-ok-card.danger {
+  border-color: #ff8a94 !important;
+  background: #fff1f2 !important;
+  color: #e52d3f !important;
+}
+
+.worker-danger-active .worker-mobile-header {
+  border-bottom-color: rgba(239, 51, 68, .22);
+}
+
+.worker-bottom-item.sos.danger-active {
+  color: #ef3344 !important;
+}
+
+.worker-bottom-item.sos.danger-active .worker-bottom-icon-wrap {
+  background: #ef3344 !important;
+  color: #fff !important;
+  box-shadow: 0 0 0 6px rgba(239, 51, 68, .10);
+}
+
+/* 위험 자동 SOS 화면 */
+.worker-sos-page.danger-mode {
+  background: #fff8f8;
+}
+
+.worker-sos-danger-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid #ff9ca5;
+  background: #fff0f1;
+  color: #e52d3f;
+}
+
+.worker-sos-danger-banner strong {
+  display: block;
+  font-size: 15px;
+}
+
+.worker-sos-danger-banner p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #c72b3a;
+}
+
+.worker-sos-page.danger-mode .worker-emergency-btn {
+  background: #ef3344 !important;
+  border-color: #ef3344 !important;
+  box-shadow: 0 10px 26px rgba(239, 51, 68, .22);
+}
+
+.worker-current-state b.danger,
+.worker-sos-success b.danger {
+  color: #ef3344 !important;
+}
+
+.worker-sos-api-note {
+  margin-top: 12px;
+  padding: 11px 13px;
+  border-radius: 10px;
+  background: #fff8e8;
+  color: #9a6700;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+/* 헬멧 서버 상태 안내가 테이블과 자연스럽게 붙도록 */
+.helmets-page .worker-filter-banner {
+  margin: 12px 0 14px;
+}
