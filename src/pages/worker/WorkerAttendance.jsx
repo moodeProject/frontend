@@ -3,12 +3,15 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  BriefcaseBusiness,
+  Coffee,
   Clock3,
   FilePenLine,
   MoonStar,
   Plus,
   TimerReset,
   Umbrella,
+  LogOut,
   X,
 } from 'lucide-react';
 import { WorkerScaffold } from '../../components/WorkerMobileUI';
@@ -57,6 +60,43 @@ export default function WorkerAttendance() {
   const [modalType, setModalType] = useState('');
   const [form, setForm] = useState({ date: '2026-08-31', start: '18:00', end: '21:00', reason: '' });
   const [message, setMessage] = useState('');
+  const [currentStatus, setCurrentStatus] =
+    useState(
+      () =>
+        localStorage.getItem(
+          'safehelmet_worker_current_status'
+        ) || '출근 전'
+    );
+
+  const setManualWorkStatus = (status) => {
+    localStorage.setItem(
+      'safehelmet_worker_current_status',
+      status
+    );
+
+    localStorage.setItem(
+      'safeon_worker_manual_status_updated_at',
+      new Date().toISOString()
+    );
+
+    setCurrentStatus(status);
+
+    window.dispatchEvent(
+      new CustomEvent(
+        'safehelmet-worker-status-updated',
+        {
+          detail: {
+            status,
+            source: 'manual',
+          },
+        }
+      )
+    );
+
+    setMessage(
+      `${status} 상태로 변경되었습니다. 안전모 착용 여부와 별개로 근로자가 직접 선택한 상태입니다.`
+    );
+  };
 
   const isDemoMonth = month.year === 2026 && month.month === 8;
   const summary = useMemo(() => isDemoMonth
@@ -94,6 +134,77 @@ export default function WorkerAttendance() {
 
   return (
     <WorkerScaffold active="home" title="출퇴근 관리" back>
+      <section className="worker-white-card worker-manual-status-card">
+        <div className="worker-card-title">
+          <div>
+            <strong>현재 근무 상태</strong>
+            <small>
+              안전모 착용 여부와 관계없이 직접 변경할 수 있습니다.
+            </small>
+          </div>
+
+          <span className={`worker-manual-current-status ${
+            currentStatus === '근무 중'
+              ? 'work'
+              : currentStatus === '휴식 중'
+                ? 'rest'
+                : 'off'
+          }`}>
+            ● {currentStatus}
+          </span>
+        </div>
+
+        <div className="worker-manual-status-actions">
+          <button
+            type="button"
+            className={
+              currentStatus === '근무 중'
+                ? 'work active'
+                : 'work'
+            }
+            onClick={() =>
+              setManualWorkStatus('근무 중')
+            }
+          >
+            <BriefcaseBusiness size={20}/>
+            <strong>출근</strong>
+            <span>작업 시작</span>
+          </button>
+
+          <button
+            type="button"
+            className={
+              currentStatus === '휴식 중'
+                ? 'rest active'
+                : 'rest'
+            }
+            onClick={() =>
+              setManualWorkStatus('휴식 중')
+            }
+          >
+            <Coffee size={20}/>
+            <strong>휴식</strong>
+            <span>휴식 상태</span>
+          </button>
+
+          <button
+            type="button"
+            className={
+              currentStatus === '퇴근'
+                ? 'off active'
+                : 'off'
+            }
+            onClick={() =>
+              setManualWorkStatus('퇴근')
+            }
+          >
+            <LogOut size={20}/>
+            <strong>퇴근</strong>
+            <span>근무 종료</span>
+          </button>
+        </div>
+      </section>
+
       <section className="worker-white-card worker-attendance-month-card">
         <div className="worker-attendance-month-head">
           <button aria-label="이전 달" onClick={() => shiftMonth(-1)}><ChevronLeft size={18}/></button>

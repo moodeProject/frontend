@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useMemo,
   useState,
 } from 'react';
@@ -13,11 +14,60 @@ const tabs = [
   ['external', '외부요인'],
   ['health', '건강'],
   ['fall', '추락'],
+  ['nearby', '주변'],
 ];
+
+const NEARBY_ALERTS_KEY =
+  'safeon_worker_nearby_danger_alerts_v1';
+
+function loadNearbyAlerts() {
+  try {
+    const saved = JSON.parse(
+      localStorage.getItem(
+        NEARBY_ALERTS_KEY
+      ) || '[]'
+    );
+
+    return Array.isArray(saved)
+      ? saved
+      : [];
+  } catch {
+    return [];
+  }
+}
 
 export default function WorkerAlerts() {
   const [tab, setTab] = useState('all');
+  const [nearbyAlerts, setNearbyAlerts] =
+    useState(loadNearbyAlerts);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const sync = () =>
+      setNearbyAlerts(loadNearbyAlerts());
+
+    window.addEventListener(
+      'safeon-worker-nearby-alerts-updated',
+      sync
+    );
+
+    window.addEventListener(
+      'storage',
+      sync
+    );
+
+    return () => {
+      window.removeEventListener(
+        'safeon-worker-nearby-alerts-updated',
+        sync
+      );
+
+      window.removeEventListener(
+        'storage',
+        sync
+      );
+    };
+  }, []);
 
   const {
     detections,
@@ -50,28 +100,72 @@ export default function WorkerAlerts() {
     ]
   );
 
+  const nearbyItems = useMemo(
+    () =>
+      nearbyAlerts.map((item) => ({
+        ...item,
+        category: 'nearby',
+        type: item.title,
+        detailDescription:
+          `${item.workerName} · ${item.zone} · ${item.message}`,
+        time: new Date(
+          item.createdAt
+        ).toLocaleTimeString('ko-KR', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        }),
+      })),
+    [nearbyAlerts]
+  );
+
+  const allItems = useMemo(
+    () =>
+      [...nearbyItems, ...items].sort(
+        (a, b) =>
+          new Date(
+            b.createdAt ||
+              b.occurredAt ||
+              0
+          ).getTime() -
+          new Date(
+            a.createdAt ||
+              a.occurredAt ||
+              0
+          ).getTime()
+      ),
+    [nearbyItems, items]
+  );
+
   const filtered =
     tab === 'all'
-      ? items
-      : items.filter(
-          (item) => item.category === tab
+      ? allItems
+      : allItems.filter(
+          (item) =>
+            item.category === tab
         );
 
   const counts = useMemo(
     () => ({
-      all: items.length,
-      external: items.filter(
+      all: allItems.length,
+      external: allItems.filter(
         (item) =>
           item.category === 'external'
       ).length,
-      health: items.filter(
-        (item) => item.category === 'health'
+      health: allItems.filter(
+        (item) =>
+          item.category === 'health'
       ).length,
-      fall: items.filter(
-        (item) => item.category === 'fall'
+      fall: allItems.filter(
+        (item) =>
+          item.category === 'fall'
+      ).length,
+      nearby: allItems.filter(
+        (item) =>
+          item.category === 'nearby'
       ).length,
     }),
-    [items]
+    [allItems]
   );
 
   const openItem = (item) => {
@@ -79,6 +173,10 @@ export default function WorkerAlerts() {
       navigate('/worker/hazards');
     } else if (item.category === 'health') {
       navigate('/worker/health');
+    } else if (
+      item.category === 'nearby'
+    ) {
+      navigate('/worker/nearby');
     } else {
       navigate('/worker/fall-alert');
     }
@@ -148,7 +246,7 @@ export default function WorkerAlerts() {
               <p>
                 {item.detailDescription ||
                   item.rawEvent?.description ||
-                  `${item.name} · ${item.zone}`}
+                  `${item.name || ''} · ${item.zone || ''}`}
               </p>
             </button>
           ))

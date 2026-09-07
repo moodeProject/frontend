@@ -24,6 +24,7 @@ import {
   postureTone,
   sensorUiStatus,
 } from '../../utils/workerRealtime';
+import '../../styles/workerDangerTextWhiteFix.css';
 
 export default function WorkerHome() {
   const navigate = useNavigate();
@@ -114,6 +115,31 @@ export default function WorkerHome() {
 
   const movementTone = postureTone(sensor);
 
+  const currentSeverity =
+    uiStatus.key === 'danger'
+      ? 'danger'
+      : uiStatus.key === 'warning'
+        ? 'warning'
+        : uiStatus.key === 'normal'
+          ? 'normal'
+          : 'unknown';
+
+  const fallSeverity =
+    !sensor
+      ? 'unknown'
+      : fallNormal === false
+        ? 'danger'
+        : 'normal';
+
+  const fallStateLabel =
+    !sensor
+      ? '상태 확인 필요'
+      : fallNormal
+        ? '추락 감지 없음'
+        : sensor.fallState === 'ACTION_REQUIRED'
+          ? '즉시 조치 필요'
+          : `추락 상태: ${sensor.fallState}`;
+
   return (
     <WorkerScaffold
       active="home"
@@ -150,28 +176,34 @@ export default function WorkerHome() {
       )}
 
       <section
-        className={`worker-state-card ${
-          uiStatus.key === 'danger'
-            ? 'danger'
-            : uiStatus.key === 'warning'
-              ? 'warning'
-              : 'normal'
-        }`}
+        className={`worker-state-card urgent-state-card ${currentSeverity}`}
       >
         <div className="worker-state-card-head">
           <strong>
-            <TriangleAlert size={16} /> 현재 상태
+            <TriangleAlert size={18} /> 현재 상태
           </strong>
-          <span>
-            {uiStatus.key === 'danger'
+          <span className="worker-state-badge">
+            {currentSeverity === 'danger'
               ? '● 위험'
-              : uiStatus.key === 'warning'
+              : currentSeverity === 'warning'
                 ? '● 주의'
-                : uiStatus.key === 'normal'
+                : currentSeverity === 'normal'
                   ? '● 정상'
                   : '● 확인 필요'}
           </span>
         </div>
+
+        {(currentSeverity === 'danger' ||
+          currentSeverity === 'warning') && (
+          <div className="worker-state-alert-copy">
+            <strong>
+              {currentSeverity === 'danger'
+                ? '즉시 작업을 중단하고 안전을 확보하세요.'
+                : '주의가 필요한 상태입니다.'}
+            </strong>
+            <span>{uiStatus.description}</span>
+          </div>
+        )}
 
         <div className="worker-state-row">
           <span>
@@ -200,7 +232,7 @@ export default function WorkerHome() {
           </b>
         </div>
 
-        <div className={`worker-state-row movement ${movementTone}`}>
+        <div className={`worker-state-row movement ${movementTone} ${currentSeverity === 'danger' ? 'danger-highlight' : ''}`}>
           <span>
             <TriangleAlert size={17} /> 움직임
           </span>
@@ -328,45 +360,45 @@ export default function WorkerHome() {
       </section>
 
       <section
-        className={
-          fallNormal === false
-            ? 'worker-fall-ok-card danger'
-            : 'worker-fall-ok-card'
-        }
+        className={`worker-fall-ok-card urgent-fall-card ${fallSeverity}`}
       >
-        <div>
-          {fallNormal === false ? (
-            <TriangleAlert size={22} />
-          ) : (
-            <ShieldCheck size={22} />
-          )}
+        <div className="urgent-fall-main">
+          <span className="urgent-fall-icon">
+            {fallSeverity === 'danger' ? (
+              <Siren size={25} />
+            ) : fallSeverity === 'normal' ? (
+              <ShieldCheck size={23} />
+            ) : (
+              <TriangleAlert size={23} />
+            )}
+          </span>
 
           <p>
-            <strong>
-              {!sensor
-                ? '추락 상태 확인 필요'
-                : fallNormal
-                  ? '추락 감지 없음'
-                  : `추락 상태: ${sensor.fallState}`}
-            </strong>
+            <strong>{fallStateLabel}</strong>
             <small>
               {!sensor
-                ? '최신 센서 데이터가 없습니다.'
-                : `신뢰도 ${
-                    sensor.fallConfidence ?? '-'
-                  } · ${formatSensorTime(
-                    sensor.recordedAt
-                  )}`}
+                ? '최신 센서 데이터를 확인해주세요.'
+                : fallSeverity === 'danger'
+                  ? `추락 위험 감지 · ${postureLabel(sensor?.posture)} · ${formatSensorTime(sensor.recordedAt)}`
+                  : `정상 감지 · ${formatSensorTime(sensor.recordedAt)}`}
             </small>
           </p>
         </div>
 
+        {fallSeverity === 'danger' && (
+          <div className="urgent-fall-warning">
+            <b>긴급</b>
+            <span>SOS 요청 또는 관리자 확인이 필요합니다.</span>
+          </div>
+        )}
+
         <button
+          className="urgent-fall-detail-btn"
           onClick={() =>
             navigate('/worker/fall-alert')
           }
         >
-          <Siren size={14} />
+          <Siren size={15} />
           상세
         </button>
       </section>
