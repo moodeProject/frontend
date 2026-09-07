@@ -84,9 +84,16 @@ export default function WorkerCard({
           <div>
             <strong>{worker.name}</strong>
 
-            <div className="worker-zone">
+            <div
+              className="worker-zone"
+              title={
+                worker.zoneCode
+                  ? `구역 코드: ${worker.zoneCode}`
+                  : undefined
+              }
+            >
               <MapPin size={11} />
-              {worker.zone}
+              {worker.zone || '위치 미확인'}
             </div>
           </div>
 

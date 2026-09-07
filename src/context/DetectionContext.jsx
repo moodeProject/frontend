@@ -167,11 +167,18 @@ function toUiEvent(event) {
 
   const { time, dateLabel } = toDateLabels(event?.occurredAt);
 
+  // 화면에는 사람이 읽는 구역명(name)을 사용하고,
+  // 필터/분류 등 내부 로직에는 변하지 않는 code를 별도로 보관합니다.
   const zoneName =
     event?.zone?.name ||
-    event?.zone?.code ||
     (typeof event?.zone === 'string' ? event.zone : '') ||
+    event?.zoneName ||
     '-';
+
+  const zoneCode =
+    event?.zone?.code ||
+    event?.zoneCode ||
+    null;
 
   const workerName =
     event?.worker?.name ||
@@ -199,7 +206,7 @@ function toUiEvent(event) {
 
     zone: zoneName,
     zoneId: event?.zone?.id,
-    zoneCode: event?.zone?.code,
+    zoneCode,
 
     helmetNo: event?.helmetNo,
     confidence: event?.confidence,

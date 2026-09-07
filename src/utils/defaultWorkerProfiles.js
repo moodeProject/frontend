@@ -4,6 +4,8 @@ import profile03 from '../assets/worker-profiles/worker-profile-03.jpg';
 import profile04 from '../assets/worker-profiles/worker-profile-04.jpg';
 import profile05 from '../assets/worker-profiles/worker-profile-05.jpg';
 import profile06 from '../assets/worker-profiles/worker-profile-06.jpg';
+import profile07 from '../assets/worker-profiles/worker-profile-07.jpg';
+import profile08 from '../assets/worker-profiles/worker-profile-08.jpg';
 
 const DEFAULT_WORKER_PROFILES = {
   'H-001': profile01,
@@ -12,6 +14,8 @@ const DEFAULT_WORKER_PROFILES = {
   'H-004': profile04,
   'H-005': profile05,
   'H-006': profile06,
+  'H-007': profile07,
+  'H-008': profile08,
 };
 
 export function getDefaultWorkerProfile(workerOrHelmetId) {

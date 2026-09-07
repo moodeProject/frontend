@@ -105,7 +105,20 @@ function sensorAlertToRecord(alert, workers) {
     name: worker?.name || alert.deviceId || '미확인 작업자',
     employeeNo:
       worker?.employeeNumber || worker?.workerCode,
-    zone: worker?.zone || '-',
+    // 화면에는 사람이 읽는 구역명(name)을 표시합니다.
+    // /api/workers/alerts에 zone 정보가 없으면 작업자 기본 구역을 fallback으로 사용합니다.
+    zone:
+      alert?.zone?.name ||
+      alert?.zoneName ||
+      worker?.zone ||
+      '-',
+    zoneCode:
+      alert?.zone?.code ||
+      alert?.zoneCode ||
+      alert?.zoneId ||
+      worker?.zoneCode ||
+      null,
+    zoneId: alert?.zone?.id ?? null,
     helmetNo: worker?.helmetId,
     dateLabel,
     time,
@@ -217,13 +230,72 @@ function isInDateRange(item, range) {
   return true;
 }
 
+
+function buildHazardDateParams(range) {
+  const params = {};
+
+  if (range.start) {
+    params.from = new Date(
+      `${range.start}T00:00:00`
+    ).toISOString();
+  }
+
+  if (range.end) {
+    params.to = new Date(
+      `${range.end}T23:59:59.999`
+    ).toISOString();
+  }
+
+  return params;
+}
+
+// hazard-events가 생성된 추락은 정식 위험 이벤트를 우선 사용하고,
+// 같은 작업자/비슷한 시각의 /api/workers/alerts 항목은 fallback에서 제외합니다.
+function mergeHazardAndSensorAlerts(hazardItems, sensorAlerts) {
+  const hazardFalls = hazardItems.filter(
+    (item) => item.category === 'fall'
+  );
+
+  const filteredAlerts = sensorAlerts.filter((alert) => {
+    const alertTime = new Date(
+      alert.occurredAt || alert.recordedAt || 0
+    ).getTime();
+
+    if (!Number.isFinite(alertTime)) return true;
+
+    return !hazardFalls.some((hazard) => {
+      const hazardTime = new Date(
+        hazard.occurredAt || 0
+      ).getTime();
+
+      if (!Number.isFinite(hazardTime)) return false;
+
+      const sameWorker =
+        (hazard.name && hazard.name === alert.name) ||
+        (hazard.employeeNo &&
+          hazard.employeeNo === alert.employeeNo) ||
+        (hazard.helmetNo &&
+          hazard.helmetNo === alert.helmetNo);
+
+      return (
+        sameWorker &&
+        Math.abs(hazardTime - alertTime) <= 5000
+      );
+    });
+  });
+
+  return [...hazardItems, ...filteredAlerts];
+}
+
 export default function Records() {
   const {
     detections,
     refreshHazardEvents,
+    queryHazardEvents,
     hazardLoading,
     hazardError,
     hazardStreamConnected,
+    lastHazardUpdated,
   } = useDetections();
 
   const { workers } = useWorkers();
@@ -237,6 +309,9 @@ export default function Records() {
     start: '',
     end: '',
   });
+  const [dateHazards, setDateHazards] = useState(null);
+  const [dateLoading, setDateLoading] = useState(false);
+  const [dateError, setDateError] = useState('');
 
   const loadFallAlerts = useCallback(async () => {
     setFallLoading(true);
@@ -263,23 +338,79 @@ export default function Records() {
     loadFallAlerts();
   }, [loadFallAlerts]);
 
-  const visibleItems = useMemo(
-    () =>
-      [...detections, ...fallAlerts]
-        .filter((item) =>
-          isInDateRange(item, dateRange)
-        )
-        .sort(
-          (a, b) =>
-            new Date(
-              b.occurredAt || b.recordedAt || 0
-            ).getTime() -
-            new Date(
-              a.occurredAt || a.recordedAt || 0
-            ).getTime()
-        ),
-    [detections, fallAlerts, dateRange]
+  const hasDateRange = Boolean(dateRange.start || dateRange.end);
+
+  const loadHazardsByDate = useCallback(
+    async (range) => {
+      if (!range.start && !range.end) {
+        setDateHazards(null);
+        setDateError('');
+        return [];
+      }
+
+      if (range.start && range.end && range.start > range.end) {
+        setDateError('시작일은 종료일보다 늦을 수 없습니다.');
+        return [];
+      }
+
+      setDateLoading(true);
+      setDateError('');
+
+      try {
+        const page = await queryHazardEvents(
+          buildHazardDateParams(range)
+        );
+        setDateHazards(page.events);
+        return page.events;
+      } catch (error) {
+        setDateError(
+          error?.message ||
+            '기간별 사고·알림 기록 조회에 실패했습니다.'
+        );
+        return [];
+      } finally {
+        setDateLoading(false);
+      }
+    },
+    [queryHazardEvents]
   );
+
+  useEffect(() => {
+    if (hasDateRange) {
+      loadHazardsByDate(dateRange);
+    } else {
+      setDateHazards(null);
+      setDateError('');
+    }
+  }, [dateRange.start, dateRange.end, hasDateRange, loadHazardsByDate]);
+
+  // SSE로 새 이벤트가 들어오면 현재 기간의 기록을 다시 조회합니다.
+  useEffect(() => {
+    if (hasDateRange && lastHazardUpdated) {
+      loadHazardsByDate(dateRange);
+    }
+  }, [lastHazardUpdated]);
+
+  const hazardItems = dateHazards ?? detections;
+
+  const visibleItems = useMemo(() => {
+    const sensorItems = fallAlerts.filter((item) =>
+      isInDateRange(item, dateRange)
+    );
+
+    return mergeHazardAndSensorAlerts(
+      hazardItems,
+      sensorItems
+    ).sort(
+      (a, b) =>
+        new Date(
+          b.occurredAt || b.recordedAt || 0
+        ).getTime() -
+        new Date(
+          a.occurredAt || a.recordedAt || 0
+        ).getTime()
+    );
+  }, [hazardItems, fallAlerts, dateRange]);
 
   const counts = useMemo(
     () => ({
@@ -311,6 +442,7 @@ export default function Records() {
           item.employeeNo,
           item.type,
           item.zone,
+          item.zoneCode,
           item.helmetNo,
           item.deviceId,
           item.statusLabel,
@@ -327,7 +459,9 @@ export default function Records() {
 
   const refreshPage = async () => {
     await Promise.allSettled([
-      refreshHazardEvents(),
+      hasDateRange
+        ? loadHazardsByDate(dateRange)
+        : refreshHazardEvents(),
       loadFallAlerts(),
     ]);
   };
@@ -381,13 +515,13 @@ export default function Records() {
 
         <div
           className={`worker-filter-banner ${
-            hazardError || fallError
+            hazardError || fallError || dateError
               ? 'danger'
               : 'normal'
           }`}
         >
           <span>
-            {hazardError || fallError
+            {hazardError || fallError || dateError
               ? [
                   hazardError
                     ? `위험 이벤트 API: ${hazardError}`
@@ -395,10 +529,13 @@ export default function Records() {
                   fallError
                     ? `추락 이력 API: ${fallError}`
                     : '',
+                  dateError
+                    ? `기간 조회 API: ${dateError}`
+                    : '',
                 ]
                   .filter(Boolean)
                   .join(' / ')
-              : hazardLoading || fallLoading
+              : hazardLoading || fallLoading || dateLoading
                 ? '사고·알림 기록을 불러오는 중입니다.'
                 : hazardStreamConnected
                   ? '● 실시간 위험 이벤트 기록 연결됨'
@@ -442,8 +579,15 @@ export default function Records() {
                   {item.type || '이상 감지'}
                 </span>
 
-                <span className="record-zone">
-                  {item.zone || '-'}
+                <span
+                  className="record-zone"
+                  title={
+                    item.zoneCode
+                      ? `구역 코드: ${item.zoneCode}`
+                      : undefined
+                  }
+                >
+                  {item.zone || '위치 미확인'}
                 </span>
 
                 <span>
@@ -475,6 +619,7 @@ export default function Records() {
 
           {!hazardLoading &&
             !fallLoading &&
+            !dateLoading &&
             rows.length === 0 && (
               <div className="records-empty">
                 {search

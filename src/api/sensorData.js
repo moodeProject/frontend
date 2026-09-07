@@ -14,6 +14,7 @@ export async function sendSensorData(sensorData) {
     posture: sensorData.posture,
     healthAbnormal: Boolean(sensorData.healthAbnormal),
     level: sensorData.level,
+    zoneId: sensorData.zoneId || undefined,
   })
 
   return response?.data ?? response

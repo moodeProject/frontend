@@ -65,6 +65,7 @@ export default function SensorApiTest() {
 
   const [form, setForm] = useState({
     deviceId: 'DEV-001',
+    zoneId: 'ZONE-01',
     ...POSTURE_TESTS.STABLE.form,
   })
 
@@ -244,6 +245,25 @@ export default function SensorApiTest() {
           />
         </label>
 
+        <label>
+          비콘 구역 (zoneId)
+          <input
+            style={inputStyle}
+            list="sensor-zone-options"
+            value={form.zoneId}
+            onChange={e => update('zoneId', e.target.value)}
+            placeholder="예: ZONE-01"
+          />
+          <datalist id="sensor-zone-options">
+            <option value="ZONE-01" />
+            <option value="ZONE-02" />
+            <option value="ZONE-03" />
+          </datalist>
+          <small style={{ display: 'block', marginTop: 6, color: '#64748b' }}>
+            BLE 비콘에서 판별한 구역 ID를 함께 전송합니다.
+          </small>
+        </label>
+
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
           {['ax', 'ay', 'az'].map(key => (
             <label key={key}>
@@ -381,6 +401,18 @@ export default function SensorApiTest() {
       {result && (
         <div style={{ marginTop: 24 }}>
           <h2>POST 응답 결과</h2>
+          <div
+            style={{
+              marginBottom: 10,
+              padding: '10px 12px',
+              borderRadius: 8,
+              background: '#eff6ff',
+              color: '#1e3a8a',
+            }}
+          >
+            전송 zoneId: <b>{form.zoneId || '-'}</b> · 서버 응답 zoneId:{' '}
+            <b>{result?.zoneId ?? result?.data?.zoneId ?? '-'}</b>
+          </div>
           <pre style={{ padding: 16, background: '#f3f4f6', overflow: 'auto', borderRadius: 10 }}>
             {JSON.stringify(result, null, 2)}
           </pre>

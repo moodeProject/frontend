@@ -136,6 +136,24 @@ function mergeSensorStatus(worker, sensor) {
       false,
     recordedAt:
       sensor.recordedAt ?? worker.recordedAt,
+
+    // 위치 API가 확장되면 화면에는 name, 내부 로직에는 code를 사용합니다.
+    // 현재 worker status 응답에 zone이 없으면 기존 작업자 기본 구역을 유지합니다.
+    zone:
+      sensor?.zone?.name ||
+      sensor?.zoneName ||
+      worker.zone,
+    zoneCode:
+      sensor?.zone?.code ||
+      sensor?.zoneCode ||
+      sensor?.zoneId ||
+      worker.zoneCode ||
+      null,
+    zoneDbId:
+      sensor?.zone?.id ??
+      worker.zoneDbId ??
+      null,
+
     ax: sensor.ax ?? worker.ax,
     ay: sensor.ay ?? worker.ay,
     az: sensor.az ?? worker.az,

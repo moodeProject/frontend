@@ -1,0 +1,94 @@
+/* Shared SafeHelmet brand styles
+   ------------------------------------------------------------
+   One logo system is used for both the admin sidebar and auth screens.
+   Brand mark: blue rounded square + white shield
+   Lockup: SAFE HELMET / SAFETY MANAGEMENT SYSTEM
+*/
+
+.safehelmet-brand {
+  --brand-blue: #1767ff;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.safehelmet-brand__mark {
+  flex: 0 0 auto;
+  background: var(--brand-blue);
+  color: #fff;
+  display: grid;
+  place-items: center;
+}
+
+.safehelmet-brand__copy {
+  min-width: 0;
+}
+
+.safehelmet-brand__title {
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: .055em;
+  white-space: nowrap;
+}
+
+.safehelmet-brand__subtitle {
+  line-height: 1;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+
+/* Admin sidebar */
+.safehelmet-brand--sidebar {
+  height: 70px;
+  gap: 11px;
+  padding: 0 17px;
+  border-bottom: 1px solid #203142;
+}
+
+.safehelmet-brand--sidebar .safehelmet-brand__mark {
+  width: 29px;
+  height: 29px;
+  border-radius: 8px;
+}
+
+.safehelmet-brand--sidebar .safehelmet-brand__title {
+  color: #fff;
+  font-size: 13px;
+}
+
+.safehelmet-brand--sidebar .safehelmet-brand__subtitle {
+  margin-top: 5px;
+  color: #6f8499;
+  font-size: 6.7px;
+  font-weight: 600;
+  letter-spacing: .11em;
+}
+
+/* Login / account auth */
+.safehelmet-brand--auth {
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+  margin: 0 auto 30px;
+}
+
+.safehelmet-brand--auth .safehelmet-brand__mark {
+  width: 42px;
+  height: 42px;
+  margin-bottom: 14px;
+  border-radius: 13px;
+  box-shadow: 0 7px 14px rgba(23, 103, 255, .22);
+}
+
+.safehelmet-brand--auth .safehelmet-brand__title {
+  color: #172033;
+  font-size: 14px;
+}
+
+.safehelmet-brand--auth .safehelmet-brand__subtitle {
+  margin-top: 6px;
+  color: #a0abba;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: .15em;
+}
