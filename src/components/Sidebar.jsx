@@ -2,6 +2,7 @@ import { AlertTriangle, FileText, Grid2X2, HardHat, LogOut, UserRound, Users } f
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useDetections } from '../context/DetectionContext';
+import { logoutApi } from '../api/auth';
 
 const items = [
   { to: '/', label: '통합 모니터링', icon: Grid2X2 },
@@ -41,8 +42,9 @@ export default function Sidebar() {
     };
   }, []);
 
-  const logout = () => {
+  const logout = async () => {
     localStorage.removeItem('safehelmet_current_admin');
+    try { await logoutApi(); } catch { /* 토큰 만료 등 무시 */ }
     navigate('/login', { replace: true });
   };
 

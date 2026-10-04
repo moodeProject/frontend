@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Eye, HardHat, HeartPulse, Shield, ShieldAlert } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { defaultWorkerProfile, ensureWorkerProfile, saveWorkerProfile } from '../../utils/workerProfile';
+import { loginApi } from '../../api/auth';
 
 export default function WorkerLogin() {
   const navigate = useNavigate();
@@ -10,22 +10,25 @@ export default function WorkerLogin() {
   const [password, setPassword] = useState('');
   const [show, setShow] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
     if (!employeeNo.trim() || !password.trim()) {
       setError('사번과 비밀번호를 입력해주세요.');
       return;
     }
-    const profile = ensureWorkerProfile();
-    const validEmployeeNo = employeeNo.trim() === profile.employeeNo;
-    const validPassword = password === (profile.password || defaultWorkerProfile.password);
-    if (!validEmployeeNo || !validPassword) {
-      setError('사번 또는 비밀번호를 확인해주세요.');
-      return;
+    setError('');
+    setLoading(true);
+    try {
+      const user = await loginApi(employeeNo.trim(), password);
+      localStorage.setItem('safehelmet_worker_session', JSON.stringify(user));
+      navigate(location.state?.from || '/worker/home', { replace: true });
+    } catch (err) {
+      setError(err.message || '사번 또는 비밀번호를 확인해주세요.');
+    } finally {
+      setLoading(false);
     }
-    saveWorkerProfile(profile);
-    navigate(location.state?.from || '/worker/home', { replace: true });
   };
 
   return (
@@ -50,8 +53,10 @@ export default function WorkerLogin() {
           </div>
         </label>
         {error && <p className="worker-login-error">{error}</p>}
-        <button className="worker-primary-btn" type="submit">로그인</button>
-        <small>데모: WK-20241103 / 1234</small>
+        <button className="worker-primary-btn" type="submit" disabled={loading}>
+          {loading ? '로그인 중...' : '로그인'}
+        </button>
+        <small>계정: WK-20241103 / Worker!2024</small>
       </form>
     </div>
   );

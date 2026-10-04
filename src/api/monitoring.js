@@ -63,6 +63,6 @@ export async function getFallAlerts() {
  * 해당 deviceId가 한 번도 데이터를 보낸 적이 없으면 404 (Error throw)
  */
 export async function getHelmetStatus(deviceId) {
-  const res = await api.get(`/api/workers/${deviceId}`)
+  const res = await api.get(`/api/workers/status/${deviceId}`)
   return res.data
 }
