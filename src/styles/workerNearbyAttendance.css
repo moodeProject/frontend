@@ -1,0 +1,253 @@
+
+/* =========================================================
+   주변 작업자 위험 자동 알림
+   ========================================================= */
+
+.worker-nearby-danger-toast{
+  position:sticky;
+  top:8px;
+  z-index:30;
+  width:calc(100% - 24px);
+  margin:10px 12px 0;
+  padding:12px 14px;
+  display:grid;
+  grid-template-columns:auto 1fr auto;
+  align-items:center;
+  gap:10px;
+  border:1px solid #ff8a95;
+  border-radius:14px;
+  background:linear-gradient(135deg,#ef233c,#d90429);
+  color:#fff;
+  box-shadow:0 12px 30px rgba(217,4,41,.24);
+  text-align:left;
+  animation:nearbyDangerIn .24s ease-out;
+}
+
+.worker-nearby-danger-toast-icon{
+  width:38px;
+  height:38px;
+  border-radius:11px;
+  display:grid;
+  place-items:center;
+  background:rgba(255,255,255,.16);
+}
+
+.worker-nearby-danger-toast strong{
+  display:block;
+  color:#fff;
+  font-size:13px;
+  font-weight:900;
+}
+
+.worker-nearby-danger-toast small{
+  display:block;
+  margin-top:3px;
+  color:rgba(255,255,255,.88);
+  font-size:10px;
+  line-height:1.4;
+}
+
+.worker-bottom-item.nearby-danger-active{
+  color:#ef233c !important;
+}
+
+.worker-nearby-danger-summary{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:12px;
+  padding:13px 14px;
+  border:1px solid #ff9ba4;
+  border-radius:13px;
+  background:#fff0f2;
+  color:#d90429;
+}
+
+.worker-nearby-danger-summary strong{
+  display:block;
+  font-size:13px;
+}
+
+.worker-nearby-danger-summary span{
+  display:block;
+  margin-top:2px;
+  font-size:10px;
+  color:#b42336;
+}
+
+.worker-nearby-danger-reason{
+  display:block;
+  margin-top:4px;
+  color:#e02a3f;
+  font-size:9px;
+  font-weight:700;
+}
+
+.worker-nearby-api-note{
+  margin:10px 0 18px;
+  padding:10px 12px;
+  border-radius:10px;
+  background:#fff8e8;
+  color:#8c6512;
+  font-size:9px;
+  line-height:1.45;
+}
+
+/* 위험 레이더 점을 조금 더 강하게 */
+.worker-radar-dot.danger i{
+  box-shadow:
+    0 0 0 5px rgba(239,35,60,.12),
+    0 0 18px rgba(239,35,60,.22);
+  animation:nearbyRadarDanger 1.4s ease-in-out infinite;
+}
+
+/* =========================================================
+   근로자가 직접 출근/휴식/퇴근 선택
+   ========================================================= */
+
+.worker-manual-status-card .worker-card-title{
+  align-items:flex-start;
+}
+
+.worker-manual-status-card .worker-card-title > div strong{
+  display:block;
+}
+
+.worker-manual-status-card .worker-card-title > div small{
+  display:block;
+  margin-top:3px;
+  color:#94a3b8;
+  font-size:9px;
+}
+
+.worker-manual-current-status{
+  padding:5px 9px;
+  border-radius:999px;
+  font-size:9px;
+  font-weight:800;
+}
+
+.worker-manual-current-status.work{
+  color:#078a4a;
+  background:#e8fff1;
+}
+
+.worker-manual-current-status.rest{
+  color:#2470e8;
+  background:#edf5ff;
+}
+
+.worker-manual-current-status.off{
+  color:#64748b;
+  background:#f1f5f9;
+}
+
+.worker-manual-status-actions{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:9px;
+  margin-top:14px;
+}
+
+.worker-manual-status-actions button{
+  min-height:78px;
+  padding:11px 8px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  border:1px solid #e1e7ee;
+  border-radius:13px;
+  background:#fff;
+  color:#64748b;
+}
+
+.worker-manual-status-actions button strong{
+  font-size:12px;
+}
+
+.worker-manual-status-actions button span{
+  font-size:8px;
+  opacity:.72;
+}
+
+.worker-manual-status-actions button.work.active{
+  border-color:#5edb96;
+  background:#effff6;
+  color:#078a4a;
+  box-shadow:0 0 0 2px rgba(16,185,101,.08);
+}
+
+.worker-manual-status-actions button.rest.active{
+  border-color:#75adff;
+  background:#f1f7ff;
+  color:#246bfe;
+  box-shadow:0 0 0 2px rgba(36,107,254,.07);
+}
+
+.worker-manual-status-actions button.off.active{
+  border-color:#94a3b8;
+  background:#f1f5f9;
+  color:#334155;
+}
+
+/* =========================================================
+   SOS 결과 화면 - 버튼 구분
+   ========================================================= */
+
+.worker-sos-result-manager-btn{
+  width:100%;
+  min-height:54px;
+  margin-top:14px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  border:0;
+  border-radius:13px;
+  background:#246bfe !important;
+  color:#fff !important;
+  font-size:14px;
+  font-weight:900;
+}
+
+.worker-sos-result-recall{
+  width:100%;
+  min-height:46px;
+  margin-top:9px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  border:1px solid #ff9aa4;
+  border-radius:12px;
+  background:#fff1f2;
+  color:#d90429;
+  text-decoration:none;
+  font-size:12px;
+  font-weight:800;
+}
+
+@keyframes nearbyDangerIn{
+  from{
+    opacity:0;
+    transform:translateY(-8px);
+  }
+  to{
+    opacity:1;
+    transform:translateY(0);
+  }
+}
+
+@keyframes nearbyRadarDanger{
+  0%,100%{transform:scale(1)}
+  50%{transform:scale(1.18)}
+}
+
+@media (prefers-reduced-motion: reduce){
+  .worker-nearby-danger-toast,
+  .worker-radar-dot.danger i{
+    animation:none !important;
+  }
+}

@@ -1,0 +1,35 @@
+
+/* =========================================================
+   Worker Home - 위험 추락 카드 텍스트를 흰색으로 고정
+   screenshot 상 빨간 배경에 초록 텍스트가 보이는 문제 수정
+   ========================================================= */
+
+.worker-fall-ok-card.urgent-fall-card.danger,
+.worker-fall-ok-card.urgent-fall-card.danger p,
+.worker-fall-ok-card.urgent-fall-card.danger strong,
+.worker-fall-ok-card.urgent-fall-card.danger small,
+.worker-fall-ok-card.urgent-fall-card.danger span,
+.worker-fall-ok-card.urgent-fall-card.danger svg {
+  color: #ffffff !important;
+}
+
+.worker-fall-ok-card.urgent-fall-card.danger .urgent-fall-main strong,
+.worker-fall-ok-card.urgent-fall-card.danger .urgent-fall-main small,
+.worker-fall-ok-card.urgent-fall-card.danger .urgent-fall-warning,
+.worker-fall-ok-card.urgent-fall-card.danger .urgent-fall-warning span,
+.worker-fall-ok-card.urgent-fall-card.danger .urgent-fall-icon {
+  color: #ffffff !important;
+}
+
+/* 긴급 뱃지는 흰 배경 + 빨간 글씨 유지 */
+.worker-fall-ok-card.urgent-fall-card.danger .urgent-fall-warning b {
+  background: #ffffff !important;
+  color: #d90429 !important;
+}
+
+/* 상세 버튼은 가독성 유지 */
+.worker-fall-ok-card.urgent-fall-card.danger .urgent-fall-detail-btn {
+  background: #ffffff !important;
+  color: #d90429 !important;
+  border: 0 !important;
+}

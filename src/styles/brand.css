@@ -1,0 +1,86 @@
+/* SAFE:ON shared branding */
+.safehelmet-brand {
+  display: flex;
+  box-sizing: border-box;
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+  transition: opacity .16s ease, transform .16s ease;
+}
+
+.safehelmet-brand:hover {
+  opacity: .94;
+}
+
+.safehelmet-brand:active {
+  transform: translateY(1px);
+}
+
+.safehelmet-brand:focus-visible {
+  outline: 2px solid #2f7cff;
+  outline-offset: -3px;
+  border-radius: 10px;
+}
+
+.safehelmet-brand__logo {
+  display: block;
+  object-fit: contain;
+  object-position: left center;
+  pointer-events: none;
+}
+
+.safehelmet-brand__subtitle {
+  display: block;
+  white-space: nowrap;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+/* 관리자 사이드바 */
+.safehelmet-brand--sidebar {
+  height: 70px;
+  padding: 11px 17px 9px;
+  border-bottom: 1px solid #203142;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.safehelmet-brand--sidebar .safehelmet-brand__logo {
+  width: 168px;
+  max-width: 100%;
+  height: 35px;
+}
+
+.safehelmet-brand--sidebar .safehelmet-brand__subtitle {
+  margin-top: 2px;
+  margin-left: 3px;
+  color: #6f8499;
+  font-size: 6.5px;
+  font-weight: 700;
+  letter-spacing: .13em;
+}
+
+/* 로그인 / 계정 화면 */
+.safehelmet-brand--auth {
+  width: fit-content;
+  margin: 0 auto 28px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.safehelmet-brand--auth .safehelmet-brand__logo {
+  width: min(280px, 72vw);
+  height: auto;
+  object-position: center;
+}
+
+.safehelmet-brand--auth .safehelmet-brand__subtitle {
+  margin-top: 5px;
+  color: #8d99aa;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .16em;
+}

@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   Bell,
   BookOpen,
@@ -15,7 +15,82 @@ import {
   Users,
   X,
 } from 'lucide-react';
+import { useDetections } from '../context/DetectionContext';
+import { useWorkers } from '../context/WorkerContext';
 import { getWorkerProfile } from '../utils/workerProfile';
+import {
+  detectionBelongsToWorker,
+  getWorkerDeviceId,
+} from '../utils/workerRealtime';
+import { getDefaultWorkerProfile } from '../utils/defaultWorkerProfiles';
+import '../styles/safeonSync.css';
+import '../styles/workerNearbyAttendance.css';
+
+
+function findCurrentWorker(workers, profile) {
+  const deviceId = getWorkerDeviceId(profile);
+
+  return (
+    workers.find(
+      (worker) =>
+        (deviceId &&
+          String(worker.deviceId || '') ===
+            String(deviceId)) ||
+        (profile.helmetNo &&
+          String(worker.helmetId || '') ===
+            String(profile.helmetNo)) ||
+        (profile.name &&
+          String(worker.name || '') ===
+            String(profile.name))
+    ) || null
+  );
+}
+
+
+const NEARBY_ALERTS_KEY =
+  'safeon_worker_nearby_danger_alerts_v1';
+
+function readNearbyDangerAlerts() {
+  try {
+    const saved = JSON.parse(
+      localStorage.getItem(NEARBY_ALERTS_KEY) || '[]'
+    );
+
+    return Array.isArray(saved) ? saved : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveNearbyDangerAlerts(items) {
+  localStorage.setItem(
+    NEARBY_ALERTS_KEY,
+    JSON.stringify(items.slice(0, 30))
+  );
+
+  window.dispatchEvent(
+    new CustomEvent('safeon-worker-nearby-alerts-updated')
+  );
+}
+
+function workerDangerKey(worker) {
+  return [
+    worker?.deviceId || worker?.helmetId || worker?.id || '',
+    worker?.recordedAt || '',
+    worker?.fallState || '',
+    worker?.posture || '',
+    worker?.issue || '',
+  ].join('|');
+}
+
+function dangerIsRecent(worker) {
+  if (!worker?.recordedAt) return true;
+
+  const time = new Date(worker.recordedAt).getTime();
+  if (!Number.isFinite(time)) return true;
+
+  return Date.now() - time <= 10 * 60 * 1000;
+}
 
 const WORK_STATUS_META = {
   '근무 중': { key: 'work', label: '작업 중', description: '현재 현장 작업 중입니다.' },
@@ -54,30 +129,149 @@ export function WorkerHeader({ title, subtitle, back = false, onMenu }) {
 }
 
 export function WorkerBottomNav({ active = 'home' }) {
+  const { detections } = useDetections();
+  const { workers } = useWorkers();
+  const profile = getWorkerProfile();
+
+  const currentWorker = findCurrentWorker(
+    workers,
+    profile
+  );
+
+  const dangerActive =
+    currentWorker?.status === 'danger';
+
+  const [nearbyAlerts, setNearbyAlerts] =
+    useState(readNearbyDangerAlerts);
+
+  useEffect(() => {
+    const sync = () =>
+      setNearbyAlerts(readNearbyDangerAlerts());
+
+    window.addEventListener(
+      'safeon-worker-nearby-alerts-updated',
+      sync
+    );
+
+    window.addEventListener(
+      'storage',
+      sync
+    );
+
+    return () => {
+      window.removeEventListener(
+        'safeon-worker-nearby-alerts-updated',
+        sync
+      );
+
+      window.removeEventListener(
+        'storage',
+        sync
+      );
+    };
+  }, []);
+
+  const workerAlertCount = useMemo(
+    () =>
+      detections.filter((item) =>
+        detectionBelongsToWorker(item, profile)
+      ).length,
+    [
+      detections,
+      profile.employeeNo,
+      profile.name,
+      profile.helmetNo,
+    ]
+  );
+
+  const nearbyUnreadCount =
+    nearbyAlerts.filter(
+      (item) => item.read !== true
+    ).length;
+
   const items = [
-    { key: 'home', label: '홈', to: '/worker/home', icon: Home },
-    { key: 'alerts', label: '알림', to: '/worker/alerts', icon: Bell, badge: 3 },
-    { key: 'sos', label: 'SOS', to: '/worker/sos', icon: ShieldAlert },
-    { key: 'nearby', label: '주변', to: '/worker/nearby', icon: Users },
+    {
+      key: 'home',
+      label: '홈',
+      to: '/worker/home',
+      icon: Home,
+    },
+    {
+      key: 'alerts',
+      label: '알림',
+      to: '/worker/alerts',
+      icon: Bell,
+      badge:
+        workerAlertCount +
+        nearbyUnreadCount,
+    },
+    {
+      key: 'sos',
+      label: 'SOS',
+      to: '/worker/sos',
+      icon: ShieldAlert,
+    },
+    {
+      key: 'nearby',
+      label: '주변',
+      to: '/worker/nearby',
+      icon: Users,
+      badge: nearbyUnreadCount,
+    },
   ];
 
   return (
     <nav className="worker-bottom-nav">
-      {items.map(({ key, label, to, icon: Icon, badge }) => (
-        <NavLink key={key} to={to} className={`worker-bottom-item ${active === key ? 'active' : ''} ${key === 'sos' ? 'sos' : ''}`}>
-          <span className="worker-bottom-icon-wrap">
-            <Icon size={20} />
-            {badge ? <b>{badge}</b> : null}
-          </span>
-          <small>{label}</small>
-        </NavLink>
-      ))}
+      {items.map(
+        ({
+          key,
+          label,
+          to,
+          icon: Icon,
+          badge,
+        }) => (
+          <NavLink
+            key={key}
+            to={to}
+            className={`worker-bottom-item ${
+              active === key ? 'active' : ''
+            } ${
+              key === 'sos' ? 'sos' : ''
+            } ${
+              key === 'sos' &&
+              dangerActive
+                ? 'danger-active'
+                : ''
+            } ${
+              key === 'nearby' &&
+              nearbyUnreadCount > 0
+                ? 'nearby-danger-active'
+                : ''
+            }`}
+          >
+            <span className="worker-bottom-icon-wrap">
+              <Icon size={20} />
+
+              {badge > 0 ? (
+                <b>
+                  {badge > 9
+                    ? '9+'
+                    : badge}
+                </b>
+              ) : null}
+            </span>
+
+            <small>{label}</small>
+          </NavLink>
+        )
+      )}
     </nav>
   );
 }
 
 export function WorkerDrawer({ open, onClose }) {
   const navigate = useNavigate();
+  const { workers } = useWorkers();
   const [profile, setProfile] = useState(getWorkerProfile);
   const [workStatus, setWorkStatus] = useState(() => localStorage.getItem('safehelmet_worker_current_status') || '근무 중');
 
@@ -100,7 +294,16 @@ export function WorkerDrawer({ open, onClose }) {
 
   if (!open) return null;
 
-  const statusMeta = getWorkStatusMeta(workStatus);
+  const currentWorker = findCurrentWorker(workers, profile);
+
+  const statusMeta =
+    currentWorker?.status === 'danger'
+      ? WORK_STATUS_META['위험']
+      : getWorkStatusMeta(workStatus);
+
+  const profilePhoto =
+    profile.photo ||
+    getDefaultWorkerProfile(profile.helmetNo || profile.helmetId);
 
   const logout = () => {
     localStorage.removeItem('safehelmet_worker_session');
@@ -117,12 +320,12 @@ export function WorkerDrawer({ open, onClose }) {
     <div className="worker-drawer-overlay" onClick={onClose}>
       <aside className="worker-drawer" onClick={(e) => e.stopPropagation()}>
         <div className={`worker-drawer-head ${statusMeta.key}`}>
-          <div className={`worker-drawer-symbol ${profile.photo ? 'has-photo' : ''}`}>
-            {profile.photo ? <img src={profile.photo} alt="프로필" /> : <HardHat size={24} />}
+          <div className={`worker-drawer-symbol ${profilePhoto ? 'has-photo' : ''}`}>
+            {profilePhoto ? <img src={profilePhoto} alt="프로필" /> : <HardHat size={24} />}
           </div>
           <button onClick={onClose}><X size={20} /></button>
-          <h2>{profile.name || '김현석'}</h2>
-          <p>사번: {profile.employeeNo || 'WK-20241103'} · {profile.location || 'B구역 3층'}</p>
+          <h2>{profile.name || '작업자'}</h2>
+          <p>사번: {profile.employeeNo || '-'} · {profile.location || '-'}</p>
           <div className="worker-drawer-status-wrap"><span className={`worker-drawer-status ${statusMeta.key}`}>{statusMeta.label}</span><small>{statusMeta.description}</small></div>
         </div>
         <div className="worker-drawer-menu">
@@ -142,14 +345,252 @@ export function WorkerDrawer({ open, onClose }) {
   );
 }
 
-export function WorkerScaffold({ children, active = 'home', title, subtitle, back = false, hideNav = false, header = true, className = '' }) {
-  const [drawerOpen, setDrawerOpen] = useState(false);
+export function WorkerScaffold({
+  children,
+  active = 'home',
+  title,
+  subtitle,
+  back = false,
+  hideNav = false,
+  header = true,
+  className = '',
+}) {
+  const [drawerOpen, setDrawerOpen] =
+    useState(false);
+
+  const [nearbyDangerAlert, setNearbyDangerAlert] =
+    useState(null);
+
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { workers } = useWorkers();
+  const profile = getWorkerProfile();
+
+  const currentWorker = useMemo(
+    () => findCurrentWorker(workers, profile),
+    [
+      workers,
+      profile.name,
+      profile.helmetNo,
+      profile.employeeNo,
+    ]
+  );
+
+  /*
+   * 본인 위험 상태:
+   * 기존처럼 새 위험 센서 기록당 1회
+   * SOS 화면으로 자동 이동합니다.
+   */
+  useEffect(() => {
+    if (
+      !currentWorker ||
+      currentWorker.status !== 'danger'
+    ) {
+      return;
+    }
+
+    if (location.pathname === '/worker/sos') {
+      return;
+    }
+
+    const dangerKey = workerDangerKey(
+      currentWorker
+    );
+
+    const lastShown =
+      sessionStorage.getItem(
+        'safeon-worker-danger-sos-key'
+      ) || '';
+
+    if (
+      dangerKey &&
+      dangerKey !== lastShown
+    ) {
+      sessionStorage.setItem(
+        'safeon-worker-danger-sos-key',
+        dangerKey
+      );
+
+      navigate(
+        `/worker/sos?auto=1&reason=${encodeURIComponent(
+          currentWorker.issue ||
+            '위험 상태 감지'
+        )}`,
+        { replace: false }
+      );
+    }
+  }, [
+    currentWorker,
+    location.pathname,
+    navigate,
+  ]);
+
+  /*
+   * 주변 작업자 위험 상태:
+   * 본인이 아닌 작업자 중 새 danger 기록이 생기면
+   * 모바일 화면 상단에 즉시 알림을 띄우고
+   * 알림 목록에도 저장합니다.
+   *
+   * 현재 서버에는 실제 거리/BLE 위치 API가 없으므로
+   * WorkerContext에 등록된 다른 작업자를
+   * '주변 작업자 후보'로 사용합니다.
+   */
+  useEffect(() => {
+    if (!currentWorker) return;
+
+    const otherDangerWorkers =
+      workers.filter(
+        (worker) =>
+          worker.id !== currentWorker.id &&
+          worker.status === 'danger' &&
+          dangerIsRecent(worker)
+      );
+
+    if (!otherDangerWorkers.length) {
+      return;
+    }
+
+    const seenRaw =
+      sessionStorage.getItem(
+        'safeon-nearby-danger-seen-keys'
+      ) || '';
+
+    const seen = new Set(
+      seenRaw
+        ? seenRaw.split('||')
+        : []
+    );
+
+    const fresh = otherDangerWorkers
+      .map((worker) => ({
+        worker,
+        key: workerDangerKey(worker),
+      }))
+      .filter(
+        ({ key }) =>
+          key && !seen.has(key)
+      );
+
+    if (!fresh.length) {
+      return;
+    }
+
+    fresh.forEach(({ key }) => seen.add(key));
+
+    sessionStorage.setItem(
+      'safeon-nearby-danger-seen-keys',
+      [...seen].join('||')
+    );
+
+    const currentAlerts =
+      readNearbyDangerAlerts();
+
+    const newAlerts = fresh.map(
+      ({ worker }) => ({
+        id: `nearby-${Date.now()}-${worker.id}`,
+        category: 'nearby',
+        level: 'danger',
+        read: false,
+        title: `${worker.name} 작업자 위험`,
+        message:
+          worker.issue ||
+          '주변 작업자에게 위험 상태가 감지되었습니다.',
+        workerId: worker.id,
+        workerName: worker.name,
+        zone: worker.zone || '-',
+        deviceId:
+          worker.deviceId || '',
+        createdAt: new Date().toISOString(),
+        recordedAt:
+          worker.recordedAt ||
+          new Date().toISOString(),
+      })
+    );
+
+    saveNearbyDangerAlerts([
+      ...newAlerts,
+      ...currentAlerts,
+    ]);
+
+    setNearbyDangerAlert(newAlerts[0]);
+
+    const timer = window.setTimeout(
+      () => setNearbyDangerAlert(null),
+      6500
+    );
+
+    return () =>
+      window.clearTimeout(timer);
+  }, [workers, currentWorker]);
+
   return (
-    <div className={`worker-mobile-shell ${className}`}>
-      {header && <WorkerHeader title={title} subtitle={subtitle} back={back} onMenu={() => setDrawerOpen(true)} />}
-      <main className={`worker-mobile-content ${hideNav ? 'no-nav' : ''}`}>{children}</main>
-      {!hideNav && <WorkerBottomNav active={active} />}
-      <WorkerDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+    <div
+      className={`worker-mobile-shell ${className} ${
+        currentWorker?.status === 'danger'
+          ? 'worker-danger-active'
+          : ''
+      }`}
+    >
+      {header && (
+        <WorkerHeader
+          title={title}
+          subtitle={subtitle}
+          back={back}
+          onMenu={() =>
+            setDrawerOpen(true)
+          }
+        />
+      )}
+
+      {nearbyDangerAlert && (
+        <button
+          type="button"
+          className="worker-nearby-danger-toast"
+          onClick={() => {
+            setNearbyDangerAlert(null);
+            navigate('/worker/nearby');
+          }}
+        >
+          <span className="worker-nearby-danger-toast-icon">
+            <ShieldAlert size={21} />
+          </span>
+
+          <span>
+            <strong>
+              주변 작업자 위험 감지
+            </strong>
+
+            <small>
+              {nearbyDangerAlert.workerName}
+              {' · '}
+              {nearbyDangerAlert.zone}
+              {' · '}
+              {nearbyDangerAlert.message}
+            </small>
+          </span>
+
+          <ChevronRight size={18} />
+        </button>
+      )}
+
+      <main
+        className={`worker-mobile-content ${
+          hideNav ? 'no-nav' : ''
+        }`}
+      >
+        {children}
+      </main>
+
+      {!hideNav && (
+        <WorkerBottomNav active={active} />
+      )}
+
+      <WorkerDrawer
+        open={drawerOpen}
+        onClose={() =>
+          setDrawerOpen(false)
+        }
+      />
     </div>
   );
 }

@@ -7,13 +7,23 @@ import {
   Droplets,
   Package,
   Play,
+  RefreshCw,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { Link, Navigate, useParams } from 'react-router-dom';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+import { Link, useParams } from 'react-router-dom';
 import TopHeader from '../components/TopHeader';
 import ActionToast from '../components/ActionToast';
 import { useDetections } from '../context/DetectionContext';
 import { useNotifications } from '../context/NotificationContext';
+import {
+  getHazardEvent,
+  runHazardEventAction,
+} from '../api/hazardEvents';
 
 const icons = {
   unguarded: AlertTriangle,
@@ -21,170 +31,799 @@ const icons = {
   obstacle: Package,
 };
 
+function lower(value) {
+  return String(value ?? '').toLowerCase();
+}
+
+function detailKind(hazardType) {
+  const value = lower(hazardType);
+
+  if (
+    value.includes('unguarded') ||
+    value.includes('edge') ||
+    value.includes('rail')
+  ) {
+    return 'unguarded';
+  }
+
+  if (
+    value.includes('puddle') ||
+    value.includes('water') ||
+    value.includes('wet')
+  ) {
+    return 'puddle';
+  }
+
+  return 'obstacle';
+}
+
+function detailLevel(severity) {
+  return String(severity ?? '').toUpperCase() === 'DANGER'
+    ? 'danger'
+    : 'warning';
+}
+
+function processInfo(status) {
+  return {
+    UNHANDLED: {
+      process: '미처리',
+      processClass: 'unprocessed',
+    },
+    IN_PROGRESS: {
+      process: '처리중',
+      processClass: 'processing',
+    },
+    RESOLVED: {
+      process: '처리완료',
+      processClass: 'completed',
+    },
+  }[String(status ?? '').toUpperCase()] || {
+    process: '미처리',
+    processClass: 'unprocessed',
+  };
+}
+
+function formatTime(value) {
+  if (!value) return '--:--';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '--:--';
+
+  return date.toLocaleTimeString('ko-KR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+}
+
+function getAdminId() {
+  try {
+    const admin = JSON.parse(
+      localStorage.getItem('safehelmet_current_admin') || '{}'
+    );
+
+    const candidates = [
+      admin.adminId,
+      admin.backendId,
+      admin.userId,
+      admin.id,
+    ];
+
+    for (const candidate of candidates) {
+      const value = Number(candidate);
+      if (Number.isInteger(value) && value >= 0) {
+        return value;
+      }
+    }
+  } catch {
+    // mock 로그인 단계에서는 Swagger 예시값 0을 사용합니다.
+  }
+
+  return 0;
+}
+
+function defaultText(kind) {
+  return {
+    unguarded: {
+      type: '난간 없는 구간',
+      risk: '추락',
+      detail:
+        '난간 또는 안전 경계가 없는 위험 구간이 감지되었습니다.',
+      action: '즉각 접근 금지 조치가 필요합니다.',
+    },
+    puddle: {
+      type: '물웅덩이 감지',
+      risk: '미끄럼 및 낙상',
+      detail:
+        '작업 구역 바닥의 물 또는 젖은 구간이 감지되었습니다.',
+      action: '작업자에게 위험 구역 경고가 필요합니다.',
+    },
+    obstacle: {
+      type: '장애물 감지',
+      risk: '충돌 및 전도',
+      detail:
+        '작업 동선에 장애물이 감지되어 충돌 또는 전도 위험이 있습니다.',
+      action: '작업자에게 위험 구역 경고가 필요합니다.',
+    },
+  }[kind];
+}
+
+function mapDetail(detail, fallback) {
+  const kind = detailKind(
+    detail?.hazardType ?? fallback?.rawEvent?.hazardType
+  );
+  const defaults = defaultText(kind);
+  const level = detailLevel(
+    detail?.severity ?? fallback?.rawEvent?.severity
+  );
+  const process = processInfo(
+    detail?.status ?? fallback?.status
+  );
+
+  return {
+    ...fallback,
+
+    id: detail?.eventId ?? fallback?.id,
+    serverEventId: detail?.eventId ?? fallback?.serverEventId,
+
+    category: 'external',
+    kind,
+    level,
+
+    type:
+      detail?.hazardLabel ||
+      detail?.hazardType ||
+      fallback?.type ||
+      defaults.type,
+
+    riskLabel:
+      detail?.riskDescription ||
+      fallback?.riskLabel ||
+      defaults.risk,
+
+    detailDescription:
+      detail?.detail ||
+      detail?.riskDescription ||
+      fallback?.detailDescription ||
+      defaults.detail,
+
+    actionText:
+      detail?.recommendedAction ||
+      fallback?.actionText ||
+      defaults.action,
+
+    name:
+      detail?.worker?.name ||
+      fallback?.name ||
+      '미확인 작업자',
+
+    employeeNo:
+      detail?.worker?.employeeNo ||
+      fallback?.employeeNo,
+
+    zone:
+      detail?.zone?.name ||
+      detail?.zone?.code ||
+      fallback?.zone ||
+      '-',
+
+    helmetNo:
+      detail?.helmetNo ||
+      fallback?.helmetNo,
+
+    occurredAt:
+      detail?.occurredAt ||
+      fallback?.occurredAt,
+
+    time: formatTime(
+      detail?.occurredAt ||
+      fallback?.occurredAt
+    ),
+
+    status:
+      detail?.status ||
+      fallback?.status,
+
+    statusLabel:
+      detail?.statusLabel ||
+      fallback?.statusLabel,
+
+    ...process,
+
+    clip: detail?.clip || null,
+    playbackUrl: detail?.clip?.playbackUrl || '',
+    clipExpiresAt: detail?.clip?.expiresAt,
+    durationSeconds: detail?.clip?.durationSeconds,
+    markedOffsetSeconds:
+      detail?.clip?.markedOffsetSeconds,
+
+    detection: detail?.detection || null,
+    boxes: detail?.detection?.boxes || [],
+
+    rawDetail: detail,
+  };
+}
+
 export default function ExternalDetectionDetail() {
   const { id } = useParams();
-  const { detections, acknowledgeDetection, completeDetection } = useDetections();
+
+  const {
+    detections,
+    acknowledgeDetection,
+    completeDetection,
+    refreshHazardEvents,
+  } = useDetections();
+
   const { addNotification } = useNotifications();
-  const [activeClip, setActiveClip] = useState('');
-  const [toast, setToast] = useState({ message: '', type: 'success' });
-  const item = detections.find((d) => String(d.id) === String(id));
+
+  const fallbackItem = useMemo(
+    () =>
+      detections.find(
+        (item) => String(item.id) === String(id)
+      ),
+    [detections, id]
+  );
+
+  const [detail, setDetail] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(true);
+  const [detailError, setDetailError] = useState('');
+  const [showClip, setShowClip] = useState(false);
+  const [actionLoading, setActionLoading] = useState('');
+  const [toast, setToast] = useState({
+    message: '',
+    type: 'success',
+  });
+
+  const loadDetail = useCallback(async () => {
+    setDetailLoading(true);
+    setDetailError('');
+
+    try {
+      // playbackUrl은 15분 임시 URL이라 이 함수가 호출될 때마다
+      // 백엔드에서 새 상세 데이터를 받습니다.
+      const data = await getHazardEvent(id);
+      setDetail(data);
+      return data;
+    } catch (error) {
+      console.error('이상 감지 상세 조회 실패:', error);
+      setDetailError(
+        error?.message ||
+          '이상 감지 상세 정보를 불러오지 못했습니다.'
+      );
+      throw error;
+    } finally {
+      setDetailLoading(false);
+    }
+  }, [id]);
 
   useEffect(() => {
-    if (item?.category === 'external') acknowledgeDetection(id);
-  }, [id, item?.category]);
+    loadDetail().catch(() => {});
+    acknowledgeDetection(id);
+  }, [id, loadDetail]);
 
-  if (!item || item.category !== 'external') return <Navigate to="/detections" replace />;
+  // SSE에서 clip-ready 이벤트가 오면 해당 상세의 임시 영상 URL을 재발급합니다.
+  useEffect(() => {
+    const handleClipReady = (event) => {
+      const eventId = event?.detail?.eventId;
+
+      if (
+        eventId == null ||
+        String(eventId) === String(id)
+      ) {
+        loadDetail().catch(() => {});
+      }
+    };
+
+    window.addEventListener(
+      'safehelmet-hazard-clip-ready',
+      handleClipReady
+    );
+
+    return () => {
+      window.removeEventListener(
+        'safehelmet-hazard-clip-ready',
+        handleClipReady
+      );
+    };
+  }, [id, loadDetail]);
+
+  const item = useMemo(
+    () => mapDetail(detail, fallbackItem || {}),
+    [detail, fallbackItem]
+  );
+
+  const runAction = async (
+    actionType,
+    memo,
+    successMessage
+  ) => {
+    if (actionLoading) return;
+
+    setActionLoading(actionType);
+
+    try {
+      const result = await runHazardEventAction(id, {
+        actionType,
+        adminId: getAdminId(),
+        memo,
+      });
+
+      if (actionType === 'RESOLVE') {
+        completeDetection(id);
+      }
+
+      await Promise.allSettled([
+        refreshHazardEvents(),
+        loadDetail(),
+      ]);
+
+      setToast({
+        message:
+          result?.message ||
+          successMessage,
+        type:
+          actionType === 'BLOCK_ZONE'
+            ? 'warning'
+            : 'success',
+      });
+
+      return result;
+    } catch (error) {
+      console.error('이상 감지 조치 실행 실패:', error);
+      setToast({
+        message:
+          error?.message ||
+          '조치 실행에 실패했습니다.',
+        type: 'error',
+      });
+    } finally {
+      setActionLoading('');
+    }
+  };
+
+  const sendWarning = async () => {
+    const result = await runAction(
+      'SEND_WARNING',
+      `${item.name} 작업자에게 ${item.type} 경고 전송`,
+      `${item.name} 작업자에게 경고 알림을 전송했습니다.`
+    );
+
+    if (result) {
+      addNotification({
+        level: item.level,
+        title: `${item.type} 경고 알림 전송`,
+        message: `${item.name} · ${item.zone} 작업자에게 위험 경고를 전송했습니다.`,
+        target: `/detections/${item.id}`,
+      });
+    }
+  };
+
+  const blockZone = async () => {
+    const result = await runAction(
+      'BLOCK_ZONE',
+      `${item.zone} 위험 구역 접근 금지`,
+      `${item.zone} 구역을 접근 금지로 설정했습니다.`
+    );
+
+    if (result) {
+      addNotification({
+        level: 'danger',
+        title: '위험 구역 접근 금지 설정',
+        message: `${item.zone} 구역을 접근 금지 상태로 변경했습니다.`,
+        target: `/detections/${item.id}`,
+      });
+    }
+  };
+
+  const finish = async () => {
+    await runAction(
+      'RESOLVE',
+      `${item.type} 이상 감지 처리 완료`,
+      '이상 감지 건을 처리완료로 변경했습니다.'
+    );
+  };
+
+  if (detailLoading && !fallbackItem) {
+    return (
+      <>
+        <TopHeader
+          title="이상 감지"
+          subtitle="외부요인 · 건강 · 추락"
+          onRefresh={loadDetail}
+        />
+        <div className="page-body external-detail-page">
+          <div className="records-empty">
+            이상 감지 상세 정보를 불러오는 중입니다.
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  if (detailError && !fallbackItem && !detail) {
+    return (
+      <>
+        <TopHeader
+          title="이상 감지"
+          subtitle="외부요인 · 건강 · 추락"
+          onRefresh={loadDetail}
+        />
+        <div className="page-body external-detail-page">
+          <Link
+            className="back-link detail-back"
+            to="/detections?tab=external"
+          >
+            <ChevronLeft size={14} />
+            이상 감지 목록
+          </Link>
+
+          <div className="records-empty">
+            {detailError}
+          </div>
+        </div>
+      </>
+    );
+  }
 
   const Icon = icons[item.kind] || AlertTriangle;
   const isDanger = item.level === 'danger';
-  const isCompleted = item.processClass === 'completed';
-
-  const playClip = (clip) => {
-    setActiveClip(clip);
-    setToast({ message: `${clip === 'before' ? '감지 전' : '감지 후'} 30초 영상 클립을 재생합니다.`, type: 'info' });
-  };
-
-  const sendWarning = () => {
-    addNotification({
-      level: item.level,
-      title: `${item.type} 경고 알림 전송`,
-      message: `${item.name} · ${item.zone} 작업자에게 위험 경고를 전송했습니다.`,
-      target: `/detections/${item.id}`,
-    });
-    setToast({ message: `${item.name} 작업자에게 경고 알림을 전송했습니다.`, type: 'success' });
-  };
-
-  const blockZone = () => {
-    const key = 'safehelmet_restricted_zones';
-    let zones = [];
-    try { zones = JSON.parse(localStorage.getItem(key) || '[]'); } catch { zones = []; }
-    if (!zones.includes(item.zone)) zones.push(item.zone);
-    localStorage.setItem(key, JSON.stringify(zones));
-    addNotification({
-      level: 'danger',
-      title: '위험 구역 접근 금지 설정',
-      message: `${item.zone} 구역을 접근 금지 상태로 변경했습니다.`,
-      target: `/detections/${item.id}`,
-    });
-    setToast({ message: `${item.zone} 구역을 접근 금지로 설정했습니다.`, type: 'warning' });
-  };
-
-  const finish = () => {
-    completeDetection(item.id);
-    setToast({ message: '이상 감지 건을 처리완료로 변경했습니다.', type: 'success' });
-  };
+  const isCompleted =
+    item.processClass === 'completed' ||
+    item.status === 'RESOLVED';
 
   return (
     <>
-      <TopHeader title="이상 감지" subtitle="외부요인 · 건강 · 추락" />
+      <TopHeader
+        title="이상 감지"
+        subtitle="외부요인 · 건강 · 추락"
+        onRefresh={loadDetail}
+      />
+
       <div className="page-body external-detail-page">
-        <Link className="back-link detail-back" to="/detections?tab=external"><ChevronLeft size={14}/> 이상 감지 목록</Link>
+        <Link
+          className="back-link detail-back"
+          to="/detections?tab=external"
+        >
+          <ChevronLeft size={14} />
+          이상 감지 목록
+        </Link>
+
+        {detailError && (
+          <div className="worker-filter-banner danger">
+            <span>상세 API 연동 실패: {detailError}</span>
+          </div>
+        )}
 
         <div className="external-detail-heading">
-          <div className={`external-heading-icon ${item.kind}`}><Icon size={20}/></div>
+          <div
+            className={`external-heading-icon ${item.kind}`}
+          >
+            <Icon size={20} />
+          </div>
+
           <div>
             <h2>외부 위험요인 감지</h2>
-            <p>{item.name} · {item.zone} · {item.time}</p>
+            <p>
+              {item.name} · {item.zone} · {item.time}
+            </p>
           </div>
-          <span className={`risk-chip ${item.level}`}>● {isDanger ? '위험' : '주의'}</span>
+
+          <span className={`risk-chip ${item.level}`}>
+            ● {isDanger ? '위험' : '주의'}
+          </span>
         </div>
 
         <div className="external-detail-grid">
           <div className="external-detail-main">
             <section className="panel ai-video-panel">
-              <div className="section-caption">현장 영상 · AI 감지</div>
-              <HazardVideo item={item} activeClip={activeClip} />
-              <p className="video-helper">AI가 영상을 실시간 분석하여 위험요인과 작업자를 감지합니다.</p>
+              <div className="section-caption">
+                현장 영상 · AI 감지
+              </div>
+
+              {item.playbackUrl && showClip ? (
+                <video
+                  key={item.playbackUrl}
+                  src={item.playbackUrl}
+                  controls
+                  autoPlay
+                  style={{
+                    width: '100%',
+                    maxHeight: 520,
+                    borderRadius: 12,
+                    background: '#07111d',
+                  }}
+                />
+              ) : (
+                <HazardVideo item={item} />
+              )}
+
+              <p className="video-helper">
+                {item.playbackUrl
+                  ? `서버 저장 영상 · ${item.durationSeconds ?? '-'}초 · 감지 시점 ${item.markedOffsetSeconds ?? '-'}초`
+                  : '저장된 영상 클립이 아직 준비되지 않았습니다.'}
+              </p>
             </section>
 
             <section className="panel saved-clips-panel">
-              <div className="section-caption">저장된 영상 클립</div>
-              <div className="saved-clip-grid">
-                <button type="button" className={activeClip === 'before' ? 'active' : ''} onClick={() => playClip('before')}><Play size={14}/> {activeClip === 'before' ? '재생 중 · 감지 전 30초' : '감지 전 30초'}</button>
-                <button type="button" className={activeClip === 'after' ? 'active' : ''} onClick={() => playClip('after')}><Play size={14}/> {activeClip === 'after' ? '재생 중 · 감지 후 30초' : '감지 후 30초'}</button>
+              <div className="section-caption">
+                저장된 영상 클립
               </div>
+
+              <div className="saved-clip-grid">
+                {item.playbackUrl ? (
+                  <>
+                    <button
+                      type="button"
+                      className={showClip ? 'active' : ''}
+                      onClick={() => setShowClip((value) => !value)}
+                    >
+                      <Play size={14} />
+                      {showClip
+                        ? '영상 닫기'
+                        : '감지 영상 재생'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowClip(false);
+                        loadDetail()
+                          .then(() => {
+                            setToast({
+                              message:
+                                '영상 재생 URL을 새로 발급받았습니다.',
+                              type: 'success',
+                            });
+                          })
+                          .catch(() => {});
+                      }}
+                    >
+                      <RefreshCw size={14} />
+                      영상 URL 갱신
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      loadDetail().catch(() => {})
+                    }
+                  >
+                    <RefreshCw size={14} />
+                    영상 준비 상태 확인
+                  </button>
+                )}
+              </div>
+
+              {item.clipExpiresAt && (
+                <p className="video-helper">
+                  재생 URL 만료:{' '}
+                  {new Date(
+                    item.clipExpiresAt
+                  ).toLocaleTimeString('ko-KR')}
+                </p>
+              )}
             </section>
           </div>
 
           <aside className="external-detail-side">
             <section className="panel ai-result-card">
               <h3>AI 감지 결과</h3>
-              <div className={`ai-type-box ${item.kind}`}>
+
+              <div
+                className={`ai-type-box ${item.kind}`}
+              >
                 <span>감지 유형</span>
                 <strong>{item.type}</strong>
               </div>
+
               <dl>
-                <div><dt>위험 설명</dt><dd>{item.riskLabel}</dd></div>
-                <div><dt>관련 작업자</dt><dd>{item.name}</dd></div>
-                <div><dt>위치</dt><dd>{item.zone}</dd></div>
-                <div><dt>발생 시간</dt><dd>{item.time}</dd></div>
+                <div>
+                  <dt>위험 설명</dt>
+                  <dd>{item.riskLabel}</dd>
+                </div>
+
+                <div>
+                  <dt>관련 작업자</dt>
+                  <dd>{item.name}</dd>
+                </div>
+
+                <div>
+                  <dt>위치</dt>
+                  <dd>{item.zone}</dd>
+                </div>
+
+                <div>
+                  <dt>안전모</dt>
+                  <dd>{item.helmetNo || '-'}</dd>
+                </div>
+
+                <div>
+                  <dt>발생 시간</dt>
+                  <dd>{item.time}</dd>
+                </div>
+
+                <div>
+                  <dt>처리 상태</dt>
+                  <dd>
+                    {item.statusLabel ||
+                      item.process}
+                  </dd>
+                </div>
+
+                {item.boxes?.length > 0 && (
+                  <div>
+                    <dt>AI 객체 감지</dt>
+                    <dd>{item.boxes.length}건</dd>
+                  </div>
+                )}
               </dl>
+
               <p>{item.detailDescription}</p>
             </section>
 
-            <section className={`external-action-card ${isDanger ? 'danger' : 'warning'}`}>
+            <section
+              className={`external-action-card ${
+                isDanger ? 'danger' : 'warning'
+              }`}
+            >
               <strong>{item.actionText}</strong>
-              <button type="button" onClick={sendWarning}><BellRing size={15}/> 경고 알림 전송</button>
-              {isDanger && <button type="button" className="outline" onClick={blockZone}><Ban size={15}/> 구역 접근 금지</button>}
+
+              <button
+                type="button"
+                disabled={
+                  Boolean(actionLoading) || isCompleted
+                }
+                onClick={sendWarning}
+              >
+                <BellRing size={15} />
+                {actionLoading === 'SEND_WARNING'
+                  ? '전송 중...'
+                  : '경고 알림 전송'}
+              </button>
+
+              {isDanger && (
+                <button
+                  type="button"
+                  className="outline"
+                  disabled={
+                    Boolean(actionLoading) || isCompleted
+                  }
+                  onClick={blockZone}
+                >
+                  <Ban size={15} />
+                  {actionLoading === 'BLOCK_ZONE'
+                    ? '설정 중...'
+                    : '구역 접근 금지'}
+                </button>
+              )}
+
               <button
                 type="button"
                 className="complete-action"
-                disabled={isCompleted}
+                disabled={
+                  Boolean(actionLoading) || isCompleted
+                }
                 onClick={() => !isCompleted && finish()}
               >
-                <CheckCircle2 size={15}/> {isCompleted ? '처리완료' : '처리 완료하기'}
+                <CheckCircle2 size={15} />
+                {isCompleted
+                  ? '처리완료'
+                  : actionLoading === 'RESOLVE'
+                    ? '처리 중...'
+                    : '처리 완료하기'}
               </button>
             </section>
           </aside>
         </div>
       </div>
-      <ActionToast message={toast.message} type={toast.type} onClose={() => setToast({ message: '', type: 'success' })} />
+
+      <ActionToast
+        message={toast.message}
+        type={toast.type}
+        onClose={() =>
+          setToast({
+            message: '',
+            type: 'success',
+          })
+        }
+      />
     </>
   );
 }
 
-function HazardVideo({ item, activeClip }) {
-  const labels = {
-    unguarded: { camera: 'CCTV-A03', ai: 'AI ACTIVE · UNGUARDED EDGE · FALL RISK HIGH', hazard: '⚠ UNGUARDED EDGE' },
-    puddle: { camera: 'CCTV-C02', ai: 'AI ACTIVE · PUDDLE DETECTED · SLIP RISK', hazard: 'PUDDLE · 미끄럼 위험' },
-    obstacle: { camera: 'CCTV-B01', ai: 'AI ACTIVE · OBSTACLE DETECTED · COLLISION RISK', hazard: 'OBSTACLE 91%' },
-  }[item.kind];
+function HazardVideo({ item }) {
+  const labels =
+    {
+      unguarded: {
+        camera: 'CCTV-A03',
+        ai: 'AI ACTIVE · UNGUARDED EDGE',
+        hazard: '⚠ UNGUARDED EDGE',
+      },
+      puddle: {
+        camera: 'CCTV-C02',
+        ai: 'AI ACTIVE · PUDDLE DETECTED',
+        hazard: 'PUDDLE · 미끄럼 위험',
+      },
+      obstacle: {
+        camera: 'CCTV-B01',
+        ai: 'AI ACTIVE · OBSTACLE DETECTED',
+        hazard: 'OBSTACLE DETECTED',
+      },
+    }[item.kind] || {
+      camera: 'CCTV',
+      ai: 'AI ACTIVE',
+      hazard: 'HAZARD',
+    };
 
   return (
-    <div className={`hazard-video hazard-${item.kind} ${activeClip ? 'clip-playing' : ''}`}>
+    <div className={`hazard-video hazard-${item.kind}`}>
       <div className="hazard-video-top">
-        <span>● {labels.camera}</span><time>08.09 {item.time}</time>
+        <span>● {labels.camera}</span>
+        <time>{item.time}</time>
       </div>
+
       <div className="hazard-stage">
         <div className="worker-detection">
-          <span>WORKER 94%</span>
-          <div className="worker-figure"><i/><i/><i/><i/></div>
+          <span>WORKER</span>
+
+          <div className="worker-figure">
+            <i />
+            <i />
+            <i />
+            <i />
+          </div>
         </div>
 
         {item.kind === 'unguarded' && (
           <>
-            <span className="danger-arrow">접근 감지</span>
-            <div className="edge-hazard"><b>{labels.hazard}</b><i/><i/><i/><i/></div>
+            <span className="danger-arrow">
+              접근 감지
+            </span>
+
+            <div className="edge-hazard">
+              <b>{labels.hazard}</b>
+              <i />
+              <i />
+              <i />
+              <i />
+            </div>
           </>
         )}
 
         {item.kind === 'puddle' && (
-          <div className="puddle-hazard"><b>{labels.hazard}</b><span>PUDDLE</span></div>
+          <div className="puddle-hazard">
+            <b>{labels.hazard}</b>
+            <span>PUDDLE</span>
+          </div>
         )}
 
         {item.kind === 'obstacle' && (
           <>
-            <span className="collision-tag">⚠ 충돌 위험</span>
-            <div className="obstacle-hazard"><b>{labels.hazard}</b></div>
+            <span className="collision-tag">
+              ⚠ 충돌 위험
+            </span>
+
+            <div className="obstacle-hazard">
+              <b>{labels.hazard}</b>
+            </div>
           </>
         )}
       </div>
-      <div className="hazard-ai-line">{activeClip ? `${activeClip === 'before' ? 'BEFORE' : 'AFTER'} CLIP PLAYING · ` : ''}{labels.ai}</div>
+
+      <div className="hazard-ai-line">
+        {labels.ai}
+      </div>
+
       <div className="hazard-controls">
         <span className="skip">|◀</span>
-        <span className="round-play"><Play size={15} fill="currentColor"/></span>
-        <div className="hazard-progress"><i/></div>
-        <time>00:09 / 00:30</time>
+        <span className="round-play">
+          <Play size={15} fill="currentColor" />
+        </span>
+        <div className="hazard-progress">
+          <i />
+        </div>
+        <time>--:-- / --:--</time>
       </div>
     </div>
   );

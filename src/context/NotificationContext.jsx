@@ -1,83 +1,301 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { getNotifications, markNotificationRead, markAllNotificationsRead } from '../api/notifications';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+import { useDetections } from './DetectionContext';
 
-const initialNotifications = [
-  { id: 'n1', level: 'danger', title: '추락 사고가 감지되었습니다.', message: '박민수 · A구역 3층', time: '10:28', date: '08.09', target: '/incident', read: false },
-  { id: 'n2', level: 'danger', title: '난간 없는 구간 접근 감지', message: '박민수 · A구역 3층', time: '10:26', date: '08.09', target: '/detections/2', read: false },
-  { id: 'n3', level: 'warning', title: '피로도 2단계 감지', message: '김현석 · B구역 · 휴식 권고 필요', time: '10:27', date: '08.09', target: '/workers/H-002', read: false },
-  { id: 'n4', level: 'warning', title: '물웅덩이 감지', message: '이수진 · C구역 · 미끄럼 위험', time: '10:24', date: '08.09', target: '/detections/4', read: false },
-  { id: 'n5', level: 'warning', title: '장애물 감지 확인 완료', message: '김현석 · B구역', time: '10:21', date: '08.09', target: '/detections/5', read: true },
-  { id: 'n6', level: 'warning', title: '열사병 위험 감지', message: '정유진 · B구역 1층', time: '09:55', date: '08.09', target: '/workers/H-005', read: true },
-];
-
-function mapApiNotification(n) {
-  const levelMap = { DANGER: 'danger', WARNING: 'warning', NORMAL: 'normal' }
-  return {
-    id: n.id,
-    level: levelMap[n.level] || 'warning',
-    title: n.title || n.message || '알림',
-    message: n.message || '',
-    time: n.createdAt ? new Date(n.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }) : '',
-    date: n.createdAt ? new Date(n.createdAt).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }).replace('. ', '.').replace('.', '') : '',
-    target: n.hazardEventId ? `/detections/${n.hazardEventId}` : '/notifications',
-    read: n.isRead ?? false,
-  }
-}
+const READ_STORAGE_KEY = 'safehelmet_notification_read_ids_v2';
+const MANUAL_STORAGE_KEY = 'safehelmet_manual_notifications_v2';
 
 const NotificationContext = createContext(null);
 
-export function NotificationProvider({ children }) {
-  const [notifications, setNotifications] = useState(initialNotifications);
+function readStoredIds() {
+  try {
+    const value = JSON.parse(
+      localStorage.getItem(READ_STORAGE_KEY) || '[]'
+    );
+    return Array.isArray(value) ? value.map(String) : [];
+  } catch {
+    return [];
+  }
+}
 
-  const fetchNotifications = useCallback(async () => {
-    try {
-      const list = await getNotifications({ recipientType: 'MANAGER' })
-      const arr = Array.isArray(list) ? list : (list?.content ?? [])
-      if (arr.length > 0) setNotifications(arr.map(mapApiNotification))
-    } catch {
-      // API 실패 시 목업 유지
-    }
-  }, []);
+function readManualNotifications() {
+  try {
+    const value = JSON.parse(
+      localStorage.getItem(MANUAL_STORAGE_KEY) || '[]'
+    );
+    return Array.isArray(value) ? value : [];
+  } catch {
+    return [];
+  }
+}
+
+function eventTarget(item) {
+  if (item.category === 'fall') {
+    return `/incident/${item.id}`;
+  }
+
+  if (item.category === 'health') {
+    return `/detections/health/${item.id}`;
+  }
+
+  return `/detections/${item.id}`;
+}
+
+function formatDateTime(value) {
+  if (!value) {
+    return {
+      date: '--.--',
+      time: '--:--',
+    };
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return {
+      date: '--.--',
+      time: '--:--',
+    };
+  }
+
+  return {
+    date: `${String(date.getMonth() + 1).padStart(2, '0')}.${String(
+      date.getDate()
+    ).padStart(2, '0')}`,
+    time: date.toLocaleTimeString('ko-KR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }),
+  };
+}
+
+function notificationFromDetection(item, readIds) {
+  const { date, time } = formatDateTime(item.occurredAt);
+
+  const title =
+    item.category === 'fall'
+      ? `${item.type || '추락 감지'}`
+      : item.category === 'health'
+        ? `${item.type || '건강 이상 감지'}`
+        : `${item.type || '외부 위험요인 감지'}`;
+
+  const message = [
+    item.name,
+    item.zone,
+    item.statusLabel || item.process,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  const notificationId = `hazard-${item.id}`;
+
+  return {
+    id: notificationId,
+    eventId: item.id,
+    source: 'hazard',
+    level: item.level || 'warning',
+    category: item.category,
+    title,
+    message,
+    date,
+    time,
+    occurredAt: item.occurredAt,
+    target: eventTarget(item),
+    read: readIds.includes(notificationId),
+  };
+}
+
+export function NotificationProvider({ children }) {
+  const {
+    detections,
+    hazardStreamConnected,
+  } = useDetections();
+
+  const [readIds, setReadIds] = useState(readStoredIds);
+  const [manualNotifications, setManualNotifications] = useState(
+    readManualNotifications
+  );
 
   useEffect(() => {
-    fetchNotifications();
-    const id = setInterval(fetchNotifications, 30000);
-    return () => clearInterval(id);
-  }, [fetchNotifications]);
+    localStorage.setItem(
+      READ_STORAGE_KEY,
+      JSON.stringify(readIds)
+    );
+  }, [readIds]);
 
-  const markRead = async (id) => {
-    setNotifications((items) => items.map((item) => item.id === id ? { ...item, read: true } : item));
-    try { await markNotificationRead(id) } catch { /* 무시 */ }
-  };
+  useEffect(() => {
+    localStorage.setItem(
+      MANUAL_STORAGE_KEY,
+      JSON.stringify(manualNotifications)
+    );
+  }, [manualNotifications]);
 
-  const markAllRead = async () => {
-    setNotifications((items) => items.map((item) => ({ ...item, read: true })));
-    try { await markAllNotificationsRead('MANAGER') } catch { /* 무시 */ }
-  };
+  const hazardNotifications = useMemo(
+    () =>
+      detections.map((item) =>
+        notificationFromDetection(item, readIds)
+      ),
+    [detections, readIds]
+  );
 
-  const addNotification = (notification) => {
+  const manualWithReadState = useMemo(
+    () =>
+      manualNotifications.map((item) => ({
+        ...item,
+        read:
+          item.read === true ||
+          readIds.includes(String(item.id)),
+      })),
+    [manualNotifications, readIds]
+  );
+
+  const notifications = useMemo(
+    () =>
+      [...hazardNotifications, ...manualWithReadState].sort(
+        (a, b) => {
+          const aTime = new Date(
+            a.occurredAt || `${a.date || ''} ${a.time || ''}`
+          ).getTime();
+          const bTime = new Date(
+            b.occurredAt || `${b.date || ''} ${b.time || ''}`
+          ).getTime();
+
+          if (
+            Number.isFinite(aTime) &&
+            Number.isFinite(bTime) &&
+            aTime !== bTime
+          ) {
+            return bTime - aTime;
+          }
+
+          return String(b.id).localeCompare(String(a.id));
+        }
+      ),
+    [hazardNotifications, manualWithReadState]
+  );
+
+  const markRead = useCallback((id) => {
+    const key = String(id);
+
+    setReadIds((items) =>
+      items.includes(key) ? items : [...items, key]
+    );
+  }, []);
+
+  const markAllRead = useCallback(() => {
+    setReadIds((items) => {
+      const next = new Set(items);
+
+      notifications.forEach((item) => {
+        next.add(String(item.id));
+      });
+
+      return [...next];
+    });
+  }, [notifications]);
+
+  const addNotification = useCallback((notification) => {
     const now = new Date();
+
     const item = {
-      id: notification.id || `n-${Date.now()}`,
+      id:
+        notification.id ||
+        `manual-${Date.now()}-${Math.random()
+          .toString(36)
+          .slice(2, 7)}`,
+      source: 'manual',
       level: notification.level || 'warning',
+      category: notification.category,
       title: notification.title || '새 알림',
       message: notification.message || '',
-      time: notification.time || now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }),
-      date: notification.date || `${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}`,
+      time:
+        notification.time ||
+        now.toLocaleTimeString('ko-KR', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        }),
+      date:
+        notification.date ||
+        `${String(now.getMonth() + 1).padStart(2, '0')}.${String(
+          now.getDate()
+        ).padStart(2, '0')}`,
+      occurredAt:
+        notification.occurredAt || now.toISOString(),
       target: notification.target || '/notifications',
       read: false,
     };
-    setNotifications((items) => [item, ...items]);
-    return item;
-  };
 
-  const unreadCount = notifications.filter((item) => !item.read).length;
-  const value = useMemo(() => ({ notifications, unreadCount, markRead, markAllRead, addNotification, fetchNotifications }), [notifications, unreadCount, fetchNotifications]);
-  return <NotificationContext.Provider value={value}>{children}</NotificationContext.Provider>;
+    setManualNotifications((items) => [
+      item,
+      ...items.filter(
+        (existing) => String(existing.id) !== String(item.id)
+      ),
+    ]);
+
+    // SOS/관리자 호출 등 새 수동 알림도
+    // 벨을 클릭하지 않아도 즉시 팝업으로 보여줍니다.
+    window.dispatchEvent(
+      new CustomEvent(
+        'safeon-notification-created',
+        {
+          detail: {
+            id: item.id,
+            level: item.level,
+            title: item.title,
+          },
+        }
+      )
+    );
+
+    return item;
+  }, []);
+
+  const unreadCount = notifications.filter(
+    (item) => !item.read
+  ).length;
+
+  const value = useMemo(
+    () => ({
+      notifications,
+      unreadCount,
+      markRead,
+      markAllRead,
+      addNotification,
+      hazardStreamConnected,
+    }),
+    [
+      notifications,
+      unreadCount,
+      markRead,
+      markAllRead,
+      addNotification,
+      hazardStreamConnected,
+    ]
+  );
+
+  return (
+    <NotificationContext.Provider value={value}>
+      {children}
+    </NotificationContext.Provider>
+  );
 }
 
 export function useNotifications() {
   const context = useContext(NotificationContext);
-  if (!context) throw new Error('useNotifications must be used inside NotificationProvider');
+
+  if (!context) {
+    throw new Error(
+      'useNotifications must be used inside NotificationProvider'
+    );
+  }
+
   return context;
 }

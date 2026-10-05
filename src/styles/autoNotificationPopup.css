@@ -1,0 +1,82 @@
+
+/* =========================================================
+   New realtime event -> auto-open notification popup
+   ========================================================= */
+
+.notification-popover.realtime-arrival{
+  animation:safeonRealtimePopup .24s ease-out;
+  box-shadow:
+    0 18px 46px rgba(15,23,42,.15),
+    0 0 0 2px rgba(37,107,254,.08);
+}
+
+.bell-btn.realtime-arrival{
+  animation:safeonBellArrival .55s ease-in-out 2;
+  border-color:#246bfe !important;
+}
+
+@keyframes safeonRealtimePopup{
+  from{
+    opacity:0;
+    transform:translateY(-7px) scale(.985);
+  }
+  to{
+    opacity:1;
+    transform:translateY(0) scale(1);
+  }
+}
+
+@keyframes safeonBellArrival{
+  0%,100%{transform:rotate(0deg)}
+  25%{transform:rotate(-9deg)}
+  75%{transform:rotate(9deg)}
+}
+
+/* =========================================================
+   SAFE:ON sidebar logo - current size에서 한 단계 더 축소
+   ========================================================= */
+
+/* 이미지/SVG 형태 로고 */
+.sidebar .brand img,
+.sidebar .brand svg,
+.sidebar .brand-logo,
+.sidebar .sidebar-logo,
+.sidebar .safeon-logo,
+.sidebar .safeon-wordmark,
+.sidebar [class*="brand"] img,
+.sidebar [class*="logo"] img,
+.sidebar img[alt*="SAFE"],
+.sidebar img[alt*="Safe"],
+.sidebar img[alt*="safe"],
+.sidebar img[alt*="logo"],
+.sidebar img[alt*="Logo"]{
+  max-width:172px !important;
+  max-height:52px !important;
+  width:auto !important;
+  height:auto !important;
+  object-fit:contain !important;
+}
+
+/* SAFE:ON이 텍스트 조합형으로 구현된 경우 */
+.sidebar .brand-title,
+.sidebar [class*="brand-title"],
+.sidebar [class*="logo-title"]{
+  font-size:20px !important;
+  line-height:1 !important;
+}
+
+.sidebar .brand-sub,
+.sidebar [class*="brand-sub"],
+.sidebar [class*="logo-sub"]{
+  font-size:7px !important;
+  letter-spacing:.17em !important;
+}
+
+/* 로고 영역 여백도 살짝 줄여 화면이 덜 답답하게 */
+.sidebar .brand,
+.sidebar [class*="sidebar-brand"]{
+  padding-top:14px !important;
+  padding-bottom:14px !important;
+  padding-left:18px !important;
+  padding-right:18px !important;
+}

@@ -1,0 +1,271 @@
+
+/* =========================================================
+   Worker Home - 상태별 명확한 컬러 시스템
+   normal: green / warning: orange / danger: red
+   ========================================================= */
+
+.worker-state-card.urgent-state-card{
+  overflow:hidden;
+  border-width:2px !important;
+  box-shadow:none;
+  transition:.2s ease;
+}
+
+/* 정상 */
+.worker-state-card.urgent-state-card.normal{
+  border-color:#43d987 !important;
+  background:#f1fff7 !important;
+}
+.worker-state-card.urgent-state-card.normal .worker-state-card-head{
+  background:#10b965 !important;
+  color:#fff !important;
+}
+.worker-state-card.urgent-state-card.normal .worker-state-card-head span,
+.worker-state-card.urgent-state-card.normal .worker-state-card-head strong{
+  color:#fff !important;
+}
+
+/* 주의 */
+.worker-state-card.urgent-state-card.warning{
+  border-color:#ffad3f !important;
+  background:#fff9ef !important;
+}
+.worker-state-card.urgent-state-card.warning .worker-state-card-head{
+  background:#ff9800 !important;
+  color:#fff !important;
+}
+.worker-state-card.urgent-state-card.warning .worker-state-card-head span,
+.worker-state-card.urgent-state-card.warning .worker-state-card-head strong{
+  color:#fff !important;
+}
+
+/* 위험 */
+.worker-state-card.urgent-state-card.danger{
+  border-color:#ef233c !important;
+  background:#fff2f3 !important;
+  box-shadow:0 0 0 4px rgba(239,35,60,.07);
+}
+.worker-state-card.urgent-state-card.danger .worker-state-card-head{
+  background:#ef233c !important;
+  color:#fff !important;
+}
+.worker-state-card.urgent-state-card.danger .worker-state-card-head span,
+.worker-state-card.urgent-state-card.danger .worker-state-card-head strong{
+  color:#fff !important;
+}
+.worker-state-card.urgent-state-card.danger{
+  animation:workerDangerPulse 1.8s ease-in-out infinite;
+}
+
+/* 알 수 없음 */
+.worker-state-card.urgent-state-card.unknown{
+  border-color:#cbd5e1 !important;
+  background:#f8fafc !important;
+}
+.worker-state-card.urgent-state-card.unknown .worker-state-card-head{
+  background:#64748b !important;
+  color:#fff !important;
+}
+
+.worker-state-card.urgent-state-card .worker-state-card-head{
+  margin:-1px -1px 0 !important;
+  padding:15px 18px !important;
+}
+
+.worker-state-badge{
+  padding:5px 10px !important;
+  border-radius:999px !important;
+  background:rgba(255,255,255,.18) !important;
+  font-weight:900 !important;
+  letter-spacing:-.01em;
+}
+
+.worker-state-alert-copy{
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+  padding:13px 18px;
+  border-bottom:1px solid rgba(239,35,60,.10);
+}
+.worker-state-alert-copy strong{
+  font-size:13px;
+}
+.worker-state-alert-copy span{
+  font-size:11px;
+  opacity:.78;
+}
+.worker-state-card.danger .worker-state-alert-copy{
+  color:#cf1730;
+  background:#ffe5e8;
+}
+.worker-state-card.warning .worker-state-alert-copy{
+  color:#b76400;
+  background:#fff0d6;
+}
+
+.worker-state-row.danger-highlight{
+  background:#fff0f2;
+}
+.worker-state-row.danger-highlight b{
+  color:#ef233c !important;
+  font-weight:900 !important;
+}
+
+/* =========================================================
+   추락 상태 - 일반 알림 카드가 아니라 긴급 상태 카드처럼 보이게
+   ========================================================= */
+
+.worker-fall-ok-card.urgent-fall-card{
+  display:grid !important;
+  grid-template-columns:1fr auto !important;
+  grid-template-areas:
+    "main detail"
+    "warning detail";
+  gap:10px 12px !important;
+  padding:15px 16px !important;
+  border-width:2px !important;
+  border-radius:18px !important;
+  align-items:center !important;
+}
+
+/* 정상 추락 상태 */
+.worker-fall-ok-card.urgent-fall-card.normal{
+  border-color:#60d394 !important;
+  background:#f2fff8 !important;
+  color:#078a4a !important;
+}
+
+/* 위험 추락 상태 */
+.worker-fall-ok-card.urgent-fall-card.danger{
+  border-color:#ef233c !important;
+  background:linear-gradient(135deg,#ef233c 0%,#d90429 100%) !important;
+  color:#fff !important;
+  box-shadow:0 10px 28px rgba(217,4,41,.20) !important;
+  animation:fallDangerPulse 1.45s ease-in-out infinite;
+}
+
+/* 미확인 */
+.worker-fall-ok-card.urgent-fall-card.unknown{
+  border-color:#cbd5e1 !important;
+  background:#f8fafc !important;
+  color:#64748b !important;
+}
+
+.urgent-fall-main{
+  grid-area:main;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  min-width:0;
+}
+.urgent-fall-main p{
+  margin:0;
+  min-width:0;
+}
+.urgent-fall-main strong{
+  display:block;
+  font-size:14px !important;
+  font-weight:900 !important;
+  line-height:1.35;
+}
+.urgent-fall-main small{
+  display:block;
+  margin-top:3px;
+  font-size:10px !important;
+  line-height:1.35;
+  opacity:.78;
+}
+.urgent-fall-icon{
+  width:40px;
+  height:40px;
+  border-radius:12px;
+  display:grid;
+  place-items:center;
+  flex:0 0 auto;
+}
+.urgent-fall-card.danger .urgent-fall-icon{
+  background:rgba(255,255,255,.16);
+  color:#fff;
+}
+.urgent-fall-card.normal .urgent-fall-icon{
+  background:#dcfce8;
+  color:#079c49;
+}
+
+.urgent-fall-warning{
+  grid-area:warning;
+  display:flex;
+  align-items:center;
+  gap:7px;
+  color:#fff;
+  font-size:10px;
+}
+.urgent-fall-warning b{
+  padding:3px 7px;
+  border-radius:999px;
+  background:#fff;
+  color:#d90429;
+  font-size:9px;
+  font-weight:900;
+}
+
+.urgent-fall-detail-btn{
+  grid-area:detail;
+  min-width:70px;
+  height:38px;
+  padding:0 12px !important;
+  display:inline-flex !important;
+  align-items:center;
+  justify-content:center;
+  gap:5px;
+  border-radius:11px !important;
+  font-weight:800 !important;
+}
+.urgent-fall-card.danger .urgent-fall-detail-btn{
+  background:#fff !important;
+  color:#d90429 !important;
+  border:0 !important;
+}
+.urgent-fall-card.normal .urgent-fall-detail-btn{
+  background:#e8fff1 !important;
+  color:#078a4a !important;
+  border:1px solid #a9e9c4 !important;
+}
+
+/* 위험일 때 하단 SOS 버튼도 더 강하게 */
+.worker-danger-active .worker-home-actions .danger{
+  background:#e60023 !important;
+  border-color:#e60023 !important;
+  box-shadow:0 8px 24px rgba(230,0,35,.24) !important;
+  animation:sosPulse 1.6s ease-in-out infinite;
+}
+
+/* 상태별 health/external 영역은 차분하게 유지해서
+   현재 상태/추락 상태가 가장 먼저 눈에 들어오도록 */
+.worker-danger-active .worker-white-card{
+  box-shadow:0 1px 0 rgba(15,23,42,.03);
+}
+
+@keyframes workerDangerPulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(239,35,60,.08)}
+  50%{box-shadow:0 0 0 5px rgba(239,35,60,.12)}
+}
+
+@keyframes fallDangerPulse{
+  0%,100%{transform:translateY(0);box-shadow:0 10px 28px rgba(217,4,41,.18)}
+  50%{transform:translateY(-1px);box-shadow:0 13px 34px rgba(217,4,41,.27)}
+}
+
+@keyframes sosPulse{
+  0%,100%{transform:scale(1)}
+  50%{transform:scale(1.025)}
+}
+
+/* 너무 과한 모션을 원하지 않는 사용자는 정적 표시 */
+@media (prefers-reduced-motion: reduce){
+  .worker-state-card.urgent-state-card.danger,
+  .worker-fall-ok-card.urgent-fall-card.danger,
+  .worker-danger-active .worker-home-actions .danger{
+    animation:none !important;
+  }
+}

@@ -1,72 +1,359 @@
-import { AlertTriangle, Eye, HeartPulse, ShieldCheck, Users, X } from 'lucide-react';
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import {
+  AlertTriangle,
+  Eye,
+  HeartPulse,
+  ShieldAlert,
+  ShieldCheck,
+  Users,
+  X,
+} from 'lucide-react';
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+import {
+  Link,
+  useNavigate,
+} from 'react-router-dom';
 import TopHeader from '../components/TopHeader';
 import StatusBadge from '../components/StatusBadge';
 import WorkerCard from '../components/WorkerCard';
-import { alerts, zones } from '../data/mockData';
+import { useDetections } from '../context/DetectionContext';
 import { useWorkers } from '../context/WorkerContext';
+import { getSOSList, resolveSOSRequest } from '../api/sos';
 
-const labelMap = { normal: '정상', warning: '주의', danger: '위험' };
+const labelMap = {
+  normal: '정상',
+  warning: '주의',
+  danger: '위험',
+};
+
+function detectionTarget(item) {
+  if (item.category === 'fall') {
+    return `/incident/${item.id}`;
+  }
+
+  if (item.category === 'health') {
+    return `/detections/health/${item.id}`;
+  }
+
+  return `/detections/${item.id}`;
+}
+
+function zoneKey(zone) {
+  const value = String(zone || '').trim();
+
+  if (!value) return '미지정';
+
+  const match = value.match(/^([A-Za-z가-힣]+구역)/);
+
+  return match?.[1] || value;
+}
+
+function zoneState(workers) {
+  const grouped = new Map();
+
+  workers.forEach((worker) => {
+    const key = zoneKey(worker.zone);
+
+    if (!grouped.has(key)) {
+      grouped.set(key, {
+        name: key,
+        normal: 0,
+        warning: 0,
+        danger: 0,
+      });
+    }
+
+    const row = grouped.get(key);
+    const status =
+      worker.status === 'danger'
+        ? 'danger'
+        : worker.status === 'warning'
+          ? 'warning'
+          : 'normal';
+
+    row[status] += 1;
+  });
+
+  return [...grouped.values()]
+    .map((row) => ({
+      ...row,
+      level:
+        row.danger > 0
+          ? 'danger'
+          : row.warning > 0
+            ? 'warning'
+            : 'normal',
+    }))
+    .sort((a, b) =>
+      a.name.localeCompare(b.name, 'ko')
+    );
+}
 
 export default function Dashboard() {
-  const { workers } = useWorkers();
-  const [expandedStatus, setExpandedStatus] = useState('');
+  const {
+    workers,
+    refreshWorkerStatuses,
+    sensorLoading,
+    sensorError,
+  } = useWorkers();
+
+  const {
+    detections,
+    hazardSummary,
+    refreshHazardEvents,
+    hazardLoading,
+    hazardError,
+    hazardStreamConnected,
+  } = useDetections();
+
+  const [expandedStatus, setExpandedStatus] =
+    useState('');
+
+  const [sosList, setSosList] = useState([]);
+
   const navigate = useNavigate();
-  const riskyWorkers = workers.filter((w) => w.status !== 'normal');
-  const counts = workers.reduce((acc, w) => ({ ...acc, [w.status]: (acc[w.status] || 0) + 1 }), {});
+
+  useEffect(() => {
+    const fetchSOS = () => {
+      getSOSList('REQUESTED').then((list) => {
+        if (Array.isArray(list)) setSosList(list);
+      }).catch(() => {});
+    };
+    fetchSOS();
+    const id = setInterval(fetchSOS, 10000);
+    return () => clearInterval(id);
+  }, []);
+
+  const handleResolve = async (sosId) => {
+    if (!window.confirm('정말 SOS 경고를 끄시겠습니까?')) return;
+    try {
+      await resolveSOSRequest(sosId);
+      setSosList((prev) => prev.filter((s) => s.id !== sosId));
+    } catch (e) {
+      alert(e.message || '처리 중 오류가 발생했습니다.');
+    }
+  };
+
+  const riskyWorkers = workers.filter(
+    (worker) => worker.status !== 'normal'
+  );
+
+  const counts = workers.reduce(
+    (acc, worker) => ({
+      ...acc,
+      [worker.status]:
+        (acc[worker.status] || 0) + 1,
+    }),
+    {}
+  );
+
   const summary = [
-    { key: 'all', label: '현재 작업자', value: workers.length, unit: '명', icon: Users },
-    { key: 'normal', label: '정상', value: counts.normal || 0, unit: '명', icon: ShieldCheck },
-    { key: 'warning', label: '주의', value: counts.warning || 0, unit: '명', icon: AlertTriangle },
-    { key: 'danger', label: '위험', value: counts.danger || 0, unit: '명', icon: HeartPulse },
+    {
+      key: 'all',
+      label: '현재 작업자',
+      value: workers.length,
+      unit: '명',
+      icon: Users,
+    },
+    {
+      key: 'normal',
+      label: '정상',
+      value: counts.normal || 0,
+      unit: '명',
+      icon: ShieldCheck,
+    },
+    {
+      key: 'warning',
+      label: '주의',
+      value: counts.warning || 0,
+      unit: '명',
+      icon: AlertTriangle,
+    },
+    {
+      key: 'danger',
+      label: '위험',
+      value: counts.danger || 0,
+      unit: '명',
+      icon: HeartPulse,
+    },
   ];
+
+  const recentHazards = useMemo(
+    () =>
+      [...detections]
+        .sort(
+          (a, b) =>
+            new Date(b.occurredAt || 0).getTime() -
+            new Date(a.occurredAt || 0).getTime()
+        )
+        .slice(0, 5),
+    [detections]
+  );
+
+  const zones = useMemo(
+    () => zoneState(workers),
+    [workers]
+  );
 
   const handleSummaryClick = (key) => {
     if (key === 'warning' || key === 'danger') {
-      setExpandedStatus((current) => current === key ? '' : key);
+      setExpandedStatus((current) =>
+        current === key ? '' : key
+      );
       return;
     }
-    if (key === 'all') navigate('/workers');
-    else navigate(`/workers?status=${key}`);
+
+    if (key === 'all') {
+      navigate('/workers');
+    } else {
+      navigate(`/workers?status=${key}`);
+    }
   };
 
   const expandedWorkers = expandedStatus
-    ? workers.filter((worker) => worker.status === expandedStatus)
+    ? workers.filter(
+        (worker) => worker.status === expandedStatus
+      )
     : [];
+
+  const refreshDashboard = async () => {
+    await Promise.allSettled([
+      refreshWorkerStatuses(),
+      refreshHazardEvents(),
+    ]);
+  };
+
+  const hazardCountLabel = hazardSummary
+    ? `외부요인 ${hazardSummary.external ?? 0} · 건강 ${
+        hazardSummary.health ?? 0
+      } · 추락 ${hazardSummary.fall ?? 0}`
+    : `전체 ${detections.length}건`;
 
   return (
     <>
-      <TopHeader title="통합 모니터링" subtitle="현장 전체 실시간 현황" />
+      <TopHeader
+        title="통합 모니터링"
+        subtitle="현장 전체 실시간 현황"
+        onRefresh={refreshDashboard}
+      />
+
       <div className="page-body dashboard-page">
+        {(sensorError || hazardError) && (
+          <div className="worker-filter-banner danger">
+            <span>
+              {[
+                sensorError
+                  ? `작업자 상태: ${sensorError}`
+                  : '',
+                hazardError
+                  ? `이상 감지: ${hazardError}`
+                  : '',
+              ]
+                .filter(Boolean)
+                .join(' / ')}
+            </span>
+          </div>
+        )}
+
         <section className="summary-grid">
-          {summary.map(({ key, label, value, unit, icon: Icon }) => {
-            const expandable = key === 'warning' || key === 'danger';
-            const isExpanded = expandedStatus === key;
-            return (
-              <button key={key} className={`summary-card ${key} ${isExpanded ? 'selected' : ''}`} onClick={() => handleSummaryClick(key)}>
-                <div>
-                  <span>{label}</span>
-                  <strong>{value}<small>{unit}</small></strong>
-                </div>
-                <div className="summary-icon"><Icon size={19} /></div>
-                {expandable && <em className="summary-list-toggle">{isExpanded ? '목록 닫기 ▼' : '목록 보기 ▲'}</em>}
-              </button>
-            );
-          })}
+          {summary.map(
+            ({
+              key,
+              label,
+              value,
+              unit,
+              icon: Icon,
+            }) => {
+              const expandable =
+                key === 'warning' || key === 'danger';
+
+              const isExpanded =
+                expandedStatus === key;
+
+              return (
+                <button
+                  key={key}
+                  className={`summary-card ${key} ${
+                    isExpanded ? 'selected' : ''
+                  }`}
+                  onClick={() =>
+                    handleSummaryClick(key)
+                  }
+                >
+                  <div>
+                    <span>{label}</span>
+                    <strong>
+                      {value}
+                      <small>{unit}</small>
+                    </strong>
+                  </div>
+
+                  <div className="summary-icon">
+                    <Icon size={19} />
+                  </div>
+
+                  {expandable && (
+                    <em className="summary-list-toggle">
+                      {isExpanded
+                        ? '목록 닫기 ▼'
+                        : '목록 보기 ▲'}
+                    </em>
+                  )}
+                </button>
+              );
+            }
+          )}
         </section>
 
         {expandedStatus && (
-          <section className={`expanded-workers panel ${expandedStatus}`}>
+          <section
+            className={`expanded-workers panel ${expandedStatus}`}
+          >
             <div className="panel-title-row">
-              <div><strong>{labelMap[expandedStatus]} 작업자</strong><span>{expandedWorkers.length}명</span></div>
-              <button className="icon-btn expanded-close" onClick={() => setExpandedStatus('')} aria-label="목록 닫기"><X size={16}/></button>
+              <div>
+                <strong>
+                  {labelMap[expandedStatus]} 작업자
+                </strong>
+                <span>
+                  {expandedWorkers.length}명
+                </span>
+              </div>
+
+              <button
+                className="icon-btn expanded-close"
+                onClick={() =>
+                  setExpandedStatus('')
+                }
+                aria-label="목록 닫기"
+              >
+                <X size={16} />
+              </button>
             </div>
+
             <div className="expanded-worker-grid">
-              {expandedWorkers.map((worker) => <WorkerCard key={worker.id} worker={worker} compact />)}
+              {expandedWorkers.map((worker) => (
+                <WorkerCard
+                  key={worker.id}
+                  worker={worker}
+                  compact
+                />
+              ))}
             </div>
+
             <div className="expanded-workers-footer">
-              <button onClick={() => navigate(`/workers?status=${expandedStatus}`)}>{labelMap[expandedStatus]} 작업자 전체보기</button>
+              <button
+                onClick={() =>
+                  navigate(
+                    `/workers?status=${expandedStatus}`
+                  )
+                }
+              >
+                {labelMap[expandedStatus]} 작업자
+                전체보기
+              </button>
             </div>
           </section>
         )}
@@ -74,32 +361,220 @@ export default function Dashboard() {
         <div className="dashboard-grid">
           <section className="panel alert-panel">
             <div className="panel-title-row border-bottom">
-              <div className="title-with-dot"><i className="red-dot"/><strong>실시간 이상 감지</strong><span>최신순</span></div>
-              <Link to="/detections">전체 보기 ›</Link>
+              <div className="title-with-dot">
+                <i className="red-dot" />
+                <strong>실시간 이상 감지</strong>
+                <span>
+                  {hazardStreamConnected
+                    ? `● 실시간 연결 · ${hazardCountLabel}`
+                    : `재연결 중 · ${hazardCountLabel}`}
+                </span>
+              </div>
+
+              <Link to="/detections">
+                전체 보기 ›
+              </Link>
             </div>
+
             <div className="alert-list">
-              {alerts.map((a) => (
-                <div className={`alert-row ${a.level}`} key={a.id}>
-                  <div className={`alert-symbol ${a.level}`}><AlertTriangle size={18}/></div>
-                  <div className="alert-content">
-                    <div className="alert-heading"><StatusBadge level={a.level}>{labelMap[a.level]}</StatusBadge><b>{a.type}</b><span>·</span><strong>{a.name}</strong><span className="zone-text">⌖ {a.zone}</span></div>
-                    <p>{a.description}</p>
+              {recentHazards.length > 0 ? (
+                recentHazards.map((item) => (
+                  <div
+                    className={`alert-row ${item.level}`}
+                    key={item.id}
+                  >
+                    <div
+                      className={`alert-symbol ${item.level}`}
+                    >
+                      <AlertTriangle size={18} />
+                    </div>
+
+                    <div className="alert-content">
+                      <div className="alert-heading">
+                        <StatusBadge
+                          level={item.level}
+                        >
+                          {labelMap[item.level] ||
+                            '주의'}
+                        </StatusBadge>
+
+                        <b>
+                          {item.type ||
+                            '이상 감지'}
+                        </b>
+
+                        <span>·</span>
+
+                        <strong>
+                          {item.name ||
+                            '미확인 작업자'}
+                        </strong>
+
+                        <span className="zone-text">
+                          ⌖ {item.zone || '-'}
+                        </span>
+                      </div>
+
+                      <p>
+                        {item.detailDescription ||
+                          item.rawEvent?.description ||
+                          item.statusLabel ||
+                          '실제 서버에서 수신된 위험 이벤트입니다.'}
+                      </p>
+                    </div>
+
+                    <time>
+                      {item.time || '--:--'}
+                    </time>
+
+                    <Link
+                      className="detail-btn"
+                      to={detectionTarget(item)}
+                    >
+                      <Eye size={14} />
+                      상세보기
+                    </Link>
                   </div>
-                  <time>{a.time}</time>
-                  <Link className="detail-btn" to={a.id === 1 ? '/incident' : a.id === 3 || a.id === 6 ? `/detections/health/${a.id}` : `/detections/${a.id}`}><Eye size={14}/> 상세보기</Link>
+                ))
+              ) : (
+                <div
+                  className="records-empty"
+                  style={{ padding: 34 }}
+                >
+                  {hazardLoading
+                    ? '실제 이상 감지 이벤트를 불러오는 중입니다.'
+                    : '현재 서버에 저장된 이상 감지 이벤트가 없습니다.'}
                 </div>
-              ))}
+              )}
             </div>
           </section>
 
           <aside className="right-stack">
+            {sosList.length > 0 && (
+              <section className="panel sos-panel">
+                <div className="panel-title-row border-bottom">
+                  <div className="title-with-dot"><i className="red-dot"/><strong><ShieldAlert size={15}/> SOS 미처리</strong><span>{sosList.length}건</span></div>
+                </div>
+                {sosList.map((s) => (
+                  <div key={s.id} className="sos-row">
+                    <div className="sos-row-info">
+                      <strong>{s.requesterName || s.loginId || '작업자'}</strong>
+                      <span>{s.zoneName || '위치 확인 중'}</span>
+                      <small>{s.createdAt ? new Date(s.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }) : ''}</small>
+                    </div>
+                    <button className="sos-resolve-btn" onClick={() => handleResolve(s.id)}>처리완료</button>
+                  </div>
+                ))}
+              </section>
+            )}
             <section className="panel zone-panel">
-              <h3>현장 상태</h3>
-              {zones.map((z) => <div key={z.name} className={`zone-card ${z.level}`}><b><i/> {z.name}</b><span><em>정상 {z.normal}</em>{z.warning > 0 && <em>주의 {z.warning}</em>}{z.danger > 0 && <em>위험 {z.danger}</em>}</span></div>)}
+              <h3>
+                현장 상태
+                {(sensorLoading ||
+                  hazardLoading) && (
+                  <small
+                    style={{
+                      marginLeft: 8,
+                      color: '#94a3b8',
+                    }}
+                  >
+                    갱신 중
+                  </small>
+                )}
+              </h3>
+
+              {zones.length > 0 ? (
+                zones.map((zone) => (
+                  <div
+                    key={zone.name}
+                    className={`zone-card ${zone.level}`}
+                  >
+                    <b>
+                      <i /> {zone.name}
+                    </b>
+
+                    <span>
+                      <em>
+                        정상 {zone.normal}
+                      </em>
+
+                      {zone.warning > 0 && (
+                        <em>
+                          주의 {zone.warning}
+                        </em>
+                      )}
+
+                      {zone.danger > 0 && (
+                        <em>
+                          위험 {zone.danger}
+                        </em>
+                      )}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="records-empty">
+                  작업자 구역 정보가 없습니다.
+                </div>
+              )}
             </section>
+
             <section className="panel risk-list-panel">
-              <div className="panel-title-row border-bottom"><strong>주의·위험 작업자</strong><Link to="/workers">전체</Link></div>
-              {riskyWorkers.map((w) => <Link to={`/workers/${encodeURIComponent(w.id)}`} key={w.id} className="risk-list-row"><div className="mini-avatar">{w.profileImage ? <img src={w.profileImage} alt=""/> : w.name.slice(0,1)}</div><div><div><strong>{w.name}</strong> <StatusBadge level={w.status}>{labelMap[w.status]}</StatusBadge></div><p><HeartPulse size={12}/> {w.heartRate} <small>bpm</small> <span>{w.zone}</span></p></div></Link>)}
+              <div className="panel-title-row border-bottom">
+                <strong>주의·위험 작업자</strong>
+                <Link to="/workers">전체</Link>
+              </div>
+
+              {riskyWorkers.length > 0 ? (
+                riskyWorkers.map((worker) => (
+                  <Link
+                    to={`/workers/${encodeURIComponent(
+                      worker.id
+                    )}`}
+                    key={worker.id}
+                    className="risk-list-row"
+                  >
+                    <div className="mini-avatar">
+                      {worker.profileImage ? (
+                        <img
+                          src={worker.profileImage}
+                          alt=""
+                        />
+                      ) : (
+                        worker.name.slice(0, 1)
+                      )}
+                    </div>
+
+                    <div>
+                      <div>
+                        <strong>
+                          {worker.name}
+                        </strong>{' '}
+                        <StatusBadge
+                          level={worker.status}
+                        >
+                          {labelMap[
+                            worker.status
+                          ]}
+                        </StatusBadge>
+                      </div>
+
+                      <p>
+                        <HeartPulse size={12} />{' '}
+                        {worker.heartRate || '-'}{' '}
+                        <small>bpm</small>{' '}
+                        <span>
+                          {worker.zone}
+                        </span>
+                      </p>
+                    </div>
+                  </Link>
+                ))
+              ) : (
+                <div className="records-empty">
+                  현재 주의·위험 작업자가 없습니다.
+                </div>
+              )}
             </section>
           </aside>
         </div>

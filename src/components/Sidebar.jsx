@@ -2,7 +2,7 @@ import { AlertTriangle, FileText, Grid2X2, HardHat, LogOut, UserRound, Users } f
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useDetections } from '../context/DetectionContext';
-import { logoutApi } from '../api/auth';
+import SafeHelmetBrand from './SafeHelmetBrand';
 
 const items = [
   { to: '/', label: '통합 모니터링', icon: Grid2X2 },
@@ -42,21 +42,14 @@ export default function Sidebar() {
     };
   }, []);
 
-  const logout = async () => {
+  const logout = () => {
     localStorage.removeItem('safehelmet_current_admin');
-    try { await logoutApi(); } catch { /* 토큰 만료 등 무시 */ }
     navigate('/login', { replace: true });
   };
 
   return (
     <aside className="sidebar">
-      <div className="brand">
-        <div className="brand-mark">⌄</div>
-        <div>
-          <div className="brand-title">SAFE HELMET</div>
-          <div className="brand-sub">SAFETY SYSTEM</div>
-        </div>
-      </div>
+      <SafeHelmetBrand variant="sidebar" />
       <nav className="side-nav">
         {items.map(({ to, label, icon: Icon, detectionBadge }) => (
           <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => `side-item ${isActive ? 'active' : ''}`}>
