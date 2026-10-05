@@ -25,6 +25,7 @@ import { useDetections } from '../context/DetectionContext';
 import { useNotifications } from '../context/NotificationContext';
 import { useWorkers } from '../context/WorkerContext';
 import {
+  getAllWorkerHeatRisk,
   getWorkerAlerts,
   getWorkerStatus,
 } from '../api/workerStatus';
@@ -79,6 +80,47 @@ function confidence(value) {
   return `${Math.round(
     number <= 1 ? number * 100 : number
   )}%`;
+}
+
+function personalHeatRiskLabel(detail) {
+  const level = String(
+    detail?.heatRiskLevel || ''
+  ).toUpperCase();
+
+  if (level === 'DANGER') return '위험';
+  if (level === 'CAUTION') return '주의';
+  if (level === 'NORMAL') return '정상';
+
+  if (
+    detail?.heatRiskAbnormal === true ||
+    detail?.externalHeatWarning === true
+  ) {
+    return '주의';
+  }
+
+  return '데이터 없음';
+}
+
+function personalHeatRiskClass(detail) {
+  const level = String(
+    detail?.heatRiskLevel || ''
+  ).toUpperCase();
+
+  if (
+    level === 'DANGER' ||
+    detail?.heatRiskAbnormal === true
+  ) {
+    return 'red';
+  }
+
+  if (
+    level === 'CAUTION' ||
+    detail?.externalHeatWarning === true
+  ) {
+    return 'orange';
+  }
+
+  return 'blue';
 }
 
 function sameWorker(item, worker, deviceId) {
@@ -164,11 +206,24 @@ export default function SensorFallDetail() {
     setError('');
 
     try {
-      const [latest, alerts] =
-        await Promise.all([
-          getWorkerStatus(deviceId),
-          getWorkerAlerts(),
-        ]);
+      const [
+        latest,
+        alerts,
+        heatRiskList,
+      ] = await Promise.all([
+        getWorkerStatus(deviceId),
+        getWorkerAlerts(),
+        getAllWorkerHeatRisk(),
+      ]);
+
+      const personalHeatRisk =
+        Array.isArray(heatRiskList)
+          ? heatRiskList.find(
+              (item) =>
+                String(item?.deviceId) ===
+                String(deviceId)
+            )
+          : null;
 
       const candidates = alerts.filter(
         (item) =>
@@ -202,6 +257,7 @@ export default function SensorFallDetail() {
       setDetail({
         ...latest,
         ...selected,
+        ...(personalHeatRisk || {}),
       });
     } catch (err) {
       setError(
@@ -245,7 +301,6 @@ export default function SensorFallDetail() {
           return false;
         }
 
-        // 추락 시점 기준 직전 10분 내 외부요인만 연관 요인으로 표시
         const diff = fallTime - eventTime;
 
         return (
@@ -289,7 +344,6 @@ export default function SensorFallDetail() {
 
     setRescueSent(true);
 
-    // TODO: SOS 전용 백엔드 API가 추가되면 이 부분을 실제 서버 호출로 교체
     addNotification({
       level: 'danger',
       title: '긴급 구조 요청',
@@ -542,6 +596,22 @@ export default function SensorFallDetail() {
                     {detail?.spo2 ?? '-'}%
                   </dd>
                 </div>
+
+                <div>
+                  <dt>HRV</dt>
+                  <dd>
+                    {detail?.hrv ?? '-'}
+                  </dd>
+                </div>
+
+                <div>
+                  <dt>개인 온열위험</dt>
+                  <dd>
+                    {personalHeatRiskLabel(
+                      detail
+                    )}
+                  </dd>
+                </div>
               </dl>
             </section>
 
@@ -648,6 +718,52 @@ export default function SensorFallDetail() {
                   {detail?.spo2 ?? '-'}%
                 </b>
               </div>
+
+              <div
+                className={
+                  personalHeatRiskClass(
+                    detail
+                  )
+                }
+              >
+                <TriangleAlert size={15} />
+                개인 온열질환 위험도
+                <b>
+                  {personalHeatRiskLabel(
+                    detail
+                  )}
+                </b>
+              </div>
+
+              <div
+                className={
+                  detail?.fatigueAbnormal === true
+                    ? 'orange'
+                    : 'blue'
+                }
+              >
+                <HeartPulse size={15} />
+                피로도
+                <b>
+                  {detail?.fatigueAbnormal === true
+                    ? '이상 감지'
+                    : detail?.fatigueAbnormal === false
+                      ? '정상'
+                      : '데이터 없음'}
+                </b>
+              </div>
+
+              {detail?.hrv != null && (
+                <div className="blue">
+                  <HeartPulse size={15} />
+                  HRV
+                  <b>
+                    {Number(
+                      detail.hrv
+                    ).toFixed(1)}
+                  </b>
+                </div>
+              )}
 
               <div
                 className={

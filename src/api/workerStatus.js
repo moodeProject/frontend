@@ -14,16 +14,28 @@ function unwrapList(response) {
  * GET /api/workers/status
  */
 export async function getAllWorkerStatuses() {
-  return unwrapList(await api.get('/api/workers/status'))
+  return unwrapList(
+    await api.get(
+      '/api/workers/status'
+    )
+  )
 }
 
 /**
  * 특정 헬멧/디바이스 최신 상태 조회
- * GET /api/workers/{deviceId}
+ *
+ * 변경된 경로:
+ * GET /api/workers/status/{deviceId}
  */
-export async function getWorkerStatus(deviceId) {
+export async function getWorkerStatus(
+  deviceId
+) {
   return unwrapData(
-    await api.get(`/api/workers/${encodeURIComponent(deviceId)}`)
+    await api.get(
+      `/api/workers/status/${encodeURIComponent(
+        deviceId
+      )}`
+    )
   )
 }
 
@@ -32,17 +44,25 @@ export async function getWorkerStatus(deviceId) {
  * GET /api/workers/heat-risk
  */
 export async function getAllWorkerHeatRisk() {
-  return unwrapList(await api.get('/api/workers/heat-risk'))
+  return unwrapList(
+    await api.get(
+      '/api/workers/heat-risk'
+    )
+  )
 }
 
 /**
  * 특정 작업자 온열질환/피로도 상세 조회
- * GET /api/workers/{deviceId}/heat-risk
+ * 기존 경로 유지
  */
-export async function getWorkerHeatRisk(deviceId) {
+export async function getWorkerHeatRisk(
+  deviceId
+) {
   return unwrapData(
     await api.get(
-      `/api/workers/${encodeURIComponent(deviceId)}/heat-risk`
+      `/api/workers/${encodeURIComponent(
+        deviceId
+      )}/heat-risk`
     )
   )
 }
@@ -52,5 +72,9 @@ export async function getWorkerHeatRisk(deviceId) {
  * GET /api/workers/alerts
  */
 export async function getWorkerAlerts() {
-  return unwrapList(await api.get('/api/workers/alerts'))
+  return unwrapList(
+    await api.get(
+      '/api/workers/alerts'
+    )
+  )
 }

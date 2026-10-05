@@ -20,17 +20,99 @@ const labels = {
 };
 
 function heatRiskLabel(worker) {
-  const level = String(worker.heatRiskLevel || '').toUpperCase();
+  const level = String(
+    worker.heatRiskLevel || ''
+  ).toUpperCase();
+
+  if (level === 'DANGER') return '위험';
+  if (level === 'CAUTION') return '주의';
+  if (level === 'NORMAL') return '정상';
 
   if (
     worker.heatRiskAbnormal ||
-    worker.externalHeatWarning ||
-    (level && level !== 'NORMAL')
+    worker.externalHeatWarning
   ) {
-    return worker.heatRiskLevel || '주의';
+    return '주의';
   }
 
-  return '정상';
+  return '데이터 대기';
+}
+
+function heatRiskTone(worker) {
+  const level = String(
+    worker.heatRiskLevel || ''
+  ).toUpperCase();
+
+  if (
+    level === 'DANGER' ||
+    worker.heatRiskAbnormal
+  ) {
+    return 'danger';
+  }
+
+  if (
+    level === 'CAUTION' ||
+    worker.externalHeatWarning
+  ) {
+    return 'warning';
+  }
+
+  return 'normal';
+}
+
+function workerIssueLabel(worker) {
+  const issue = String(
+    worker?.issue || ''
+  ).trim();
+
+  if (issue) return issue;
+
+  const fallState = String(
+    worker?.fallState || ''
+  ).toUpperCase();
+
+  if (
+    fallState &&
+    fallState !== 'NORMAL'
+  ) {
+    return '추락 상태 확인 필요';
+  }
+
+  const posture = String(
+    worker?.posture || ''
+  ).toUpperCase();
+
+  if (worker?.postureAbnormal === true) {
+    if (posture === 'COLLAPSE') {
+      return '쓰러짐 감지';
+    }
+
+    if (posture === 'STUMBLE') {
+      return '휘청거림 감지';
+    }
+
+    return '자세 이상 감지';
+  }
+
+  if (
+    worker?.heatRiskAbnormal === true ||
+    worker?.externalHeatWarning === true ||
+    ['CAUTION', 'DANGER'].includes(
+      String(
+        worker?.heatRiskLevel || ''
+      ).toUpperCase()
+    )
+  ) {
+    return `개인 온열위험 ${heatRiskLabel(
+      worker
+    )}`;
+  }
+
+  if (worker?.fatigueAbnormal === true) {
+    return '피로도 이상 감지';
+  }
+
+  return '';
 }
 
 export default function WorkerCard({
@@ -48,12 +130,14 @@ export default function WorkerCard({
     typeof worker.fatigueAbnormal === 'boolean';
   const heatKnown =
     worker.heatRiskDataConnected === true ||
+    Boolean(worker.heatRiskLevel) ||
     typeof worker.heatRiskAbnormal === 'boolean';
-  const heatAbnormal =
-    worker.heatRiskAbnormal ||
-    worker.externalHeatWarning ||
-    (worker.heatRiskLevel &&
-      String(worker.heatRiskLevel).toUpperCase() !== 'NORMAL');
+
+  const personalHeatTone =
+    heatRiskTone(worker);
+
+  const issueText =
+    workerIssueLabel(worker);
 
   return (
     <Link
@@ -150,8 +234,10 @@ export default function WorkerCard({
         </div>
 
         {heatKnown && (
-          <div className={`metric-row ${heatAbnormal ? 'warning' : 'normal'}`}>
-            <span>온열위험</span>
+          <div
+            className={`metric-row personal-heat-risk-row ${personalHeatTone}`}
+          >
+            <span>개인 온열위험</span>
             <b>
               <ThermometerSun size={14} />
               {heatRiskLabel(worker)}
@@ -159,9 +245,13 @@ export default function WorkerCard({
           </div>
         )}
 
-        <div className={`issue-row ${worker.status}`}>
-          {worker.issue}
-        </div>
+        {issueText && (
+          <div
+            className={`issue-row ${worker.status}`}
+          >
+            {issueText}
+          </div>
+        )}
       </article>
     </Link>
   );

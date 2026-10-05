@@ -1,54 +1,115 @@
-import { createContext, useContext, useState } from 'react'
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+} from 'react'
+import {
+  getMe,
+  loginApi,
+  logoutApi,
+  saveAdminSession,
+} from '../api/auth'
 
-// TODO: 실제 API 인증으로 교체 → POST /auth/login
-const MOCK_USERS = [
-  { id: 'admin01',    password: '1234', name: '김관리자', role: '슈퍼관리자' },
-  { id: 'manager01',  password: '1234', name: '이현장',   role: '현장관리자' },
-]
+const AuthContext =
+  createContext(null)
 
-const AuthContext = createContext(null)
+export function AuthProvider({
+  children,
+}) {
+  const [user, setUser] =
+    useState(() => {
+      try {
+        const saved =
+          localStorage.getItem(
+            'safehelmet_current_admin'
+          )
 
-export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
+        return saved
+          ? JSON.parse(saved)
+          : null
+      } catch {
+        return null
+      }
+    })
+
+  const [loading, setLoading] =
+    useState(false)
+
+  useEffect(() => {
+    const token =
+      localStorage.getItem(
+        'auth_token'
+      )
+
+    if (!token || !user) return
+
+    getMe()
+      .then((me) => {
+        const next =
+          saveAdminSession({
+            ...user,
+            ...me,
+          })
+
+        setUser(next)
+      })
+      .catch(() => {
+        // 토큰 만료는 실제 API 호출 시
+        // 401 에러로 다시 로그인하도록 처리합니다.
+      })
+  }, [])
+
+  async function login(
+    id,
+    password
+  ) {
+    setLoading(true)
+
     try {
-      const saved = localStorage.getItem('auth_user')
-      return saved ? JSON.parse(saved) : null
-    } catch {
-      return null
-    }
-  })
+      const { user: loginUser } =
+        await loginApi(
+          id,
+          password
+        )
 
-  /**
-   * 로그인
-   * TODO: 실제 API → POST /auth/login  { id, password }
-   * 성공 시 서버에서 JWT 토큰 받아 localStorage에 저장
-   */
-  function login(id, password) {
-    const found = MOCK_USERS.find((u) => u.id === id && u.password === password)
-    if (!found) return false
-    const userInfo = { id: found.id, name: found.name, role: found.role }
-    setUser(userInfo)
-    localStorage.setItem('auth_user', JSON.stringify(userInfo))
-    return true
+      const next =
+        saveAdminSession(
+          loginUser
+        )
+
+      setUser(next)
+
+      return next
+    } finally {
+      setLoading(false)
+    }
   }
 
-  /**
-   * 로그아웃
-   * TODO: 실제 API → POST /auth/logout
-   */
-  function logout() {
-    setUser(null)
-    localStorage.removeItem('auth_user')
-    localStorage.removeItem('auth_token')
+  async function logout() {
+    try {
+      await logoutApi()
+    } finally {
+      setUser(null)
+    }
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        login,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )
 }
 
 export function useAuth() {
-  return useContext(AuthContext)
+  return useContext(
+    AuthContext
+  )
 }

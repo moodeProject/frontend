@@ -1,17 +1,26 @@
-/* 추락 상태 카드의 상세 버튼 가독성 보정 */
-.urgent-fall-detail-btn {
-  min-width: 108px !important;
-  height: 46px !important;
-  padding: 0 18px !important;
-  gap: 7px !important;
-  font-size: 15px !important;
-  font-weight: 800 !important;
-  line-height: 1 !important;
-  white-space: nowrap !important;
+/* 추락 상태 상세보기 버튼 아이콘 표시 수정 */
+
+/*
+ * workerDangerTextWhiteFix.css에서 위험 카드 내부의 모든 svg를
+ * 흰색으로 강제하고 있어, 흰색 상세보기 버튼 위의 Siren 아이콘이
+ * 보이지 않던 문제를 버튼 전용 선택자로 다시 덮어씁니다.
+ */
+.worker-fall-ok-card.urgent-fall-card.danger
+.urgent-fall-detail-btn svg {
+  color: #d90429 !important;
+  stroke: #d90429 !important;
+  width: 18px !important;
+  height: 18px !important;
+  flex-shrink: 0 !important;
+  opacity: 1 !important;
 }
 
+.worker-fall-ok-card.urgent-fall-card.normal
 .urgent-fall-detail-btn svg {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
+  color: #078a4a !important;
+  stroke: #078a4a !important;
+  width: 18px !important;
+  height: 18px !important;
+  flex-shrink: 0 !important;
+  opacity: 1 !important;
 }

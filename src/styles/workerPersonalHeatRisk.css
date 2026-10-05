@@ -1,0 +1,42 @@
+/* 작업자별 온열질환 위험도 표시 */
+
+.personal-heat-risk-row.normal b {
+  color: #0cad55;
+}
+
+.personal-heat-risk-row.warning b {
+  color: #f59e0b;
+}
+
+.personal-heat-risk-row.danger b {
+  color: #ff334e;
+}
+
+.detail-personal-heat-risk {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  margin-top: 10px;
+  padding-top: 10px;
+
+  border-top: 1px solid #edf1f6;
+
+  font-size: 13px;
+}
+
+.detail-personal-heat-risk span {
+  color: #8a98ad;
+}
+
+.detail-personal-heat-risk b {
+  color: #0cad55;
+  font-weight: 800;
+}
+
+
+/* 빈 상태 요약 박스 제거 */
+.worker-card .issue-row:empty {
+  display: none !important;
+}
