@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Eye, HardHat, HeartPulse, Shield, ShieldAlert } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { loginApi } from '../../api/auth';
+import { saveWorkerProfile, getWorkerProfile } from '../../utils/workerProfile';
 
 export default function WorkerLogin() {
   const navigate = useNavigate();
@@ -22,7 +23,8 @@ export default function WorkerLogin() {
     setLoading(true);
     try {
       const user = await loginApi(employeeNo.trim(), password);
-      localStorage.setItem('safehelmet_worker_session', JSON.stringify(user));
+      const profile = { ...getWorkerProfile(), employeeNo: employeeNo.trim(), name: user.name || employeeNo.trim(), userId: user.userId };
+      saveWorkerProfile(profile);
       navigate(location.state?.from || '/worker/home', { replace: true });
     } catch (err) {
       setError(err.message || '사번 또는 비밀번호를 확인해주세요.');

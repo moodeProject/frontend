@@ -5,6 +5,7 @@ import ConnectHelmetModal from '../components/ConnectHelmetModal';
 import ActionToast from '../components/ActionToast';
 import TopHeader from '../components/TopHeader';
 import { useWorkers } from '../context/WorkerContext';
+import { getHelmetsStatus } from '../api/helmets';
 
 const STORAGE_KEY = 'safehelmet-helmets-v1';
 const initialHelmets = [
@@ -39,6 +40,29 @@ export default function HelmetManagement() {
   const menuRef = useRef(null);
 
   useEffect(() => localStorage.setItem(STORAGE_KEY, JSON.stringify(helmets)), [helmets]);
+
+  // 서버에서 헬멧 상태 불러오기
+  useEffect(() => {
+    getHelmetsStatus()
+      .then((list) => {
+        if (!Array.isArray(list) || list.length === 0) return;
+        const riskMap = { NORMAL: 'inUse', RECOMMEND: 'inUse', ACTION_REQUIRED: 'warning', FALLING: 'danger', FALLEN: 'danger' };
+        setHelmets(list.map((h) => ({
+          helmetNumber: h.helmetNo || String(h.helmetId),
+          workerId: h.workerId ? String(h.workerId) : '',
+          workerName: h.workerName || '미연결',
+          deviceId: h.deviceId || '',
+          sensorConnected: h.recordedAt != null,
+          lastCommunication: h.recordedAt ? `${Math.floor((Date.now() - new Date(h.recordedAt)) / 1000)}초 전` : '-',
+          status: riskMap[h.overallRiskState] || 'standby',
+          heartRate: h.heartRate > 0 ? h.heartRate : null,
+          spo2: h.spo2 > 0 ? h.spo2 : null,
+          overallRiskState: h.overallRiskState,
+        })));
+      })
+      .catch(() => { /* 실패 시 목업 유지 */ });
+  }, []);
+
   useEffect(() => {
     const close = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) setMenuFor('');

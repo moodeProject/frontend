@@ -1,6 +1,5 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-
-const STORAGE_KEY = 'safehelmet_notifications';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { getNotifications, markNotificationRead, markAllNotificationsRead } from '../api/notifications';
 
 const initialNotifications = [
   { id: 'n1', level: 'danger', title: '추락 사고가 감지되었습니다.', message: '박민수 · A구역 3층', time: '10:28', date: '08.09', target: '/incident', read: false },
@@ -11,24 +10,51 @@ const initialNotifications = [
   { id: 'n6', level: 'warning', title: '열사병 위험 감지', message: '정유진 · B구역 1층', time: '09:55', date: '08.09', target: '/workers/H-005', read: true },
 ];
 
+function mapApiNotification(n) {
+  const levelMap = { DANGER: 'danger', WARNING: 'warning', NORMAL: 'normal' }
+  return {
+    id: n.id,
+    level: levelMap[n.level] || 'warning',
+    title: n.title || n.message || '알림',
+    message: n.message || '',
+    time: n.createdAt ? new Date(n.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }) : '',
+    date: n.createdAt ? new Date(n.createdAt).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }).replace('. ', '.').replace('.', '') : '',
+    target: n.hazardEventId ? `/detections/${n.hazardEventId}` : '/notifications',
+    read: n.isRead ?? false,
+  }
+}
+
 const NotificationContext = createContext(null);
 
 export function NotificationProvider({ children }) {
-  const [notifications, setNotifications] = useState(() => {
+  const [notifications, setNotifications] = useState(initialNotifications);
+
+  const fetchNotifications = useCallback(async () => {
     try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-      return Array.isArray(saved) && saved.length ? saved : initialNotifications;
+      const list = await getNotifications({ recipientType: 'MANAGER' })
+      const arr = Array.isArray(list) ? list : (list?.content ?? [])
+      if (arr.length > 0) setNotifications(arr.map(mapApiNotification))
     } catch {
-      return initialNotifications;
+      // API 실패 시 목업 유지
     }
-  });
+  }, []);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(notifications));
-  }, [notifications]);
+    fetchNotifications();
+    const id = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(id);
+  }, [fetchNotifications]);
 
-  const markRead = (id) => setNotifications((items) => items.map((item) => item.id === id ? { ...item, read: true } : item));
-  const markAllRead = () => setNotifications((items) => items.map((item) => ({ ...item, read: true })));
+  const markRead = async (id) => {
+    setNotifications((items) => items.map((item) => item.id === id ? { ...item, read: true } : item));
+    try { await markNotificationRead(id) } catch { /* 무시 */ }
+  };
+
+  const markAllRead = async () => {
+    setNotifications((items) => items.map((item) => ({ ...item, read: true })));
+    try { await markAllNotificationsRead('MANAGER') } catch { /* 무시 */ }
+  };
+
   const addNotification = (notification) => {
     const now = new Date();
     const item = {
@@ -44,9 +70,9 @@ export function NotificationProvider({ children }) {
     setNotifications((items) => [item, ...items]);
     return item;
   };
-  const unreadCount = notifications.filter((item) => !item.read).length;
 
-  const value = useMemo(() => ({ notifications, unreadCount, markRead, markAllRead, addNotification }), [notifications, unreadCount]);
+  const unreadCount = notifications.filter((item) => !item.read).length;
+  const value = useMemo(() => ({ notifications, unreadCount, markRead, markAllRead, addNotification, fetchNotifications }), [notifications, unreadCount, fetchNotifications]);
   return <NotificationContext.Provider value={value}>{children}</NotificationContext.Provider>;
 }
 

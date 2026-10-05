@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   CalendarDays,
   ChevronLeft,
@@ -12,8 +12,9 @@ import {
   X,
 } from 'lucide-react';
 import { WorkerScaffold } from '../../components/WorkerMobileUI';
+import { getAttendanceHistory, getAttendanceRequests, createAttendanceRequest } from '../../api/attendance';
+import { getWorkerProfile } from '../../utils/workerProfile';
 
-const HISTORY_KEY = 'safehelmet_worker_attendance_history_v2';
 const REQUEST_KEY = 'safehelmet_worker_attendance_requests_v2';
 
 const defaultHistory = [
@@ -52,11 +53,53 @@ export default function WorkerAttendance() {
   const [tab, setTab] = useState('history');
   const [historyFilter, setHistoryFilter] = useState('전체');
   const [month, setMonth] = useState({ year: 2026, month: 8 });
-  const [history] = useState(loadHistory);
+  const [history, setHistory] = useState(loadHistory);
   const [requests, setRequests] = useState(loadRequests);
   const [modalType, setModalType] = useState('');
   const [form, setForm] = useState({ date: '2026-08-31', start: '18:00', end: '21:00', reason: '' });
   const [message, setMessage] = useState('');
+
+  const profile = getWorkerProfile();
+  const workerId = profile.userId;
+
+  // 월 변경 시 서버에서 근태 이력 조회
+  useEffect(() => {
+    if (!workerId) return;
+    const monthStr = `${month.year}-${String(month.month).padStart(2, '0')}`;
+    getAttendanceHistory(workerId, monthStr)
+      .then((list) => {
+        if (Array.isArray(list) && list.length > 0) {
+          setHistory(list.map((item) => ({
+            id: item.id,
+            date: item.workDate ? item.workDate.slice(5).replace('-', '.') : '',
+            day: item.workDate ? ['일','월','화','수','목','금','토'][new Date(item.workDate).getDay()] : '',
+            type: item.type === 'WORK' ? '근무' : item.type === 'OVERTIME' ? '야근' : '연차',
+            start: item.checkInAt ? item.checkInAt.slice(11, 16) : '-',
+            end: item.checkOutAt ? item.checkOutAt.slice(11, 16) : '-',
+            total: item.totalWorkMinutes ? `${Math.floor(item.totalWorkMinutes / 60)}시간 ${item.totalWorkMinutes % 60}분` : '-',
+            status: '정상',
+          })));
+        }
+      })
+      .catch(() => { /* 실패 시 목업 유지 */ });
+
+    // 근태 신청 이력도 갱신
+    getAttendanceRequests(workerId)
+      .then((list) => {
+        if (Array.isArray(list) && list.length > 0) {
+          setRequests(list.map((item) => ({
+            id: item.id,
+            type: item.type === 'LEAVE' ? '연차' : item.type === 'OVERTIME' ? '야근' : '근무수정',
+            date: item.startDate || '',
+            start: item.startTime || '-',
+            end: item.endTime || '-',
+            reason: item.reason || '',
+            status: item.status === 'PENDING' ? '승인 대기' : item.status === 'APPROVED' ? '승인' : '반려',
+          })));
+        }
+      })
+      .catch(() => { /* 무시 */ });
+  }, [workerId, month]);
 
   const isDemoMonth = month.year === 2026 && month.month === 8;
   const summary = useMemo(() => isDemoMonth
@@ -70,9 +113,10 @@ export default function WorkerAttendance() {
     return { year: date.getFullYear(), month: date.getMonth() + 1 };
   });
 
-  const submitRequest = (e) => {
+  const submitRequest = async (e) => {
     e.preventDefault();
     if (!form.date) return;
+    const typeMap = { '연차': 'LEAVE', '야근': 'OVERTIME', '근무수정': 'CORRECTION' };
     const item = {
       id: Date.now(),
       type: modalType,
@@ -81,15 +125,24 @@ export default function WorkerAttendance() {
       end: modalType === '연차' ? '-' : form.end,
       reason: form.reason || '사유 미입력',
       status: '승인 대기',
-      createdAt: new Date().toISOString(),
     };
-    const next = [item, ...requests];
-    setRequests(next);
-    localStorage.setItem(REQUEST_KEY, JSON.stringify(next));
+    setRequests((prev) => [item, ...prev]);
     setModalType('');
     setForm((v) => ({ ...v, reason: '' }));
     setMessage('신청이 접수되었습니다. 관리자 승인 후 반영됩니다.');
     setTab('requests');
+    if (workerId) {
+      try {
+        await createAttendanceRequest({
+          workerId,
+          type: typeMap[modalType] || 'CORRECTION',
+          startDate: form.date,
+          startTime: modalType === '연차' ? null : form.start,
+          endTime: modalType === '연차' ? null : form.end,
+          reason: form.reason || '',
+        });
+      } catch { /* 로컬에는 이미 반영됨 */ }
+    }
   };
 
   return (
