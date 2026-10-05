@@ -100,7 +100,7 @@ export default function WorkerAttendance() {
   };
 
   const profile = getWorkerProfile();
-  const workerId = profile.userId;
+  const workerId = profile.userId || profile.employeeNo;
 
   // 월 변경 시 서버에서 근태 이력 조회
   useEffect(() => {

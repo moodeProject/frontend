@@ -107,6 +107,10 @@ export default function WorkerLogin() {
         name:
           authUser.name ||
           current.name,
+        userId:
+          authUser.userId ||
+          authUser.id ||
+          null,
       };
 
       saveWorkerProfile(

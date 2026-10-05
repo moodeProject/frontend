@@ -107,7 +107,7 @@ export default function WorkerHome() {
   const handleCheckIn = async () => {
     setAttendanceLoading(true);
     try {
-      await checkIn(profile.userId);
+      await checkIn(profile.userId || profile.employeeNo);
       localStorage.setItem(ATTENDANCE_KEY, 'true');
       setCheckedIn(true);
       setAttendanceMsg('출근이 기록되었습니다.');
@@ -122,7 +122,7 @@ export default function WorkerHome() {
   const handleCheckOut = async () => {
     setAttendanceLoading(true);
     try {
-      await checkOut(profile.userId);
+      await checkOut(profile.userId || profile.employeeNo);
       localStorage.setItem(ATTENDANCE_KEY, 'false');
       setCheckedIn(false);
       setAttendanceMsg('퇴근이 기록되었습니다.');
