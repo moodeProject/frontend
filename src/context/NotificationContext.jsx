@@ -7,9 +7,15 @@ import {
   useState,
 } from 'react';
 import { useDetections } from './DetectionContext';
+import {
+  getNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+} from '../api/notifications';
 
 const READ_STORAGE_KEY = 'safehelmet_notification_read_ids_v2';
 const MANUAL_STORAGE_KEY = 'safehelmet_manual_notifications_v2';
+const AUTH_USER_KEY = 'auth_user';
 
 const NotificationContext = createContext(null);
 
@@ -35,33 +41,51 @@ function readManualNotifications() {
   }
 }
 
+function recipientFromSession() {
+  let user = {};
+
+  try {
+    user = JSON.parse(
+      localStorage.getItem(AUTH_USER_KEY) || '{}'
+    );
+  } catch {
+    user = {};
+  }
+
+  const role = String(
+    user?.role || user?.userType || ''
+  ).toUpperCase();
+
+  if (role.includes('WORKER')) {
+    return {
+      recipientType: 'WORKER',
+      recipientId:
+        user?.userId ??
+        user?.id ??
+        user?.workerId ??
+        '',
+    };
+  }
+
+  return {
+    recipientType: 'MANAGER',
+    recipientId: undefined,
+  };
+}
+
 function eventTarget(item) {
-  if (item.category === 'fall') {
-    return `/incident/${item.id}`;
-  }
-
-  if (item.category === 'health') {
-    return `/detections/health/${item.id}`;
-  }
-
+  if (item.category === 'fall') return `/incident/${item.id}`;
+  if (item.category === 'health') return `/detections/health/${item.id}`;
   return `/detections/${item.id}`;
 }
 
 function formatDateTime(value) {
-  if (!value) {
-    return {
-      date: '--.--',
-      time: '--:--',
-    };
-  }
+  if (!value) return { date: '--.--', time: '--:--' };
 
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return {
-      date: '--.--',
-      time: '--:--',
-    };
+    return { date: '--.--', time: '--:--' };
   }
 
   return {
@@ -112,6 +136,84 @@ function notificationFromDetection(item, readIds) {
   };
 }
 
+function serverLevel(raw) {
+  const value = String(
+    raw?.severity || raw?.level || raw?.type || ''
+  ).toUpperCase();
+
+  if (
+    value.includes('DANGER') ||
+    value.includes('EMERGENCY') ||
+    value.includes('SOS') ||
+    value.includes('FALL')
+  ) {
+    return 'danger';
+  }
+
+  if (
+    value.includes('WARNING') ||
+    value.includes('CAUTION')
+  ) {
+    return 'warning';
+  }
+
+  return 'normal';
+}
+
+function serverTarget(raw) {
+  const eventId = raw?.eventId ?? raw?.hazardEventId;
+  const category = String(raw?.category || '').toUpperCase();
+
+  if (eventId) {
+    if (category === 'FALL') return `/incident/${eventId}`;
+    if (category === 'HEALTH') return `/detections/health/${eventId}`;
+    return `/detections/${eventId}`;
+  }
+
+  const workerId = raw?.workerId ?? raw?.recipientId;
+
+  if (workerId) return `/workers/${workerId}`;
+
+  return '/notifications';
+}
+
+function normalizeServerNotification(raw) {
+  const createdAt =
+    raw?.createdAt ??
+    raw?.occurredAt ??
+    raw?.sentAt ??
+    raw?.timestamp;
+
+  const { date, time } = formatDateTime(createdAt);
+
+  return {
+    ...raw,
+    id: raw?.notificationId ?? raw?.id,
+    source: 'server',
+    level: serverLevel(raw),
+    title:
+      raw?.title ??
+      raw?.notificationTitle ??
+      raw?.typeLabel ??
+      '알림',
+    message:
+      raw?.message ??
+      raw?.content ??
+      raw?.description ??
+      '',
+    date,
+    time,
+    occurredAt: createdAt,
+    target:
+      raw?.targetUrl ??
+      raw?.link ??
+      serverTarget(raw),
+    read:
+      raw?.isRead === true ||
+      raw?.read === true,
+  };
+}
+
 export function NotificationProvider({ children }) {
   const {
     detections,
@@ -119,9 +221,53 @@ export function NotificationProvider({ children }) {
   } = useDetections();
 
   const [readIds, setReadIds] = useState(readStoredIds);
-  const [manualNotifications, setManualNotifications] = useState(
-    readManualNotifications
-  );
+  const [manualNotifications, setManualNotifications] =
+    useState(readManualNotifications);
+  const [serverNotifications, setServerNotifications] =
+    useState([]);
+  const [serverNotificationError, setServerNotificationError] =
+    useState('');
+
+  const recipient = useMemo(() => recipientFromSession(), []);
+
+  const refreshNotifications = useCallback(async () => {
+    try {
+      const rows = await getNotifications({
+        recipientType: recipient.recipientType,
+        recipientId: recipient.recipientId,
+        page: 0,
+        size: 100,
+      });
+
+      setServerNotifications(
+        rows
+          .map(normalizeServerNotification)
+          .filter(
+            (item) =>
+              item.id !== undefined &&
+              item.id !== null
+          )
+      );
+
+      setServerNotificationError('');
+    } catch (error) {
+      setServerNotificationError(
+        error?.message ||
+          '서버 알림을 불러오지 못했습니다.'
+      );
+    }
+  }, [recipient.recipientType, recipient.recipientId]);
+
+  useEffect(() => {
+    refreshNotifications();
+
+    const timer = window.setInterval(
+      refreshNotifications,
+      10000
+    );
+
+    return () => window.clearInterval(timer);
+  }, [refreshNotifications]);
 
   useEffect(() => {
     localStorage.setItem(
@@ -156,40 +302,104 @@ export function NotificationProvider({ children }) {
     [manualNotifications, readIds]
   );
 
-  const notifications = useMemo(
-    () =>
-      [...hazardNotifications, ...manualWithReadState].sort(
-        (a, b) => {
-          const aTime = new Date(
-            a.occurredAt || `${a.date || ''} ${a.time || ''}`
-          ).getTime();
-          const bTime = new Date(
-            b.occurredAt || `${b.date || ''} ${b.time || ''}`
-          ).getTime();
+  const notifications = useMemo(() => {
+    const combined = [
+      ...serverNotifications,
+      ...hazardNotifications,
+      ...manualWithReadState,
+    ];
 
-          if (
-            Number.isFinite(aTime) &&
-            Number.isFinite(bTime) &&
-            aTime !== bTime
-          ) {
-            return bTime - aTime;
-          }
+    const seen = new Set();
 
-          return String(b.id).localeCompare(String(a.id));
+    return combined
+      .filter((item) => {
+        const key =
+          item.source === 'server'
+            ? `server-${item.id}`
+            : item.eventId
+              ? `event-${item.eventId}`
+              : String(item.id);
+
+        if (seen.has(key)) return false;
+
+        seen.add(key);
+        return true;
+      })
+      .sort((a, b) => {
+        const aTime = new Date(
+          a.occurredAt ||
+            `${a.date || ''} ${a.time || ''}`
+        ).getTime();
+
+        const bTime = new Date(
+          b.occurredAt ||
+            `${b.date || ''} ${b.time || ''}`
+        ).getTime();
+
+        if (
+          Number.isFinite(aTime) &&
+          Number.isFinite(bTime) &&
+          aTime !== bTime
+        ) {
+          return bTime - aTime;
         }
-      ),
-    [hazardNotifications, manualWithReadState]
+
+        return String(b.id).localeCompare(String(a.id));
+      });
+  }, [
+    serverNotifications,
+    hazardNotifications,
+    manualWithReadState,
+  ]);
+
+  const markRead = useCallback(
+    async (id) => {
+      const key = String(id);
+
+      const serverItem = serverNotifications.find(
+        (item) => String(item.id) === key
+      );
+
+      if (serverItem) {
+        try {
+          await markNotificationRead(serverItem.id);
+
+          setServerNotifications((items) =>
+            items.map((item) =>
+              String(item.id) === key
+                ? { ...item, read: true }
+                : item
+            )
+          );
+        } catch {
+          // 서버 읽음 처리 실패 시 로컬 상태는 유지
+        }
+      }
+
+      setReadIds((items) =>
+        items.includes(key) ? items : [...items, key]
+      );
+    },
+    [serverNotifications]
   );
 
-  const markRead = useCallback((id) => {
-    const key = String(id);
+  const markAllRead = useCallback(async () => {
+    try {
+      await markAllNotificationsRead(
+        recipient.recipientType,
+        recipient.recipientId
+      );
 
-    setReadIds((items) =>
-      items.includes(key) ? items : [...items, key]
-    );
-  }, []);
+      setServerNotifications((items) =>
+        items.map((item) => ({
+          ...item,
+          read: true,
+        }))
+      );
+    } catch {
+      // 로컬 읽음 상태는 아래에서 계속 적용
+    }
 
-  const markAllRead = useCallback(() => {
     setReadIds((items) => {
       const next = new Set(items);
 
@@ -199,7 +409,11 @@ export function NotificationProvider({ children }) {
 
       return [...next];
     });
-  }, [notifications]);
+  }, [
+    notifications,
+    recipient.recipientType,
+    recipient.recipientId,
+  ]);
 
   const addNotification = useCallback((notification) => {
     const now = new Date();
@@ -236,23 +450,19 @@ export function NotificationProvider({ children }) {
     setManualNotifications((items) => [
       item,
       ...items.filter(
-        (existing) => String(existing.id) !== String(item.id)
+        (existing) =>
+          String(existing.id) !== String(item.id)
       ),
     ]);
 
-    // SOS/관리자 호출 등 새 수동 알림도
-    // 벨을 클릭하지 않아도 즉시 팝업으로 보여줍니다.
     window.dispatchEvent(
-      new CustomEvent(
-        'safeon-notification-created',
-        {
-          detail: {
-            id: item.id,
-            level: item.level,
-            title: item.title,
-          },
-        }
-      )
+      new CustomEvent('safeon-notification-created', {
+        detail: {
+          id: item.id,
+          level: item.level,
+          title: item.title,
+        },
+      })
     );
 
     return item;
@@ -269,6 +479,8 @@ export function NotificationProvider({ children }) {
       markRead,
       markAllRead,
       addNotification,
+      refreshNotifications,
+      serverNotificationError,
       hazardStreamConnected,
     }),
     [
@@ -277,6 +489,8 @@ export function NotificationProvider({ children }) {
       markRead,
       markAllRead,
       addNotification,
+      refreshNotifications,
+      serverNotificationError,
       hazardStreamConnected,
     ]
   );

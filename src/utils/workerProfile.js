@@ -55,6 +55,14 @@ export function getWorkerProfile() {
       saved.name ||
       session.name ||
       defaultWorkerProfile.name,
+    userId:
+      saved.userId ??
+      session.userId ??
+      null,
+    workerId:
+      saved.workerId ??
+      session.workerId ??
+      null,
   };
 }
 
@@ -69,6 +77,12 @@ export function saveWorkerProfile(
   const session = {
     employeeNo:
       profile.employeeNo,
+    userId:
+      profile.userId ??
+      null,
+    workerId:
+      profile.workerId ??
+      null,
     name:
       profile.name,
   };

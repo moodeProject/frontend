@@ -24,6 +24,7 @@ import TopHeader from '../components/TopHeader';
 import { useDetections } from '../context/DetectionContext';
 import { useNotifications } from '../context/NotificationContext';
 import { useWorkers } from '../context/WorkerContext';
+import { createSOS } from '../api/sos';
 import {
   getAllWorkerHeatRisk,
   getWorkerAlerts,
@@ -326,7 +327,7 @@ export default function SensorFallDetail() {
     deviceId,
   ]);
 
-  const requestEmergencyRescue = () => {
+  const requestEmergencyRescue = async () => {
     if (rescueSent) {
       setToast({
         message:
@@ -342,30 +343,54 @@ export default function SensorFallDetail() {
 
     if (!confirmed) return;
 
-    setRescueSent(true);
+    const requesterId =
+      worker?.id ||
+      worker?.workerId;
 
-    addNotification({
-      level: 'danger',
-      title: '긴급 구조 요청',
-      message: `${
-        worker?.name || deviceId
-      } · ${worker?.zone || '-'} · 추락 센서 감지`,
-      target: `/sensor-fall/${encodeURIComponent(
-        deviceId
-      )}${
-        recordedAt
-          ? `?recordedAt=${encodeURIComponent(
-              recordedAt
-            )}`
-          : ''
-      }`,
-    });
+    if (!requesterId) {
+      setToast({
+        message:
+          'SOS 요청에 필요한 작업자 ID를 찾지 못했습니다.',
+        type: 'warning',
+      });
+      return;
+    }
 
-    setToast({
-      message:
-        '긴급 구조 요청을 관리자 알림에 기록했습니다. 현재 SOS 전용 API는 미연동 상태입니다.',
-      type: 'warning',
-    });
+    try {
+      await createSOS(requesterId);
+
+      setRescueSent(true);
+
+      addNotification({
+        level: 'danger',
+        title: '긴급 구조 요청',
+        message: `${
+          worker?.name || deviceId
+        } · ${worker?.zone || '-'} · 추락 센서 감지`,
+        target: `/sensor-fall/${encodeURIComponent(
+          deviceId
+        )}${
+          recordedAt
+            ? `?recordedAt=${encodeURIComponent(
+                recordedAt
+              )}`
+            : ''
+        }`,
+      });
+
+      setToast({
+        message:
+          '긴급 구조 요청을 서버 SOS 목록에 기록했습니다.',
+        type: 'success',
+      });
+    } catch (err) {
+      setToast({
+        message:
+          err?.message ||
+          'SOS 요청을 서버에 기록하지 못했습니다.',
+        type: 'warning',
+      });
+    }
   };
 
   if (loading) {

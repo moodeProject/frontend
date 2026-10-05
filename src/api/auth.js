@@ -200,10 +200,6 @@ export async function signupApi(payload) {
       payload.password,
     passwordConfirm:
       payload.passwordConfirm,
-    employeeNumber:
-      payload.employeeNumber ??
-      payload.employeeNo ??
-      '',
     name:
       payload.name ?? '',
     email:
@@ -256,8 +252,15 @@ export function saveWorkerAuthSession(user) {
     JSON.stringify({
       employeeNo:
         normalized.employeeNo ||
-        normalized.id ||
-        normalized.loginId,
+        normalized.loginId ||
+        normalized.id,
+      userId:
+        normalized.userId ??
+        normalized.workerId ??
+        null,
+      loginId:
+        normalized.loginId ||
+        '',
       name:
         normalized.name ||
         '작업자',

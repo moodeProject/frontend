@@ -1,57 +1,92 @@
 import { api } from './client'
 
-/**
- * 월별 근태 이력 조회
- * GET /api/workers/{workerId}/attendance?month=yyyy-MM
- */
+function unwrap(response) {
+  return response?.data ?? response
+}
+
+function unwrapList(response) {
+  const data = unwrap(response)
+
+  if (Array.isArray(data)) return data
+  if (Array.isArray(data?.content)) return data.content
+  if (Array.isArray(data?.items)) return data.items
+
+  return []
+}
+
 export async function getAttendanceHistory(workerId, month) {
-  const qs = month ? `?month=${month}` : ''
-  const res = await api.get(`/api/workers/${workerId}/attendance${qs}`)
-  return res?.data ?? res ?? []
+  if (!workerId) return []
+
+  const qs = month
+    ? `?month=${encodeURIComponent(month)}`
+    : ''
+
+  return unwrapList(
+    await api.get(
+      `/api/workers/${encodeURIComponent(workerId)}/attendance${qs}`
+    )
+  )
 }
 
-/**
- * 출근
- * POST /api/attendance/check-in  { workerId }
- */
-export async function checkIn(workerId) {
-  const res = await api.post('/api/attendance/check-in', { workerId })
-  return res?.data ?? res
+function attendanceIdentityBody(identifier) {
+  const value = String(identifier ?? '').trim()
+
+  if (!value) {
+    throw new Error('출퇴근 처리에 필요한 작업자 식별자가 없습니다.')
+  }
+
+  if (/^WK-/i.test(value)) {
+    return { employeeNo: value }
+  }
+
+  const numeric = Number(value)
+
+  if (Number.isFinite(numeric) && String(numeric) === value) {
+    return { workerId: numeric }
+  }
+
+  return { employeeNo: value }
 }
 
-/**
- * 퇴근
- * POST /api/attendance/check-out  { workerId }
- */
-export async function checkOut(workerId) {
-  const res = await api.post('/api/attendance/check-out', { workerId })
-  return res?.data ?? res
+export async function checkIn(identifier) {
+  return unwrap(
+    await api.post(
+      '/api/attendance/check-in',
+      attendanceIdentityBody(identifier)
+    )
+  )
 }
 
-/**
- * 근태 신청 이력 조회
- * GET /api/workers/{workerId}/attendance-requests
- */
+export async function checkOut(identifier) {
+  return unwrap(
+    await api.post(
+      '/api/attendance/check-out',
+      attendanceIdentityBody(identifier)
+    )
+  )
+}
+
 export async function getAttendanceRequests(workerId) {
-  const res = await api.get(`/api/workers/${workerId}/attendance-requests`)
-  return res?.data ?? res ?? []
+  if (!workerId) return []
+
+  return unwrapList(
+    await api.get(
+      `/api/workers/${encodeURIComponent(workerId)}/attendance-requests`
+    )
+  )
 }
 
-/**
- * 근태 신청 생성 (연차/야근/근무수정)
- * POST /api/attendance-requests
- * type: LEAVE | OVERTIME | CORRECTION
- */
 export async function createAttendanceRequest(data) {
-  const res = await api.post('/api/attendance-requests', data)
-  return res?.data ?? res
+  return unwrap(
+    await api.post('/api/attendance-requests', data)
+  )
 }
 
-/**
- * 근태 신청 승인/반려
- * PATCH /api/attendance-requests/{requestId}
- */
 export async function updateAttendanceRequest(requestId, data) {
-  const res = await api.patch(`/api/attendance-requests/${requestId}`, data)
-  return res?.data ?? res
+  return unwrap(
+    await api.patch(
+      `/api/attendance-requests/${encodeURIComponent(requestId)}`,
+      data
+    )
+  )
 }

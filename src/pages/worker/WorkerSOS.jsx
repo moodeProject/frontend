@@ -18,55 +18,51 @@ import {
 import { WorkerScaffold } from '../../components/WorkerMobileUI';
 import { useNotifications } from '../../context/NotificationContext';
 import { useWorkers } from '../../context/WorkerContext';
+import { createSOS } from '../../api/sos';
 import { getWorkerProfile } from '../../utils/workerProfile';
 import {
   getWorkerDeviceId,
   postureLabel,
 } from '../../utils/workerRealtime';
 
-function findCurrentWorker(
-  workers,
-  profile
-) {
-  const deviceId =
-    getWorkerDeviceId(profile);
+function findCurrentWorker(workers, profile) {
+  const deviceId = getWorkerDeviceId(profile);
 
   return (
     workers.find(
       (worker) =>
         (deviceId &&
-          String(worker.deviceId || '') ===
-            String(deviceId)) ||
+          String(worker.deviceId || '') === String(deviceId)) ||
         (profile.helmetNo &&
-          String(worker.helmetId || '') ===
-            String(profile.helmetNo)) ||
+          String(worker.helmetId || '') === String(profile.helmetNo)) ||
+        (profile.employeeNo &&
+          String(
+            worker.employeeNumber ||
+              worker.workerCode ||
+              ''
+          ) === String(profile.employeeNo)) ||
         (profile.name &&
-          String(worker.name || '') ===
-            String(profile.name))
+          String(worker.name || '') === String(profile.name))
     ) || null
   );
 }
 
 export default function WorkerSOS() {
-  const [result, setResult] =
-    useState(null);
+  const [result, setResult] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [searchParams] = useSearchParams();
 
-  const [searchParams] =
-    useSearchParams();
-
-  const { addNotification } =
-    useNotifications();
+  const {
+    addNotification,
+    refreshNotifications,
+  } = useNotifications();
 
   const { workers } = useWorkers();
-
   const profile = getWorkerProfile();
 
   const worker = useMemo(
-    () =>
-      findCurrentWorker(
-        workers,
-        profile
-      ),
+    () => findCurrentWorker(workers, profile),
     [
       workers,
       profile.name,
@@ -74,6 +70,13 @@ export default function WorkerSOS() {
       profile.employeeNo,
     ]
   );
+
+  const requesterId =
+    worker?.id ||
+    worker?.workerId ||
+    profile.workerId ||
+    profile.userId ||
+    '';
 
   const autoDanger =
     searchParams.get('auto') === '1';
@@ -87,14 +90,11 @@ export default function WorkerSOS() {
     '긴급 상황';
 
   const nowTime = () =>
-    new Date().toLocaleTimeString(
-      'ko-KR',
-      {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-      }
-    );
+    new Date().toLocaleTimeString('ko-KR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
 
   const managerMessage = () => {
     const workerName =
@@ -110,48 +110,111 @@ export default function WorkerSOS() {
     return `${workerName} · ${zone} · 관리자 확인 요청 · ${reason}`;
   };
 
-  const callManager = ({
-    fromEmergency = false,
-  } = {}) => {
-    addNotification({
-      level: 'danger',
-      title: fromEmergency
-        ? '119 신고 후 관리자 호출'
-        : '관리자 호출',
-      message: managerMessage(),
-      target: worker?.id
-        ? `/workers/${worker.id}`
-        : '/workers',
-    });
+  const submitServerSOS = async () => {
+    if (!requesterId) {
+      throw new Error(
+        'SOS 요청에 필요한 작업자 ID를 찾지 못했습니다.'
+      );
+    }
 
-    setResult({
-      type: fromEmergency
-        ? 'emergency-manager'
-        : 'manager',
-      time: nowTime(),
-    });
+    const response = await createSOS(requesterId);
+
+    refreshNotifications?.();
+
+    return response;
   };
 
-  const requestEmergencyRescue = () => {
-    const confirmed =
-      window.confirm(
-        '119 신고 연결을 진행할까요?'
+  const callManager = async ({
+    fromEmergency = false,
+    skipServerSOS = false,
+  } = {}) => {
+    if (submitting) return;
+
+    setSubmitting(true);
+    setError('');
+
+    try {
+      let sosResponse = null;
+
+      if (!skipServerSOS) {
+        sosResponse = await submitServerSOS();
+      }
+
+      addNotification({
+        level: 'danger',
+        title: fromEmergency
+          ? '119 신고 후 관리자 호출'
+          : '관리자 호출',
+        message: managerMessage(),
+        target: worker?.id
+          ? `/workers/${worker.id}`
+          : '/workers',
+      });
+
+      setResult({
+        type: fromEmergency
+          ? 'emergency-manager'
+          : 'manager',
+        time: nowTime(),
+        sosId:
+          sosResponse?.sosId ??
+          sosResponse?.id ??
+          null,
+      });
+    } catch (e) {
+      setError(
+        e?.message ||
+          'SOS 요청을 서버에 전송하지 못했습니다.'
       );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const requestEmergencyRescue = async () => {
+    if (submitting) return;
+
+    const confirmed = window.confirm(
+      '긴급 SOS를 서버에 기록하고 119 신고 연결을 진행할까요?'
+    );
 
     if (!confirmed) return;
 
-    setResult({
-      type: 'emergency',
-      time: nowTime(),
-    });
+    setSubmitting(true);
+    setError('');
 
-    /*
-     * 브라우저는 실제 통화 완료 여부를 확인할 수 없습니다.
-     * 사용자의 버튼 클릭으로 기기의 119 전화 화면을 엽니다.
-     */
-    window.setTimeout(() => {
-      window.location.href = 'tel:119';
-    }, 200);
+    try {
+      const sosResponse = await submitServerSOS();
+
+      addNotification({
+        level: 'danger',
+        title: '긴급 구조 요청',
+        message: managerMessage(),
+        target: worker?.id
+          ? `/workers/${worker.id}`
+          : '/workers',
+      });
+
+      setResult({
+        type: 'emergency',
+        time: nowTime(),
+        sosId:
+          sosResponse?.sosId ??
+          sosResponse?.id ??
+          null,
+      });
+
+      window.setTimeout(() => {
+        window.location.href = 'tel:119';
+      }, 200);
+    } catch (e) {
+      setError(
+        e?.message ||
+          'SOS 요청을 서버에 전송하지 못했습니다.'
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const sendLocation = () => {
@@ -183,30 +246,24 @@ export default function WorkerSOS() {
       result.type === 'emergency';
 
     const isEmergencyManager =
-      result.type ===
-      'emergency-manager';
+      result.type === 'emergency-manager';
 
     const isManager =
       result.type === 'manager';
-
-    const isLocation =
-      result.type === 'location';
 
     return (
       <WorkerScaffold
         active="sos"
         title="긴급 SOS"
         className={`worker-sos-page ${
-          danger
-            ? 'danger-mode'
-            : ''
+          danger ? 'danger-mode' : ''
         }`}
       >
         <section className="worker-sos-success">
           <header>
             ✓{' '}
             {isEmergency
-              ? '119 신고 연결 완료'
+              ? 'SOS 기록 및 119 연결'
               : isEmergencyManager
                 ? '관리자 호출 완료'
                 : isManager
@@ -218,7 +275,7 @@ export default function WorkerSOS() {
 
           <h2>
             {isEmergency
-              ? '119 신고 연결을 진행했습니다'
+              ? '서버에 SOS를 기록하고 119 연결을 진행했습니다'
               : isEmergencyManager
                 ? '관리자 호출까지 완료했습니다'
                 : isManager
@@ -228,12 +285,10 @@ export default function WorkerSOS() {
 
           <p>
             {isEmergency
-              ? '119 전화 화면 연결 후 필요하면 아래 버튼으로 관리자도 바로 호출하세요.'
-              : isEmergencyManager
-                ? '관리자가 확인할 수 있도록 긴급 알림에 기록했습니다.'
-                : isManager
-                  ? '관리자가 확인할 수 있도록 알림에 기록했습니다.'
-                  : '관리자가 작업 위치를 확인할 수 있도록 알림에 기록했습니다.'}
+              ? '관리자 대시보드에 미처리 SOS가 표시되며, 기기의 119 전화 화면을 엽니다.'
+              : isEmergencyManager || isManager
+                ? '서버 SOS 목록과 관리자 알림에서 확인할 수 있습니다.'
+                : '관리자가 작업 위치를 확인할 수 있도록 알림에 기록했습니다.'}
           </p>
 
           <div>
@@ -273,21 +328,23 @@ export default function WorkerSOS() {
               <button
                 type="button"
                 className="worker-sos-result-manager-btn"
+                disabled={submitting}
                 onClick={() =>
                   callManager({
                     fromEmergency: true,
+                    skipServerSOS: true,
                   })
                 }
               >
-                <Phone size={19}/>
-                관리자 호출
+                <Phone size={19} />
+                관리자 알림 다시 보내기
               </button>
 
               <a
                 href="tel:119"
                 className="worker-sos-result-recall"
               >
-                <Siren size={17}/>
+                <Siren size={17} />
                 119 다시 연결
               </a>
             </>
@@ -315,9 +372,7 @@ export default function WorkerSOS() {
           : '긴급 상황 즉시 대응 센터'
       }
       className={`worker-sos-page ${
-        danger
-          ? 'danger-mode'
-          : ''
+        danger ? 'danger-mode' : ''
       }`}
     >
       {(danger || autoDanger) && (
@@ -340,10 +395,16 @@ export default function WorkerSOS() {
         </section>
       )}
 
+      {error && (
+        <div className="worker-filter-banner danger">
+          <span>{error}</span>
+        </div>
+      )}
+
       <div className="worker-sos-note">
         {danger
           ? '필요한 경우 즉시 긴급 구조 요청을 진행해주세요.'
-          : '119 신고 또는 관리자 호출을 선택할 수 있습니다.'}
+          : 'SOS 요청은 서버에 기록되어 관리자 대시보드에 전달됩니다.'}
       </div>
 
       <button
@@ -351,15 +412,18 @@ export default function WorkerSOS() {
         onClick={
           requestEmergencyRescue
         }
+        disabled={submitting}
       >
         <ShieldAlert size={47} />
 
         <strong>
-          긴급 구조 요청
+          {submitting
+            ? '전송 중...'
+            : '긴급 구조 요청'}
         </strong>
 
         <span>
-          119 신고 연결
+          서버 SOS 기록 + 119 연결
         </span>
       </button>
 
@@ -368,6 +432,7 @@ export default function WorkerSOS() {
         onClick={() =>
           callManager()
         }
+        disabled={submitting}
       >
         <Phone size={20} />
         관리자 호출
@@ -386,7 +451,6 @@ export default function WorkerSOS() {
 
         <div>
           <span>현재 위치</span>
-
           <b>
             {worker?.zone ||
               profile.location ||
@@ -396,7 +460,6 @@ export default function WorkerSOS() {
 
         <div>
           <span>최근 상태</span>
-
           <b
             className={
               danger
@@ -413,18 +476,14 @@ export default function WorkerSOS() {
 
         <div>
           <span>심박수</span>
-
           <b>
             <HeartPulse size={13} />
-            {worker?.heartRate ??
-              '-'}{' '}
-            bpm
+            {worker?.heartRate ?? '-'} bpm
           </b>
         </div>
 
         <div>
           <span>움직임</span>
-
           <b
             className={
               worker?.postureAbnormal
@@ -432,9 +491,7 @@ export default function WorkerSOS() {
                 : 'ok'
             }
           >
-            {postureLabel(
-              worker?.posture
-            )}
+            {postureLabel(worker?.posture)}
           </b>
         </div>
       </section>
