@@ -224,7 +224,10 @@ function toUiEvent(event) {
       event?.recommendedAction ||
       defaultAction(kind, level),
 
-    hasClip: Boolean(event?.hasClip),
+    hasClip: Boolean(
+      event?.hasClip ||
+      event?.clip?.playbackUrl
+    ),
 
     attentionRequired:
       level === 'danger' &&

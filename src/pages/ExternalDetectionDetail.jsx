@@ -18,6 +18,7 @@ import {
 import { Link, useParams } from 'react-router-dom';
 import TopHeader from '../components/TopHeader';
 import ActionToast from '../components/ActionToast';
+import YoloDetectionVideo from '../components/YoloDetectionVideo';
 import { useDetections } from '../context/DetectionContext';
 import { useNotifications } from '../context/NotificationContext';
 import {
@@ -239,6 +240,14 @@ function mapDetail(detail, fallback) {
 
     detection: detail?.detection || null,
     boxes: detail?.detection?.boxes || [],
+    frameWidth:
+      detail?.detection?.frameWidth ??
+      detail?.detection?.frame_width ??
+      null,
+    frameHeight:
+      detail?.detection?.frameHeight ??
+      detail?.detection?.frame_height ??
+      null,
 
     rawDetail: detail,
   };
@@ -283,6 +292,15 @@ export default function ExternalDetectionDetail() {
       // 백엔드에서 새 상세 데이터를 받습니다.
       const data = await getHazardEvent(id);
       setDetail(data);
+
+      // 저장 영상이 있으면 상세 진입 즉시
+      // 실제 영상 + AI 서버 YOLO bbox를 표시합니다.
+      setShowClip(
+        Boolean(
+          data?.clip?.playbackUrl
+        )
+      );
+
       return data;
     } catch (error) {
       console.error('이상 감지 상세 조회 실패:', error);
@@ -521,17 +539,14 @@ export default function ExternalDetectionDetail() {
               </div>
 
               {item.playbackUrl && showClip ? (
-                <video
+                <YoloDetectionVideo
                   key={item.playbackUrl}
                   src={item.playbackUrl}
-                  controls
+                  boxes={item.boxes}
+                  frameWidth={item.frameWidth}
+                  frameHeight={item.frameHeight}
+                  markedOffsetSeconds={item.markedOffsetSeconds}
                   autoPlay
-                  style={{
-                    width: '100%',
-                    maxHeight: 520,
-                    borderRadius: 12,
-                    background: '#07111d',
-                  }}
                 />
               ) : (
                 <HazardVideo item={item} />
