@@ -18,7 +18,6 @@ import {
 import { Link, useParams } from 'react-router-dom';
 import TopHeader from '../components/TopHeader';
 import ActionToast from '../components/ActionToast';
-import YoloDetectionVideo from '../components/YoloDetectionVideo';
 import { useDetections } from '../context/DetectionContext';
 import { useNotifications } from '../context/NotificationContext';
 import {
@@ -293,8 +292,8 @@ export default function ExternalDetectionDetail() {
       const data = await getHazardEvent(id);
       setDetail(data);
 
-      // 저장 영상이 있으면 상세 진입 즉시
-      // 실제 영상 + AI 서버 YOLO bbox를 표시합니다.
+      // 저장 영상은 AI 서버에서 YOLO 박스를 영상 프레임에 직접 그린 버전입니다.
+      // 프론트에서는 detection.boxes를 영상 위에 다시 오버레이하지 않습니다.
       setShowClip(
         Boolean(
           data?.clip?.playbackUrl
@@ -539,14 +538,15 @@ export default function ExternalDetectionDetail() {
               </div>
 
               {item.playbackUrl && showClip ? (
-                <YoloDetectionVideo
+                <video
                   key={item.playbackUrl}
+                  className="hazard-clip-video"
                   src={item.playbackUrl}
-                  boxes={item.boxes}
-                  frameWidth={item.frameWidth}
-                  frameHeight={item.frameHeight}
-                  markedOffsetSeconds={item.markedOffsetSeconds}
+                  controls
                   autoPlay
+                  muted
+                  playsInline
+                  preload="metadata"
                 />
               ) : (
                 <HazardVideo item={item} />
@@ -554,7 +554,7 @@ export default function ExternalDetectionDetail() {
 
               <p className="video-helper">
                 {item.playbackUrl
-                  ? `서버 저장 영상 · ${item.durationSeconds ?? '-'}초 · 감지 시점 ${item.markedOffsetSeconds ?? '-'}초`
+                  ? `AI 서버 박스 렌더링 영상 · ${item.durationSeconds ?? '-'}초 · 감지 시점 ${item.markedOffsetSeconds ?? '-'}초`
                   : '저장된 영상 클립이 아직 준비되지 않았습니다.'}
               </p>
             </section>
