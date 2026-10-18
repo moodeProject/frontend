@@ -239,6 +239,14 @@ function mapDetail(detail, fallback) {
 
     detection: detail?.detection || null,
     boxes: detail?.detection?.boxes || [],
+    frameWidth:
+      detail?.detection?.frameWidth ??
+      detail?.detection?.frame_width ??
+      null,
+    frameHeight:
+      detail?.detection?.frameHeight ??
+      detail?.detection?.frame_height ??
+      null,
 
     rawDetail: detail,
   };
@@ -283,6 +291,15 @@ export default function ExternalDetectionDetail() {
       // 백엔드에서 새 상세 데이터를 받습니다.
       const data = await getHazardEvent(id);
       setDetail(data);
+
+      // 저장 영상은 AI 서버에서 YOLO 박스를 영상 프레임에 직접 그린 버전입니다.
+      // 프론트에서는 detection.boxes를 영상 위에 다시 오버레이하지 않습니다.
+      setShowClip(
+        Boolean(
+          data?.clip?.playbackUrl
+        )
+      );
+
       return data;
     } catch (error) {
       console.error('이상 감지 상세 조회 실패:', error);
@@ -523,15 +540,13 @@ export default function ExternalDetectionDetail() {
               {item.playbackUrl && showClip ? (
                 <video
                   key={item.playbackUrl}
+                  className="hazard-clip-video"
                   src={item.playbackUrl}
                   controls
                   autoPlay
-                  style={{
-                    width: '100%',
-                    maxHeight: 520,
-                    borderRadius: 12,
-                    background: '#07111d',
-                  }}
+                  muted
+                  playsInline
+                  preload="metadata"
                 />
               ) : (
                 <HazardVideo item={item} />
@@ -539,7 +554,7 @@ export default function ExternalDetectionDetail() {
 
               <p className="video-helper">
                 {item.playbackUrl
-                  ? `서버 저장 영상 · ${item.durationSeconds ?? '-'}초 · 감지 시점 ${item.markedOffsetSeconds ?? '-'}초`
+                  ? `AI 서버 박스 렌더링 영상 · ${item.durationSeconds ?? '-'}초 · 감지 시점 ${item.markedOffsetSeconds ?? '-'}초`
                   : '저장된 영상 클립이 아직 준비되지 않았습니다.'}
               </p>
             </section>
