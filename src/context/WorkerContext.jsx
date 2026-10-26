@@ -324,6 +324,17 @@ export function WorkerProvider({ children }) {
 
   const refreshSequence = useRef(0);
   const refreshWorkerStatuses = useCallback(async () => {
+    // Worker tokens must not enumerate all workers, helmet assignments, or
+    // site-wide health readings. The backend rejects these admin APIs with 403.
+    // Use a server-authorized self-service endpoint when one is available.
+    if (localStorage.getItem('safehelmet_worker_session')) {
+      setWorkers([]);
+      setSensorApiConnected(false);
+      setHeatRiskApiConnected(false);
+      setSensorLoading(false);
+      setSensorError('');
+      return { statuses: [], heatStatuses: [] };
+    }
     const sequence = ++refreshSequence.current;
     setSensorLoading(true);
     setSensorError('');
