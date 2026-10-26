@@ -1,3 +1,4 @@
+import { statusWithOpenIncidents } from '../utils/workerIncidentStatus';
 import {
   Activity,
   ArrowDownRight,
@@ -31,6 +32,7 @@ import DeleteWorkerModal from '../components/DeleteWorkerModal';
 import StatusBadge from '../components/StatusBadge';
 import TopHeader from '../components/TopHeader';
 import { useWorkers } from '../context/WorkerContext';
+import { useDetections } from '../context/DetectionContext';
 import {
   deleteWorkerApi,
   getWorker,
@@ -393,6 +395,7 @@ function StatusCard({
 }
 
 export default function WorkerDetail() {
+  const { detections } = useDetections();
   const { workerId } =
     useParams();
 
@@ -486,7 +489,7 @@ export default function WorkerDetail() {
 
   const worker =
     useMemo(
-      () => ({
+      () => statusWithOpenIncidents({
         ...(serverWorker || {}),
         ...(liveWorker || {}),
         profileImage:
@@ -495,12 +498,13 @@ export default function WorkerDetail() {
           liveWorker?.profileImage ||
           serverWorker?.profileImage ||
           '',
-      }),
+      }, detections),
       [
         liveWorker,
         serverWorker,
         pendingProfileImage,
         savedProfileImage,
+        detections,
       ]
     );
 
