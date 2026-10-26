@@ -81,9 +81,7 @@ export default function WorkerLogin() {
         isAdminUser(user) &&
         !role.includes('WORKER')
       ) {
-        localStorage.removeItem(
-          'auth_token'
-        );
+        localStorage.removeItem('safehelmet_worker_token');
 
         setError(
           '관리자 계정입니다. 관리자 로그인 화면을 이용해주세요.'
