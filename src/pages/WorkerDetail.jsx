@@ -371,7 +371,7 @@ function StatusCard({
               움직임
             </span>
             <b>
-              {worker.serverDataConnected
+              {recentSensor
                 ? postureLabel(
                     worker.posture
                   )
@@ -433,6 +433,7 @@ export default function WorkerDetail() {
 
   const [loading, setLoading] =
     useState(true);
+  const [nowMs, setNowMs] = useState(Date.now());
 
   const [error, setError] =
     useState('');
@@ -564,9 +565,9 @@ export default function WorkerDetail() {
     }, [decodedId]);
 
   useEffect(() => {
-    loadDetail().catch(
-      () => {}
-    );
+    loadDetail().catch(() => {});
+    const timer = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => window.clearInterval(timer);
   }, [loadDetail]);
 
   if (
@@ -654,7 +655,9 @@ export default function WorkerDetail() {
     );
 
   const healthLevel = blockLevel(healthBlock, worker.sensorConnected ? (worker.status === 'warning' ? 'warning' : 'normal') : 'normal');
-  const recentSensor = Boolean(worker.serverDataConnected);
+  const receivedMs = worker.recordedAt ? new Date(worker.recordedAt).getTime() : NaN;
+  const ageSeconds = Number.isFinite(receivedMs) ? Math.max(0, Math.floor((nowMs - receivedMs) / 1000)) : null;
+  const recentSensor = worker.sensorConnected === true && ageSeconds !== null && ageSeconds <= 30;
   const validHeartRate = recentSensor && Number(worker.heartRate) > 0;
   const validSpo2 = recentSensor && Number(worker.spo2) > 0;
   const validHrv = recentSensor && Number(worker.hrv) > 0;
@@ -857,6 +860,11 @@ export default function WorkerDetail() {
           </div>
         </div>
 
+        <div className="worker-filter-banner" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}>
+          <strong style={{ color: recentSensor ? '#13865a' : '#c26c14' }}>{recentSensor ? '● 실시간 수신 중' : ageSeconds == null ? '● 센서 데이터 없음' : '● 수신 지연'}</strong>
+          <span>자동 조회 5초 간격 · 상태 시계 1초 간격</span>
+          <span>마지막 수신 {worker.recordedAt ? new Date(worker.recordedAt).toLocaleString('ko-KR') : '기록 없음'}{ageSeconds != null ? ` (${ageSeconds}초 전)` : ''}</span>
+        </div>
         {error && (
           <div className="worker-filter-banner danger">
             {error}
@@ -1099,7 +1107,7 @@ export default function WorkerDetail() {
         <section className="panel" style={{ marginTop: 20, padding: 24 }} aria-label="최근 실측 센서 데이터">
           <h3 style={{ margin: '0 0 12px' }}>최근 실측 센서 데이터</h3>
           <p style={{ margin: '0 0 16px', color: '#64748b', fontSize: 13 }}>
-            마지막 수신: {worker.recordedAt ? new Date(worker.recordedAt).toLocaleString('ko-KR') : '기록 없음'} · {recentSensor ? '최근 30초 이내' : '수신 지연 또는 데이터 없음'}
+            마지막 수신: {worker.recordedAt ? new Date(worker.recordedAt).toLocaleString('ko-KR') : '기록 없음'}{ageSeconds != null ? ` · ${ageSeconds}초 전` : ''} · {recentSensor ? '최근 30초 이내' : '수신 지연 또는 데이터 없음'}
           </p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(155px, 1fr))', gap: 12 }}>
             {[
