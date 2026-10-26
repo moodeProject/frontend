@@ -15,7 +15,8 @@ async function parseResponse(res) {
 async function request(method, path, body) {
   const token = localStorage.getItem('auth_token')
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 20_000)
+  // Reads wait for the server; writes retain a bounded wait.
+  const timeout = method === 'GET' ? null : setTimeout(() => controller.abort(), 20_000)
 
   try {
     const res = await fetch(`${BASE_URL}${path}`, {
@@ -64,8 +65,18 @@ async function request(method, path, body) {
   }
 }
 
+// Share an outstanding read across polling and manual refresh callers.
+const pendingReads = new Map()
+function get(path) {
+  const key = JSON.stringify([localStorage.getItem('auth_token'), path])
+  if (pendingReads.has(key)) return pendingReads.get(key)
+  const pending = request('GET', path).finally(() => pendingReads.delete(key))
+  pendingReads.set(key, pending)
+  return pending
+}
+
 export const api = {
-  get: (path) => request('GET', path),
+  get,
   post: (path, body) =>
     request('POST', path, body),
   put: (path, body) =>
