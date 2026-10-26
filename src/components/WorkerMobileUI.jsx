@@ -28,22 +28,13 @@ import '../styles/workerNearbyAttendance.css';
 
 
 function findCurrentWorker(workers, profile) {
-  const deviceId = getWorkerDeviceId(profile);
-
-  return (
-    workers.find(
-      (worker) =>
-        (deviceId &&
-          String(worker.deviceId || '') ===
-            String(deviceId)) ||
-        (profile.helmetNo &&
-          String(worker.helmetId || '') ===
-            String(profile.helmetNo)) ||
-        (profile.name &&
-          String(worker.name || '') ===
-            String(profile.name))
-    ) || null
-  );
+  const employeeNo = String(profile.employeeNo || '').trim();
+  const workerId = String(profile.workerId || '').trim();
+  // Never join worker identity by display name or cached helmet ID.
+  return workers.find((worker) =>
+    (employeeNo && String(worker.employeeNumber || worker.employeeNo || '').trim() === employeeNo) ||
+    (workerId && String(worker.workerId || worker.id || '').trim() === workerId)
+  ) || null;
 }
 
 
@@ -139,7 +130,7 @@ export function WorkerBottomNav({ active = 'home' }) {
   );
 
   const dangerActive =
-    currentWorker?.status === 'danger';
+    currentWorker?.sensorConnected === true && currentWorker?.status === 'danger';
 
   const [nearbyAlerts, setNearbyAlerts] =
     useState(readNearbyDangerAlerts);
@@ -296,10 +287,19 @@ export function WorkerDrawer({ open, onClose }) {
 
   const currentWorker = findCurrentWorker(workers, profile);
 
-  const statusMeta =
-    currentWorker?.status === 'danger'
-      ? WORK_STATUS_META['위험']
-      : getWorkStatusMeta(workStatus);
+  // Safety is based on the same fresh /api/me/home sensor state as the home page.
+  // A stale local "위험" flag is not evidence of a current fall.
+  const safetyLevel = currentWorker?.sensorConnected
+    ? currentWorker.status
+    : 'unknown';
+  const statusMeta = safetyLevel === 'danger'
+    ? WORK_STATUS_META['위험']
+    : safetyLevel === 'warning'
+      ? { key: 'rest', label: '주의', description: '최근 센서 상태에 주의가 필요합니다.' }
+      : safetyLevel === 'normal'
+        ? { key: 'work', label: '정상', description: '최근 센서 데이터에서 이상이 확인되지 않았습니다.' }
+        : { key: 'off', label: '확인 필요', description: '최근 센서 데이터가 없어 안전 상태를 판단할 수 없습니다.' };
+  const attendanceMeta = getWorkStatusMeta(workStatus);
 
   const profilePhoto =
     profile.photo ||
@@ -326,8 +326,9 @@ export function WorkerDrawer({ open, onClose }) {
           </div>
           <button onClick={onClose}><X size={20} /></button>
           <h2>{profile.name || '작업자'}</h2>
-          <p>사번: {profile.employeeNo || '-'} · {profile.location || '-'}</p>
+          <p>사번: {profile.employeeNo || '-'} · {currentWorker?.zone || '위치 미확인'}</p>
           <div className="worker-drawer-status-wrap"><span className={`worker-drawer-status ${statusMeta.key}`}>{statusMeta.label}</span><small>{statusMeta.description}</small></div>
+          <p style={{ marginTop: 10, fontSize: 12, opacity: 0.88 }}>근무 상태: {attendanceMeta.label}</p>
         </div>
         <div className="worker-drawer-menu">
           {menuItems.map(({ label, icon: Icon, color, to }) => (
@@ -385,6 +386,7 @@ export function WorkerScaffold({
   useEffect(() => {
     if (
       !currentWorker ||
+      !currentWorker.sensorConnected ||
       currentWorker.status !== 'danger'
     ) {
       return;
@@ -443,6 +445,7 @@ export function WorkerScaffold({
       workers.filter(
         (worker) =>
           worker.id !== currentWorker.id &&
+          worker.sensorConnected === true &&
           worker.status === 'danger' &&
           dangerIsRecent(worker)
       );
@@ -527,7 +530,7 @@ export function WorkerScaffold({
   return (
     <div
       className={`worker-mobile-shell ${className} ${
-        currentWorker?.status === 'danger'
+        currentWorker?.sensorConnected === true && currentWorker?.status === 'danger'
           ? 'worker-danger-active'
           : ''
       }`}
