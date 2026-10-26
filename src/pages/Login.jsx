@@ -62,9 +62,7 @@ export default function Login() {
         );
 
       if (isWorkerUser(user)) {
-        localStorage.removeItem(
-          'auth_token'
-        );
+        localStorage.removeItem('safehelmet_admin_token');
 
         setError(
           '작업자 계정입니다. 작업자 로그인 화면을 이용해주세요.'
