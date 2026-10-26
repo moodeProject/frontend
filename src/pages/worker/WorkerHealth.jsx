@@ -15,7 +15,7 @@ import ActionToast from '../../components/ActionToast';
 import { WorkerScaffold } from '../../components/WorkerMobileUI';
 import { useDetections } from '../../context/DetectionContext';
 import { useNotifications } from '../../context/NotificationContext';
-import { getWorkerStatus } from '../../api/workerStatus';
+import { getMyHome, normalizeMyHome } from '../../api/myHome';
 import { getWorkerProfile } from '../../utils/workerProfile';
 import {
   detectionBelongsToWorker,
@@ -47,41 +47,28 @@ export default function WorkerHealth() {
   const profile = getWorkerProfile();
   const deviceId = getWorkerDeviceId(profile);
 
-  const loadSensor = async () => {
-    if (!deviceId) {
-      setSensor(null);
-      setSensorError('연결된 deviceId가 없습니다.');
-      setSensorLoading(false);
-      return;
-    }
-
-    setSensorLoading(true);
-
-    try {
-      const data = await getWorkerStatus(deviceId);
-      setSensor(data);
-      setSensorError('');
-    } catch (error) {
-      setSensor(null);
-      setSensorError(
-        error?.message ||
-          '최신 건강 센서 상태를 불러오지 못했습니다.'
-      );
-    } finally {
-      setSensorLoading(false);
-    }
-  };
-
   useEffect(() => {
+    let alive = true;
+    const loadSensor = async () => {
+      if (!alive) return;
+      setSensorLoading(true);
+      try {
+        const home = normalizeMyHome(await getMyHome());
+        if (!alive) return;
+        setSensor(home.sensorConnected ? home : null);
+        setSensorError('');
+      } catch (error) {
+        if (!alive) return;
+        setSensor(null);
+        setSensorError(error?.message || '내 건강 상태를 조회하지 못했습니다.');
+      } finally {
+        if (alive) setSensorLoading(false);
+      }
+    };
     loadSensor();
-
-    const timer = window.setInterval(
-      loadSensor,
-      10000
-    );
-
-    return () => window.clearInterval(timer);
-  }, [deviceId]);
+    const timer = window.setInterval(loadSensor, 5000);
+    return () => { alive = false; window.clearInterval(timer); };
+  }, []);
 
   const healthEvents = useMemo(
     () =>
@@ -216,7 +203,7 @@ export default function WorkerHealth() {
           <p>
             <span>심박수</span>
             <strong>
-              {sensor?.heartRate ?? '-'}{' '}
+              {Number(sensor?.heartRate) > 0 ? sensor.heartRate : '-'}{' '}
               <small>bpm</small>
             </strong>
           </p>
@@ -238,7 +225,7 @@ export default function WorkerHealth() {
           <p>
             <span>SpO₂</span>
             <strong>
-              {sensor?.spo2 ?? '-'}{' '}
+              {Number(sensor?.spo2) > 0 ? sensor.spo2 : '-'}{' '}
               <small>%</small>
             </strong>
           </p>
