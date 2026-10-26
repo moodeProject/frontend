@@ -1,6 +1,8 @@
 import { api } from './client'
 
 export const AUTH_TOKEN_KEY = 'auth_token'
+export const ADMIN_TOKEN_KEY = 'safehelmet_admin_token'
+export const WORKER_TOKEN_KEY = 'safehelmet_worker_token'
 export const AUTH_USER_KEY = 'auth_user'
 export const ADMIN_SESSION_KEY =
   'safehelmet_current_admin'
@@ -121,7 +123,8 @@ export async function loginApi(id, password, userType) {
       loginId: id,
       password,
       userType,
-    }
+    },
+    { anonymous: true }
   )
 
   const token = extractAccessToken(response)
@@ -132,10 +135,10 @@ export async function loginApi(id, password, userType) {
     )
   }
 
-  localStorage.setItem(
-    AUTH_TOKEN_KEY,
-    token
-  )
+  const role = String(userType).toUpperCase() === 'WORKER' ? 'WORKER' : 'ADMIN'
+  const roleTokenKey = role === 'WORKER' ? WORKER_TOKEN_KEY : ADMIN_TOKEN_KEY
+  // Only mutate the selected role's session. Never overwrite the other role.
+  localStorage.setItem(roleTokenKey, token)
 
   let user = normalizeAuthUser(
     response,
@@ -143,7 +146,7 @@ export async function loginApi(id, password, userType) {
   )
 
   try {
-    const me = await getMe()
+    const me = await getMe(role)
 
     user = {
       ...user,
@@ -155,7 +158,7 @@ export async function loginApi(id, password, userType) {
   }
 
   localStorage.setItem(
-    AUTH_USER_KEY,
+    role === 'WORKER' ? 'safehelmet_worker_user' : 'safehelmet_admin_user',
     JSON.stringify(user)
   )
 
@@ -169,20 +172,20 @@ export async function loginApi(id, password, userType) {
 /**
  * POST /api/auth/logout
  */
-export async function logoutApi() {
+export async function logoutApi(role = 'ADMIN') {
   try {
-    await api.post('/api/auth/logout')
+    await api.post('/api/auth/logout', undefined, { authRole: role })
   } finally {
-    clearAuthSession()
+    clearAuthSession(role)
   }
 }
 
 /**
  * GET /api/auth/me
  */
-export async function getMe() {
+export async function getMe(role = 'ADMIN') {
   const response =
-    await api.get('/api/auth/me')
+    await api.get('/api/auth/me', { authRole: role })
 
   return normalizeAuthUser(response)
 }
@@ -222,10 +225,6 @@ export function saveAdminSession(user) {
   const normalized =
     normalizeAuthUser(user)
 
-  localStorage.removeItem(
-    WORKER_SESSION_KEY
-  )
-
   localStorage.setItem(
     ADMIN_SESSION_KEY,
     JSON.stringify(normalized)
@@ -242,10 +241,6 @@ export function saveAdminSession(user) {
 export function saveWorkerAuthSession(user) {
   const normalized =
     normalizeAuthUser(user)
-
-  localStorage.removeItem(
-    ADMIN_SESSION_KEY
-  )
 
   localStorage.setItem(
     WORKER_SESSION_KEY,
@@ -278,17 +273,14 @@ export function saveWorkerAuthSession(user) {
   return normalized
 }
 
-export function clearAuthSession() {
-  localStorage.removeItem(
-    AUTH_TOKEN_KEY
-  )
-  localStorage.removeItem(
-    AUTH_USER_KEY
-  )
-  localStorage.removeItem(
-    ADMIN_SESSION_KEY
-  )
-  localStorage.removeItem(
-    WORKER_SESSION_KEY
-  )
+export function clearAuthSession(role = 'ADMIN') {
+  if (String(role).toUpperCase() === 'WORKER') {
+    localStorage.removeItem(WORKER_TOKEN_KEY)
+    localStorage.removeItem('safehelmet_worker_user')
+    localStorage.removeItem(WORKER_SESSION_KEY)
+    return
+  }
+  localStorage.removeItem(ADMIN_TOKEN_KEY)
+  localStorage.removeItem('safehelmet_admin_user')
+  localStorage.removeItem(ADMIN_SESSION_KEY)
 }
