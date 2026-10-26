@@ -47,11 +47,26 @@ export default function WorkerHealth() {
   const profile = getWorkerProfile();
   const deviceId = getWorkerDeviceId(profile);
 
+  const loadSensor = async () => {
+    setSensorLoading(true);
+    try {
+      const home = normalizeMyHome(await getMyHome());
+      setSensor(home.sensorConnected ? home : null);
+      setSensorError('');
+    } catch (error) {
+      setSensor(null);
+      setSensorError(error?.message || '내 건강 상태를 조회하지 못했습니다.');
+    } finally {
+      setSensorLoading(false);
+    }
+  };
+
   useEffect(() => {
     let alive = true;
-    const loadSensor = async () => {
-      if (!alive) return;
-      setSensorLoading(true);
+    let inFlight = false;
+    const refresh = async () => {
+      if (!alive || inFlight) return;
+      inFlight = true;
       try {
         const home = normalizeMyHome(await getMyHome());
         if (!alive) return;
@@ -63,10 +78,11 @@ export default function WorkerHealth() {
         setSensorError(error?.message || '내 건강 상태를 조회하지 못했습니다.');
       } finally {
         if (alive) setSensorLoading(false);
+        inFlight = false;
       }
     };
-    loadSensor();
-    const timer = window.setInterval(loadSensor, 5000);
+    refresh();
+    const timer = window.setInterval(refresh, 5000);
     return () => { alive = false; window.clearInterval(timer); };
   }, []);
 
