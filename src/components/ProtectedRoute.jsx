@@ -9,7 +9,7 @@ export default function ProtectedRoute() {
 
   const token =
     localStorage.getItem(
-      'auth_token'
+      'safehelmet_admin_token'
     );
 
   const currentAdmin =
