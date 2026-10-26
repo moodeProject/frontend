@@ -1,3 +1,4 @@
+import { statusWithOpenIncidents } from '../utils/workerIncidentStatus';
 import {
   Plus,
   Search,
@@ -17,6 +18,7 @@ import AddWorkerModal from '../components/AddWorkerModal';
 import TopHeader from '../components/TopHeader';
 import WorkerCard from '../components/WorkerCard';
 import { useWorkers } from '../context/WorkerContext';
+import { useDetections } from '../context/DetectionContext';
 import {
   createWorker,
 } from '../api/workers';
@@ -64,6 +66,7 @@ function weatherTone(level) {
 }
 
 export default function Workers() {
+  const { detections } = useDetections();
   const {
     workers: liveWorkers,
     refreshWorkerStatuses,
@@ -149,6 +152,7 @@ export default function Workers() {
     useMemo(
       () =>
         liveWorkers
+          .map(worker => statusWithOpenIncidents(worker, detections))
           .filter(worker => !search.trim() || `${worker.name} ${worker.employeeNumber}`.toLowerCase().includes(search.trim().toLowerCase()))
           .filter(worker => statusFilter === 'all' || worker.status === statusFilter)
           .map(
@@ -182,6 +186,7 @@ export default function Workers() {
           ),
       [
         liveWorkers,
+        detections,
         search,
         statusFilter,
       ]
