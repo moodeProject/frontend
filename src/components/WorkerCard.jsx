@@ -187,9 +187,13 @@ export default function WorkerCard({
             </div>
           </div>
 
-          <StatusBadge level={worker.status}>
-            {labels[worker.status]}
-          </StatusBadge>
+          {isRecent ? (
+            <StatusBadge level={worker.status}>
+              {labels[worker.status]}
+            </StatusBadge>
+          ) : (
+            <span style={{ color: '#64748b', fontSize: 12, fontWeight: 700 }}>센서 데이터 대기</span>
+          )}
         </div>
 
         <div className="metric-row">
