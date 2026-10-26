@@ -1,3 +1,4 @@
+import { getMyHome, normalizeMyHome } from '../api/myHome';
 import {
   createContext,
   useCallback,
@@ -328,12 +329,24 @@ export function WorkerProvider({ children }) {
     // site-wide health readings. The backend rejects these admin APIs with 403.
     // Use a server-authorized self-service endpoint when one is available.
     if (localStorage.getItem('safehelmet_worker_session')) {
-      setWorkers([]);
-      setSensorApiConnected(false);
-      setHeatRiskApiConnected(false);
-      setSensorLoading(false);
-      setSensorError('');
-      return { statuses: [], heatStatuses: [] };
+      setSensorLoading(true);
+      try {
+        const home = normalizeMyHome(await getMyHome());
+        setWorkers(home.id || home.employeeNo ? [home] : []);
+        setSensorApiConnected(true);
+        setHeatRiskApiConnected(true);
+        setSensorError('');
+        setLastSensorUpdated(new Date());
+        return { statuses: [home], heatStatuses: [] };
+      } catch (error) {
+        setWorkers([]);
+        setSensorApiConnected(false);
+        setHeatRiskApiConnected(false);
+        setSensorError(error?.message || '내 센서 상태를 불러오지 못했습니다.');
+        return { statuses: [], heatStatuses: [] };
+      } finally {
+        setSensorLoading(false);
+      }
     }
     const sequence = ++refreshSequence.current;
     setSensorLoading(true);
