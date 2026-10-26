@@ -231,7 +231,7 @@ export function saveAdminSession(user) {
   )
 
   localStorage.setItem(
-    AUTH_USER_KEY,
+    'safehelmet_admin_user',
     JSON.stringify(normalized)
   )
 
