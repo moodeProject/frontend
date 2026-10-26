@@ -1,0 +1,82 @@
+/* SAFE:ON mobile worker home density and spacing.
+   Scoped to worker home only; no auth, API, or other pages affected. */
+.worker-mobile-shell.worker-home-page .worker-mobile-header {
+  height: 72px;
+  min-height: 72px;
+  padding: 13px 18px;
+  align-items: center;
+}
+.worker-mobile-shell.worker-home-page .worker-mobile-header h1 {
+  font-size: 18px;
+  line-height: 1.3;
+}
+.worker-mobile-shell.worker-home-page .worker-mobile-header p { font-size: 11px; margin-top: 3px; }
+.worker-mobile-shell.worker-home-page .worker-mobile-content {
+  padding: 14px 16px 92px;
+}
+.worker-home-page .worker-white-card {
+  padding: 16px;
+  margin-bottom: 13px;
+  border-radius: 16px;
+}
+.worker-home-page .worker-card-title { margin-bottom: 12px; }
+.worker-home-page .worker-card-title strong { font-size: 15px; }
+.worker-home-page .worker-hazard-row { min-height: 62px; }
+.worker-home-page .records-empty {
+  min-height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  text-align: center;
+  padding: 14px 8px;
+}
+.worker-home-page .worker-fall-ok-card.urgent-fall-card {
+  min-height: 90px;
+  border-width: 1px;
+  border-radius: 16px;
+  padding: 15px;
+  gap: 12px;
+  margin-bottom: 13px;
+  flex-wrap: wrap;
+}
+.worker-home-page .urgent-fall-main { min-width: 0; flex: 1 1 190px; gap: 10px; }
+.worker-home-page .urgent-fall-main strong { font-size: 14px; line-height: 1.35; }
+.worker-home-page .urgent-fall-main small { font-size: 11px; line-height: 1.45; }
+.worker-home-page .worker-fall-ok-card .urgent-fall-detail-btn {
+  min-height: 34px;
+  padding: 7px 10px;
+  font-size: 11px;
+  white-space: nowrap;
+  border-radius: 10px;
+  gap: 5px;
+}
+.worker-home-page .worker-attendance-action-card { margin-bottom: 13px; }
+.worker-home-page .worker-checkinout-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.worker-home-page .worker-checkinout-row button {
+  min-height: 38px;
+  font-size: 13px;
+  padding: 7px 12px;
+  width: auto;
+  flex: 1 1 110px;
+}
+.worker-home-page .worker-home-actions { gap: 9px; margin-top: 12px; }
+.worker-home-page .worker-home-actions button {
+  height: 74px;
+  min-height: 74px;
+  padding: 10px 5px;
+  border-radius: 14px;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+.worker-home-page .worker-home-actions button svg { width: 21px; height: 21px; }
+.worker-home-page .worker-home-actions button.outline { border-width: 1px; }
+.worker-home-page .worker-home-statusline { flex-wrap: wrap; }
+.worker-home-page .worker-home-statusline span { font-size: 10px; }
+@media (max-width: 360px) {
+  .worker-home-page .worker-mobile-content { padding-inline: 12px; }
+  .worker-home-page .worker-home-actions { gap: 7px; }
+  .worker-home-page .worker-home-actions button { font-size: 11px; }
+}
