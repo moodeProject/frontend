@@ -5,6 +5,7 @@ export default function ConnectHelmetModal({ open, onClose, onConnect, helmets, 
   const [helmetNumber, setHelmetNumber] = useState('');
   const [workerId, setWorkerId] = useState('');
   const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const availableHelmets = useMemo(() => helmets, [helmets]);
   const availableWorkers = useMemo(() => workers, [workers]);
@@ -19,20 +20,29 @@ export default function ConnectHelmetModal({ open, onClose, onConnect, helmets, 
   if (!open) return null;
 
   const close = () => {
+    if (saving) return;
     setHelmetNumber('');
     setWorkerId('');
     setError('');
     onClose();
   };
 
-  const submit = (event) => {
+  const submit = async (event) => {
     event.preventDefault();
     if (!helmetNumber || !workerId) {
       setError('연결할 헬멧과 작업자를 모두 선택해주세요.');
       return;
     }
-    onConnect(helmetNumber, workerId);
-    close();
+    setSaving(true);
+    setError('');
+    try {
+      await onConnect(helmetNumber, workerId);
+      close();
+    } catch (error) {
+      setError(error?.message || '헬멧 배정을 저장하지 못했습니다.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -76,7 +86,7 @@ export default function ConnectHelmetModal({ open, onClose, onConnect, helmets, 
                 {error && <p className="form-error">{error}</p>}
         <div className="modal-actions">
           <button type="button" className="secondary-modal-btn" onClick={close}>취소</button>
-          <button type="submit" className="primary-modal-btn">연결 / 재연결</button>
+          <button type="submit" className="primary-modal-btn" disabled={saving}>{saving ? '저장 중…' : '연결 / 재연결'}</button>
         </div>
       </form>
     </div>

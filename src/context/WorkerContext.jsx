@@ -4,15 +4,19 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
-import { workers as initialWorkers } from '../data/mockData';
+import { getWorkers } from '../api/workers';
+import { getHelmets, getHelmetsStatus } from '../api/helmets';
+import { bindWorkerHelmet, measuredStatus } from '../utils/workerSensorBinding';
 import {
   getAllWorkerHeatRisk,
   getAllWorkerStatuses,
 } from '../api/workerStatus';
 import { getDefaultWorkerProfile } from '../utils/defaultWorkerProfiles';
 
+const initialWorkers = [];
 const WorkerContext = createContext(null);
 const STORAGE_KEY = 'safehelmet-workers-v3';
 const SENSOR_REFRESH_MS = 10_000;
@@ -22,23 +26,7 @@ function text(value) {
 }
 
 function deriveDeviceId(worker) {
-  if (worker?.deviceId) return text(worker.deviceId);
-
-  const helmetId =
-    worker?.helmetId ||
-    worker?.helmetNo ||
-    worker?.helmetNumber ||
-    worker?.helmet?.helmetNo ||
-    worker?.helmet?.helmetNumber ||
-    worker?.helmet?.id ||
-    worker?.id ||
-    '';
-
-  if (/^H-\d+$/i.test(text(helmetId))) {
-    return text(helmetId).replace(/^H-/i, 'DEV-');
-  }
-
-  return '';
+  return text(worker?.deviceId || worker?.helmet?.deviceId).trim();
 }
 
 function deriveHelmetId(worker) {
@@ -125,8 +113,8 @@ function normalizeWorker(worker) {
       ['normal', 'warning', 'danger'].includes(worker?.status)
         ? worker.status
         : 'normal',
-    issue: worker?.issue || '센서 데이터 대기',
-    fatigue: Number(worker?.fatigue) || 1,
+    issue: worker?.issue || worker?.statusMessage || '센서 데이터 대기',
+    fatigue: worker?.fatigue ?? null,
     profileImage: isUserUploadedProfile(currentProfile)
       ? currentProfile
       : currentProfile || defaultProfile,
@@ -176,6 +164,10 @@ function mergeWorkerStatus(worker, sensor, heatRisk) {
   if (!sensor && !heatRisk) {
     return normalizeWorker({
       ...base,
+      recordedAt: null,
+      heartRate: null,
+      spo2: null,
+      fatigue: null,
       serverDataConnected: false,
       heatRiskDataConnected: false,
       sensorConnected: false,
@@ -253,11 +245,11 @@ function mergeWorkerStatus(worker, sensor, heatRisk) {
   }
 
   const heartRate = Number(
-    heatRisk?.heartRate ?? sensor?.heartRate ?? base.heartRate
+    sensor?.heartRate ?? heatRisk?.heartRate
   );
   const spo2 = heatRisk?.spo2 ?? sensor?.spo2 ?? base.spo2;
   const hrvRaw = heatRisk?.hrv ?? sensor?.hrv ?? base.hrv;
-  const hrv = Number(hrvRaw);
+  const hrv = hrvRaw == null ? NaN : Number(hrvRaw);
   const sensorZone = readZone(sensor || {});
 
   return normalizeWorker({
@@ -265,11 +257,11 @@ function mergeWorkerStatus(worker, sensor, heatRisk) {
     deviceId: sensor?.deviceId || heatRisk?.deviceId || base.deviceId,
     status,
     issue,
-    fatigue: fatigueAbnormal ? 2 : 1,
+    fatigue: typeof (heatRisk?.fatigueAbnormal ?? sensor?.fatigueAbnormal) === 'boolean' ? (fatigueAbnormal ? 2 : 1) : null,
     heartRate:
       Number.isFinite(heartRate) && heartRate > 0
         ? heartRate
-        : base.heartRate,
+        : null,
     spo2,
     hrv: Number.isFinite(hrv) ? hrv : base.hrv,
     fatigueAbnormal,
@@ -304,7 +296,7 @@ export function WorkerProvider({ children }) {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       const source = saved ? JSON.parse(saved) : initialWorkers;
-      return source.map(normalizeWorker);
+      return source.map(worker => mergeWorkerStatus({ ...worker, recordedAt: null }, null, null));
     } catch {
       return initialWorkers.map(normalizeWorker);
     }
@@ -320,14 +312,21 @@ export function WorkerProvider({ children }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(workers));
   }, [workers]);
 
+  const refreshSequence = useRef(0);
   const refreshWorkerStatuses = useCallback(async () => {
+    const sequence = ++refreshSequence.current;
     setSensorLoading(true);
     setSensorError('');
 
-    const [statusResult, heatResult] = await Promise.allSettled([
+    const [statusResult, heatResult, workerResult, helmetResult, helmetStatusResult] = await Promise.allSettled([
       getAllWorkerStatuses(),
       getAllWorkerHeatRisk(),
+      getWorkers({ size: 100 }),
+      getHelmets(),
+      getHelmetsStatus(),
     ]);
+
+    if (sequence !== refreshSequence.current) return;
 
     const statuses =
       statusResult.status === 'fulfilled' ? statusResult.value : [];
@@ -338,6 +337,9 @@ export function WorkerProvider({ children }) {
     setHeatRiskApiConnected(heatResult.status === 'fulfilled');
 
     const errors = [];
+    for (const [result, label] of [[workerResult, '작업자 목록'], [helmetResult, '헬멧 배정']]) {
+      if (result.status === 'rejected') errors.push(`${label} 조회 실패: ${result.reason?.message || ''}`);
+    }
     if (statusResult.status === 'rejected') {
       console.error('작업자 센서 상태 조회 실패:', statusResult.reason);
       errors.push(
@@ -365,18 +367,24 @@ export function WorkerProvider({ children }) {
         .map((item) => [text(item.deviceId), item])
     );
 
-    setWorkers((previous) =>
-      previous.map((worker) => {
-        const normalized = normalizeWorker(worker);
-        const deviceId = deriveDeviceId(normalized);
-
-        return mergeWorkerStatus(
-          normalized,
-          sensorMap.get(text(deviceId)),
-          heatMap.get(text(deviceId))
-        );
-      })
-    );
+    // Server identities and assignments are authoritative. Cached demo workers
+    // must never choose the owner of a real device's measurements.
+    const helmetStatuses = helmetStatusResult.status === 'fulfilled'
+      ? helmetStatusResult.value : [];
+    const helmetRows = helmetResult.status === 'fulfilled'
+      ? helmetResult.value : helmetStatuses;
+    setWorkers((previous) => {
+      if (workerResult.status !== 'fulfilled') return previous.map(worker =>
+        mergeWorkerStatus({ ...worker, recordedAt: null }, null, null));
+      return workerResult.value.content.map(worker => {
+        const saved = previous.find(item => text(item.id) === text(worker.id));
+        const bound = bindWorkerHelmet(worker, helmetRows);
+        const sensor = measuredStatus(sensorMap.get(bound.deviceId)) ||
+          measuredStatus(helmetStatuses.find(item => text(item.deviceId) === bound.deviceId));
+        return mergeWorkerStatus({ ...bound, profileImage: saved?.profileImage || worker.profileImage },
+          sensor, measuredStatus(heatMap.get(bound.deviceId)));
+      });
+    });
 
     if (
       statusResult.status === 'fulfilled' ||

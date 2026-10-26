@@ -1,13 +1,7 @@
 export function getWorkerDeviceId(profile) {
   if (profile?.deviceId) return String(profile.deviceId);
 
-  const helmetNo = String(
-    profile?.helmetNo || profile?.helmetId || ''
-  ).trim();
-
-  if (/^H-\d+$/i.test(helmetNo)) {
-    return helmetNo.replace(/^H-/i, 'DEV-');
-  }
+  if (profile?.helmet?.deviceId) return String(profile.helmet.deviceId);
 
   return '';
 }

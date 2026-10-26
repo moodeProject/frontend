@@ -20,6 +20,8 @@ import TopHeader from '../components/TopHeader';
 import { useWorkers } from '../context/WorkerContext';
 import { getAllWorkerStatuses } from '../api/workerStatus';
 import {
+  assignHelmet,
+  unassignHelmet,
   getHelmets,
   getHelmetsStatus,
 } from '../api/helmets';
@@ -135,7 +137,7 @@ function normalizeHelmet(raw = {}) {
     raw.sensorConnected ??
     raw.connected ??
     raw.online ??
-    false;
+    (raw.sensorStatus === 'CONNECTED');
 
   const recordedAt =
     raw.recordedAt ??
@@ -284,7 +286,7 @@ export default function HelmetManagement() {
             ? listFromPayload(workerStatusResult.value)
             : [];
 
-        if (serverHelmetRows.length) {
+        if (serverHelmetResult.status === 'fulfilled') {
           const normalized =
             serverHelmetRows.map(normalizeHelmet);
 
@@ -368,23 +370,14 @@ export default function HelmetManagement() {
         workerStatus ||
         null;
 
-      const worker =
-        workers.find(
-          (item) =>
-            String(item.deviceId || '') ===
-              String(helmet.deviceId) ||
-            String(item.helmetId || '') ===
-              String(helmet.helmetNumber) ||
-            String(item.id || '') ===
-              String(helmet.workerId || '')
-        ) || null;
+      const worker = workers.find(item => helmet.workerId &&
+        String(item.id) === String(helmet.workerId)) || null;
 
       const riskLevel =
         classifyServerStatus(serverStatus);
 
       const sensorConnected =
-        Boolean(serverStatus) ||
-        helmet.sensorConnected;
+        Boolean(serverStatus?.recordedAt) || helmet.sensorConnected;
 
       return {
         ...helmet,
@@ -468,60 +461,12 @@ export default function HelmetManagement() {
     );
   };
 
-  const connectHelmet = (
-    helmetNumber,
-    workerId
-  ) => {
-    const worker = workers.find(
-      (item) =>
-        String(item.id) ===
-        String(workerId)
-    );
-
-    if (!worker) return;
-
-    setHelmets((prev) =>
-      prev.map((item) => {
-        if (
-          item.helmetNumber === helmetNumber
-        ) {
-          return {
-            ...item,
-            workerId,
-            workerName: worker.name,
-            sensorConnected: true,
-            status: 'inUse',
-            lastCommunication: '방금 전',
-          };
-        }
-
-        if (
-          String(item.workerId) === String(workerId) &&
-          item.helmetNumber !== helmetNumber
-        ) {
-          return {
-            ...item,
-            workerId: '',
-            workerName: '미연결',
-            status:
-              item.sensorConnected
-                ? 'standby'
-                : 'disconnected',
-          };
-        }
-
-        return item;
-      })
-    );
-
-    updateWorker(workerId, {
-      helmetId: helmetNumber,
-      sensorConnected: true,
-    });
-
-    setToast(
-      `${helmetNumber} 헬멧 연결을 화면에 반영했습니다. 서버 배정 변경 API가 추가되면 영구 저장으로 전환할 수 있습니다.`
-    );
+  const connectHelmet = async (helmetNumber, workerId) => {
+    const helmet = helmets.find(item => item.helmetNumber === helmetNumber);
+    if (helmet?.id == null) throw new Error('서버에 등록된 헬멧만 연결할 수 있습니다.');
+    await assignHelmet(helmet.id, workerId);
+    await Promise.all([refreshHelmetServerStatus(), refreshWorkerStatuses()]);
+    setToast(`${helmetNumber} 헬멧 배정을 서버에 저장했습니다.`);
   };
 
   const reconnectDevice = async (helmetNumber) => {
@@ -541,38 +486,16 @@ export default function HelmetManagement() {
     }
   };
 
-  const unassign = (helmetNumber) => {
-    const target = helmets.find(
-      (item) =>
-        item.helmetNumber === helmetNumber
-    );
-
-    if (target?.workerId) {
-      updateWorker(target.workerId, {
-        helmetId: '',
-        sensorConnected: false,
-      });
+  const unassign = async (helmetNumber) => {
+    const helmet = helmets.find(item => item.helmetNumber === helmetNumber);
+    try {
+      if (helmet?.id == null) throw new Error('서버에 등록된 헬멧이 아닙니다.');
+      await unassignHelmet(helmet.id);
+      await Promise.all([refreshHelmetServerStatus(), refreshWorkerStatuses()]);
+      setToast(`${helmetNumber} 배정을 서버에서 해제했습니다.`);
+    } catch (error) {
+      setToast(`배정 해제 실패: ${error.message}`);
     }
-
-    setHelmets((prev) =>
-      prev.map((item) =>
-        item.helmetNumber === helmetNumber
-          ? {
-              ...item,
-              workerId: '',
-              workerName: '미연결',
-              status:
-                item.sensorConnected
-                  ? 'standby'
-                  : 'disconnected',
-            }
-          : item
-      )
-    );
-
-    setToast(
-      `${helmetNumber} 연결을 화면에서 해제했습니다. 서버 헬멧 배정 해제 API가 현재 확인되지 않아 서버 영구 변경은 아닙니다.`
-    );
   };
 
   const remove = (helmetNumber) => {

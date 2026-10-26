@@ -27,3 +27,12 @@ export async function getHelmets() {
   const res = await api.get('/api/helmets')
   return res?.data ?? res ?? []
 }
+
+export async function assignHelmet(helmetId, workerId) {
+  const res = await api.post(`/api/helmets/${encodeURIComponent(helmetId)}/assign`, { workerId: Number(workerId) });
+  return res?.data ?? res;
+}
+export async function unassignHelmet(helmetId) {
+  const res = await api.post(`/api/helmets/${encodeURIComponent(helmetId)}/unassign`);
+  return res?.data ?? res;
+}

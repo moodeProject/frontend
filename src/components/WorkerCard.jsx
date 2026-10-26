@@ -124,7 +124,10 @@ export default function WorkerCard({
     worker.heatRiskDataConnected === true ||
     Boolean(worker.recordedAt);
 
-  const movementTone = postureTone(worker);
+  const measuredAt = new Date(worker.recordedAt).getTime();
+  const isRecent = hasServerData && Number.isFinite(measuredAt) &&
+    Date.now() - measuredAt >= -30_000 && Date.now() - measuredAt < 30_000;
+  const movementTone = postureTone(hasServerData ? worker : null);
   const fatigueKnown =
     hasServerData &&
     typeof worker.fatigueAbnormal === 'boolean';
@@ -161,15 +164,15 @@ export default function WorkerCard({
         </div>
 
         <div
-          className={`worker-live-state ${hasServerData ? 'connected' : 'waiting'}`}
+          className={`worker-live-state ${isRecent ? 'connected' : 'waiting'}`}
           title={
             hasServerData
-              ? `${worker.deviceId || ''} 실제 서버 센서 데이터 수신 중`
+              ? `${worker.deviceId || ''} 마지막 측정: ${worker.recordedAt || '-'}`
               : `${worker.deviceId || ''} 서버 센서 데이터 대기 중`
           }
         >
-          {hasServerData ? <Wifi size={11} /> : <WifiOff size={11} />}
-          {hasServerData ? '실시간 연결' : '데이터 대기'}
+          {isRecent ? <Wifi size={11} /> : <WifiOff size={11} />}
+          {isRecent ? '실시간 연결' : hasServerData ? '수신 지연' : worker.deviceId ? '데이터 대기' : '헬멧 미연결'}
         </div>
 
         <div className="worker-title-row">
@@ -197,7 +200,7 @@ export default function WorkerCard({
         <div className="metric-row">
           <span>심박수</span>
           <b>
-            <Heart size={14} /> {worker.heartRate ?? '-'}
+            <Heart size={14} /> {Number(worker.heartRate) > 0 ? worker.heartRate : '-'}
           </b>
           <small>bpm</small>
         </div>
@@ -210,14 +213,7 @@ export default function WorkerCard({
               {worker.fatigueAbnormal ? '이상 감지' : '정상'}
             </b>
           ) : (
-            <>
-              <div className={`fatigue-bar level-${worker.fatigue}`}>
-                <i />
-                <i />
-                <i />
-              </div>
-              <b>{worker.fatigue}단계</b>
-            </>
+            <b>측정 대기</b>
           )}
 
           {worker.hrv != null && Number.isFinite(Number(worker.hrv)) && (

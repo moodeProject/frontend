@@ -496,10 +496,8 @@ export default function WorkerDetail() {
   const worker =
     useMemo(
       () => ({
-        ...(liveWorker ||
-          {}),
-        ...(serverWorker ||
-          {}),
+        ...(serverWorker || {}),
+        ...(liveWorker || {}),
         profileImage:
           pendingProfileImage ||
           savedProfileImage ||
