@@ -19,6 +19,7 @@ import {
   saveWorkerAuthSession,
 } from '../../api/auth';
 import '../../styles/passwordVisibilityToggle.css';
+import '../../styles/workerLoginRefresh.css';
 import {
   ensureWorkerProfile,
   saveWorkerProfile,
@@ -254,13 +255,7 @@ export default function WorkerLogin() {
             : '로그인'}
         </button>
 
-        <small>
-          졸전 작업자 계정:
-          {' '}
-          WK-20241103 /
-          {' '}
-          Worker!2024
-        </small>
+        <p className="worker-login-caption">SAFE:ON · 작업자 전용 안전관리 서비스</p>
       </form>
     </div>
   );
