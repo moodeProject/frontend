@@ -137,20 +137,12 @@ function statusPatchFromSensor(
       worker.deviceId,
     status,
     issue,
-    heartRate:
-      heartRate === null
-        ? null
-        : Number.isFinite(
-              heartRate
-            ) &&
-            heartRate > 0
-          ? heartRate
-          : worker.heartRate,
+    heartRate: Number.isFinite(heartRate) && heartRate > 0 ? heartRate : null,
     spo2:
       sensor?.spo2 === null
         ? null
         : sensor?.spo2 ??
-          worker.spo2,
+          null,
     fallState:
       sensor?.fallState ??
       worker.fallState,
@@ -331,7 +323,7 @@ function StatusCard({
             <div
               className={`fatigue-bar level-${
                 worker.fatigue ||
-                1
+                0
               }`}
             >
               <i />
@@ -341,8 +333,8 @@ function StatusCard({
 
             <b>
               {worker.fatigue ||
-                1}
-              단계
+                '측정 대기'}
+              {worker.fatigue ? '단계' : ''}
             </b>
           </div>
 
@@ -665,17 +657,7 @@ export default function WorkerDetail() {
       'normal'
     );
 
-  const healthLevel =
-    blockLevel(
-      healthBlock,
-      (
-        Number(
-          worker.heartRate
-        ) >= 85
-      )
-        ? 'warning'
-        : 'normal'
-    );
+  const healthLevel = blockLevel(healthBlock, worker.sensorConnected ? (worker.status === 'warning' ? 'warning' : 'normal') : 'normal');
 
   const fallLevel =
     blockLevel(
