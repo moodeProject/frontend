@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useWorkers } from '../../context/WorkerContext';
+import { getMyHome, normalizeMyHome } from '../../api/myHome';
 import { Bell, Camera, Check, KeyRound, Link2, Mail, MapPin, Phone, Radio, RefreshCw, ShieldCheck, UserRound } from 'lucide-react';
 import { WorkerScaffold } from '../../components/WorkerMobileUI';
 import { getWorkerProfile, saveWorkerProfile } from '../../utils/workerProfile';
@@ -22,6 +24,32 @@ export default function WorkerSettings() {
   const [passwordError, setPasswordError] = useState('');
   const [helmetBusy, setHelmetBusy] = useState(false);
   const [helmetMessage, setHelmetMessage] = useState('');
+  const { workers } = useWorkers();
+  const [myHome, setMyHome] = useState(null);
+  const [homeError, setHomeError] = useState('');
+
+  const serverWorker = useMemo(() => workers.find(item =>
+    (profile.employeeNo && String(item.employeeNo || item.employeeNumber || '') === String(profile.employeeNo)) ||
+    (profile.workerId && String(item.workerId || item.id || '') === String(profile.workerId))
+  ) || null, [workers, profile.employeeNo, profile.workerId]);
+  const linkedWorker = myHome || serverWorker;
+  const helmetNumber = linkedWorker?.helmetNo || linkedWorker?.helmetId || '';
+  const communication = linkedWorker?.lastCommunicationAt;
+  const communicationMs = communication ? new Date(communication).getTime() : NaN;
+  const isConnected = Number.isFinite(communicationMs) && Date.now() - communicationMs >= -30000 && Date.now() - communicationMs <= 30000;
+
+  useEffect(() => {
+    let mounted = true;
+    const refresh = async () => {
+      try {
+        const home = normalizeMyHome(await getMyHome());
+        if (mounted) { setMyHome(home); setHomeError(''); }
+      } catch (e) { if (mounted) { setMyHome(null); setHomeError(e?.message || '내 헬멧 정보를 조회하지 못했습니다.'); } }
+    };
+    refresh();
+    const interval = window.setInterval(refresh, 5000);
+    return () => { mounted = false; window.clearInterval(interval); };
+  }, []);
 
   const change = (key) => (e) => setForm((v) => ({ ...v, [key]: e.target.value }));
 
@@ -50,33 +78,20 @@ export default function WorkerSettings() {
   };
 
 
-  const reconnectHelmet = () => {
+  const reconnectHelmet = async () => {
     setHelmetBusy(true);
-    setHelmetMessage('헬멧과 센서 연결을 다시 확인하고 있습니다...');
-    window.setTimeout(() => {
-      const updated = { ...getWorkerProfile(), helmetConnected: true, sensorConnected: true, helmetLastConnectedAt: new Date().toISOString() };
-      saveWorkerProfile(updated);
-      setProfile(updated);
-      try {
-        const helmetKey = 'safehelmet-helmets-v1';
-        const helmets = JSON.parse(localStorage.getItem(helmetKey) || '[]');
-        if (helmets.length) {
-          const nextHelmets = helmets.map((helmet) => helmet.helmetNumber === updated.helmetNo ? {
-            ...helmet,
-            workerName: updated.name || helmet.workerName,
-            sensorConnected: true,
-            lastCommunication: '방금 전',
-            status: helmet.workerId ? 'inUse' : 'standby',
-          } : helmet);
-          localStorage.setItem(helmetKey, JSON.stringify(nextHelmets));
-        }
-      } catch {}
-      setHelmetBusy(false);
-      setHelmetMessage(`${updated.helmetNo || 'H-002'} 헬멧과 센서가 재연결되었습니다.`);
-      localStorage.setItem('safehelmet_worker_current_status', localStorage.getItem('safehelmet_worker_current_status') || '근무 중');
-      window.dispatchEvent(new Event('safehelmet-worker-helmet-reconnected'));
-      window.dispatchEvent(new Event('safehelmet-helmets-updated'));
-    }, 650);
+    setHelmetMessage('');
+    try {
+      const home = normalizeMyHome(await getMyHome());
+      setMyHome(home);
+      setHomeError('');
+      setHelmetMessage(home.sensorConnected
+        ? '서버에서 최근 안전모 통신을 확인했습니다.'
+        : '최근 통신이 확인되지 않았습니다. 안전모 전원과 서버 수신 상태를 확인해주세요.');
+    } catch (error) {
+      setHomeError(error?.message || '안전모 연결 확인에 실패했습니다.');
+      setHelmetMessage('서버에서 연결 정보를 확인하지 못했습니다.');
+    } finally { setHelmetBusy(false); }
   };
 
   const changePassword = (e) => {
@@ -125,17 +140,19 @@ export default function WorkerSettings() {
       </form>
 
       <section className="worker-white-card worker-helmet-reconnect-card">
-        <div className="worker-card-title"><strong>안전모 연결</strong><span>{profile.helmetNo || 'H-002'}</span></div>
-        <div className="worker-helmet-reconnect-state"><span><ShieldCheck size={18}/> 현재 상태</span><b className={profile.helmetConnected === false ? 'warn' : 'ok'}>{profile.helmetConnected === false ? '연결 끊김' : '연결됨'}</b></div>
-        <button type="button" className="worker-helmet-reconnect-btn" onClick={reconnectHelmet} disabled={helmetBusy}>{helmetBusy ? <RefreshCw size={16} className="spin"/> : <Link2 size={16}/>} {helmetBusy ? '재연결 중...' : '헬멧 재연결'}</button>
+        <div className="worker-card-title"><strong>안전모 연결</strong><span>{helmetNumber || '배정 정보 없음'}</span></div>
+        <div className="worker-helmet-reconnect-state"><span><ShieldCheck size={18}/> 현재 상태</span><b className={isConnected ? 'ok' : 'warn'}>{isConnected ? '최근 통신 확인' : '수신 지연 · 확인 필요'}</b></div>
+        <button type="button" className="worker-helmet-reconnect-btn" onClick={reconnectHelmet} disabled={helmetBusy}>{helmetBusy ? <RefreshCw size={16} className="spin"/> : <Link2 size={16}/>} {helmetBusy ? '확인 중...' : '연결 상태 새로고침'}</button>
         {helmetMessage && <p className="worker-helmet-reconnect-message">{helmetMessage}</p>}
+        {homeError && <p className="worker-helmet-reconnect-message" role="alert">{homeError}</p>}
+        <p style={{fontSize:12,color:'#94a3b8',marginTop:10}}>마지막 통신: {communication ? new Date(communication).toLocaleString('ko-KR') : '기록 없음'} · 30초 이내 수신 시 연결로 표시</p>
       </section>
 
       <section className="worker-white-card worker-settings-card">
         <h3>서비스 설정</h3>
         <label><span><Bell size={18}/>위험 알림</span><input type="checkbox" checked={push} onChange={(e) => setPush(e.target.checked)}/></label>
         <label><span><MapPin size={18}/>위치 공유</span><input type="checkbox" checked={locationShare} onChange={(e) => setLocationShare(e.target.checked)}/></label>
-        <div><span><Radio size={18}/>센서 연결</span><b className="ok">정상</b></div>
+        <div><span><Radio size={18}/>센서 연결</span><b className={isConnected ? 'ok' : 'warn'}>{isConnected ? '최근 수신 확인' : '데이터 대기'}</b></div>
         <div><span><ShieldCheck size={18}/>안전모</span><b className="ok">{profile.helmetNo || 'H-002'}</b></div>
       </section>
     </WorkerScaffold>
