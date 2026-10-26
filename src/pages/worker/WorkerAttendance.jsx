@@ -170,6 +170,7 @@ export default function WorkerAttendance() {
   });
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [statusSaving, setStatusSaving] = useState(false);
 
   const [currentStatus, setCurrentStatus] =
     useState(
@@ -291,7 +292,9 @@ export default function WorkerAttendance() {
   };
 
   const setWorkStatus = async (status) => {
+    if (statusSaving) return;
     setMessage('');
+    setStatusSaving(true);
 
     try {
       if (status === '근무 중') {
@@ -313,9 +316,10 @@ export default function WorkerAttendance() {
       }
     } catch (e) {
       setMessage(
-        e?.message ||
-          `${status} 처리 중 오류가 발생했습니다.`
+        `서버에 ${status} 상태를 저장하지 못했습니다: ${e?.message || '요청 실패'}`
       );
+    } finally {
+      setStatusSaving(false);
     }
   };
 
@@ -458,6 +462,7 @@ export default function WorkerAttendance() {
         <div className="worker-manual-status-actions">
           <button
             type="button"
+            disabled={statusSaving}
             className={
               currentStatus === '근무 중'
                 ? 'work active'
@@ -474,6 +479,7 @@ export default function WorkerAttendance() {
 
           <button
             type="button"
+            disabled={statusSaving}
             className={
               currentStatus === '휴식 중'
                 ? 'rest active'
@@ -490,6 +496,7 @@ export default function WorkerAttendance() {
 
           <button
             type="button"
+            disabled={statusSaving}
             className={
               currentStatus === '퇴근'
                 ? 'off active'
@@ -504,6 +511,11 @@ export default function WorkerAttendance() {
             <span>근무 종료</span>
           </button>
         </div>
+        {(statusSaving || message) && (
+          <p role="status" aria-live="polite" style={{ margin: '12px 0 0', padding: '11px 12px', fontSize: 12, lineHeight: 1.6, borderRadius: 10, background: statusSaving ? '#eef4ff' : '#f6f8fb', color: '#334155' }}>
+            {statusSaving ? '서버에 근무 상태를 저장하는 중입니다...' : message}
+          </p>
+        )}
       </section>
 
       <section className="worker-white-card worker-attendance-month-card">
