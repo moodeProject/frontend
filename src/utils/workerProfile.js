@@ -13,9 +13,10 @@ export const defaultWorkerProfile = {
   emergencyContact:
     '010-0000-1190',
   location: 'B구역 3층',
-  helmetNo: 'H-002',
-  helmetConnected: true,
-  sensorConnected: true,
+  helmetNo: '',
+  deviceId: '',
+  helmetConnected: false,
+  sensorConnected: false,
   password: 'Worker!2024',
   photo: '',
 };
@@ -48,20 +49,20 @@ export function getWorkerProfile() {
     ...defaultWorkerProfile,
     ...saved,
     employeeNo:
-      saved.employeeNo ||
       session.employeeNo ||
+      saved.employeeNo ||
       defaultWorkerProfile.employeeNo,
     name:
-      saved.name ||
       session.name ||
+      saved.name ||
       defaultWorkerProfile.name,
     userId:
-      saved.userId ??
       session.userId ??
+      saved.userId ??
       null,
     workerId:
-      saved.workerId ??
       session.workerId ??
+      saved.workerId ??
       null,
   };
 }
@@ -124,11 +125,6 @@ export function ensureWorkerProfile() {
       : {
           ...defaultWorkerProfile,
         };
-
-  localStorage.setItem(
-    WORKER_PROFILE_KEY,
-    JSON.stringify(profile)
-  );
 
   return profile;
 }
