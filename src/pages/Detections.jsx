@@ -7,6 +7,7 @@ import {
   Package,
   Search,
   Thermometer,
+  CheckCheck,
 } from 'lucide-react';
 import {
   useCallback,
@@ -23,6 +24,8 @@ import TopHeader from '../components/TopHeader';
 import { useDetections } from '../context/DetectionContext';
 import { useWorkers } from '../context/WorkerContext';
 import { getWorkerAlerts } from '../api/workerStatus';
+import { runHazardEventAction } from '../api/hazardEvents';
+import '../styles/detectionsBulkAction.css';
 
 const tabs = [
   { key: 'all', label: '전체' },
@@ -185,6 +188,7 @@ export default function Detections() {
   const {
     detections,
     refreshHazardEvents,
+    completeDetection,
     hazardLoading,
     hazardError,
     hazardStreamConnected,
@@ -201,6 +205,8 @@ export default function Detections() {
   });
 
   const [search, setSearch] = useState('');
+  const [bulkProcessing, setBulkProcessing] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState('');
 
   const active =
     searchParams.get('tab') || 'all';
@@ -301,6 +307,56 @@ export default function Detections() {
     );
   }, [active, allItems, search]);
 
+  const bulkCandidates = useMemo(() => rows.filter(item => (
+    item.source === 'server' &&
+    Number.isInteger(Number(item.serverEventId ?? item.id)) &&
+    Number(item.serverEventId ?? item.id) > 0 &&
+    !['RESOLVED', 'COMPLETED', 'CLOSED'].includes(String(item.status || '').toUpperCase()) &&
+    item.processClass !== 'completed'
+  )), [rows]);
+
+  const bulkResolve = async () => {
+    if (bulkProcessing || !bulkCandidates.length) return;
+    if (!window.confirm(`현재 조회 조건에 표시된 서버 미처리 이벤트 ${bulkCandidates.length}건을 처리완료 하시겠습니까?\\n센서 감지 기록과 다른 기간/검색 결과는 제외됩니다.`)) return;
+
+    setBulkProcessing(true);
+    setBulkProgress('처리 준비 중...');
+    const admin = (() => {
+      try { return JSON.parse(localStorage.getItem('safehelmet_current_admin') || '{}'); }
+      catch { return {}; }
+    })();
+    const adminId = [admin.adminId, admin.backendId, admin.userId, admin.id]
+      .map(value => Number(value)).find(value => Number.isInteger(value) && value >= 0) ?? 0;
+    let done = 0;
+    let failed = 0;
+    try {
+      // Small batches limit server pressure and allow visible progress.
+      for (let i = 0; i < bulkCandidates.length; i += 4) {
+        const batch = bulkCandidates.slice(i, i + 4);
+        const results = await Promise.allSettled(batch.map(item =>
+          runHazardEventAction(item.serverEventId ?? item.id, {
+            actionType: 'RESOLVE', adminId, memo: '관리자 이상 감지 목록 일괄 처리완료'
+          })
+        ));
+        results.forEach((result, index) => {
+          if (result.status === 'fulfilled') {
+            done += 1;
+            completeDetection(batch[index].id);
+          } else {
+            failed += 1;
+          }
+        });
+        setBulkProgress(`처리 중 ${done + failed}/${bulkCandidates.length}건 · 성공 ${done}건`);
+      }
+      setBulkProgress(`처리 결과: 성공 ${done}건, 실패 ${failed}건. ${failed ? '실패한 항목은 처리되지 않았습니다.' : '완료되었습니다.'}`);
+      await refreshHazardEvents();
+    } catch (error) {
+      setBulkProgress(`일괄 처리 중 오류: ${error?.message || '재시도해주세요.'}`);
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
+
   const refreshPage = async () => {
     await Promise.allSettled([
       refreshHazardEvents(),
@@ -365,6 +421,12 @@ export default function Detections() {
             }
           />
 
+          <div className="detection-bulk-actions">
+            <button type="button" className="detection-bulk-resolve-btn" disabled={bulkProcessing || bulkCandidates.length === 0} onClick={bulkResolve}>
+              <CheckCheck size={15} />
+              {bulkProcessing ? '처리 중...' : `일괄 처리완료 (${bulkCandidates.length})`}
+            </button>
+          </div>
           <label
             className="records-search"
             style={{
@@ -385,6 +447,8 @@ export default function Detections() {
             />
           </label>
         </div>
+
+        {bulkProgress && <div className="detection-bulk-progress" role="status" aria-live="polite">{bulkProgress}</div>}
 
         <div
           className={`worker-filter-banner ${
