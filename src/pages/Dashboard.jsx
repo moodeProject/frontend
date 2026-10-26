@@ -138,7 +138,7 @@ export default function Dashboard() {
     }
   };
 
-  const attentionWorkers = attentionWorkers.map(worker => statusWithOpenIncidents(worker, detections));
+  const attentionWorkers = workers.map(worker => statusWithOpenIncidents(worker, detections));
   const riskyWorkers = attentionWorkers.filter(
     (worker) => worker.status !== 'normal'
   );
