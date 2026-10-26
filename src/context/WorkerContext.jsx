@@ -19,7 +19,7 @@ import { getDefaultWorkerProfile } from '../utils/defaultWorkerProfiles';
 const initialWorkers = [];
 const WorkerContext = createContext(null);
 const STORAGE_KEY = 'safehelmet-workers-v3';
-const SENSOR_REFRESH_MS = 10_000;
+const SENSOR_REFRESH_MS = 5_000;
 const SENSOR_FRESH_MS = 30_000;
 
 function isFreshMeasurement(record) {
