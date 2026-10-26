@@ -99,8 +99,13 @@ export default function WorkerLogin() {
       const current =
         ensureWorkerProfile();
 
+      const sameAccount = String(current.employeeNo || '') === String(authUser.employeeNo || authUser.id || employeeNo.trim());
       const nextProfile = {
-        ...current,
+        ...(sameAccount ? current : {}),
+        helmetNo: sameAccount ? (current.helmetNo || '') : '',
+        deviceId: sameAccount ? (current.deviceId || '') : '',
+        helmetConnected: false,
+        sensorConnected: false,
         employeeNo:
           authUser.employeeNo ||
           authUser.id ||
