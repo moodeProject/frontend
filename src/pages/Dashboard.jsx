@@ -1,4 +1,5 @@
 import { statusWithOpenIncidents } from '../utils/workerIncidentStatus';
+import '../styles/dashboardSosLayout.css';
 import {
   AlertTriangle,
   Eye,
@@ -453,7 +454,7 @@ export default function Dashboard() {
 
           <aside className="right-stack">
             {sosList.length > 0 && (
-              <section className="panel sos-panel">
+              <section className="panel sos-panel dashboard-sos-list">
                 <div className="panel-title-row border-bottom">
                   <div className="title-with-dot"><i className="red-dot"/><strong><ShieldAlert size={15}/> SOS 미처리</strong><span>{sosList.length}건</span></div>
                 </div>
