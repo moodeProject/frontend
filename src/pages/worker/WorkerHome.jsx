@@ -31,6 +31,7 @@ import {
 } from '../../utils/workerRealtime';
 import '../../styles/workerDangerTextWhiteFix.css';
 import '../../styles/workerFallDetailButtonFix.css';
+import '../../styles/workerHomeLayoutFix.css';
 
 
 function normalizeZone(value) {
