@@ -21,6 +21,7 @@ import { getWorkerProfile } from '../utils/workerProfile';
 import {
   detectionBelongsToWorker,
   getWorkerDeviceId,
+  sensorUiStatus,
 } from '../utils/workerRealtime';
 import { getDefaultWorkerProfile } from '../utils/defaultWorkerProfiles';
 import '../styles/safeonSync.css';
@@ -129,8 +130,9 @@ export function WorkerBottomNav({ active = 'home' }) {
     profile
   );
 
-  const dangerActive =
-    currentWorker?.sensorConnected === true && currentWorker?.status === 'danger';
+  const dangerActive = sensorUiStatus(
+    currentWorker?.serverDataConnected ? currentWorker : null
+  ).key === 'danger';
 
   const [nearbyAlerts, setNearbyAlerts] =
     useState(readNearbyDangerAlerts);
@@ -289,9 +291,9 @@ export function WorkerDrawer({ open, onClose }) {
 
   // Safety is based on the same fresh /api/me/home sensor state as the home page.
   // A stale local "위험" flag is not evidence of a current fall.
-  const safetyLevel = currentWorker?.sensorConnected
-    ? currentWorker.status
-    : 'unknown';
+  const safetyLevel = sensorUiStatus(
+    currentWorker?.serverDataConnected ? currentWorker : null
+  ).key;
   const statusMeta = safetyLevel === 'danger'
     ? WORK_STATUS_META['위험']
     : safetyLevel === 'warning'
@@ -386,8 +388,7 @@ export function WorkerScaffold({
   useEffect(() => {
     if (
       !currentWorker ||
-      !currentWorker.sensorConnected ||
-      currentWorker.status !== 'danger'
+      sensorUiStatus(currentWorker?.serverDataConnected ? currentWorker : null).key !== 'danger'
     ) {
       return;
     }
@@ -445,8 +446,7 @@ export function WorkerScaffold({
       workers.filter(
         (worker) =>
           worker.id !== currentWorker.id &&
-          worker.sensorConnected === true &&
-          worker.status === 'danger' &&
+          sensorUiStatus(worker?.serverDataConnected ? worker : null).key === 'danger' &&
           dangerIsRecent(worker)
       );
 
@@ -530,7 +530,7 @@ export function WorkerScaffold({
   return (
     <div
       className={`worker-mobile-shell ${className} ${
-        currentWorker?.sensorConnected === true && currentWorker?.status === 'danger'
+        sensorUiStatus(currentWorker?.serverDataConnected ? currentWorker : null).key === 'danger'
           ? 'worker-danger-active'
           : ''
       }`}
