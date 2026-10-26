@@ -1,0 +1,123 @@
+/* SAFE:ON worker sign-in refresh — isolated to /worker/login */
+.worker-login-page {
+  width: min(100%, 460px);
+  min-height: 100dvh;
+  background: #fff;
+  overflow: hidden;
+  font-family: inherit;
+}
+.worker-login-page .worker-login-hero {
+  min-height: 0;
+  height: auto;
+  padding: 46px 22px 66px;
+  justify-content: flex-start;
+  background: linear-gradient(155deg, #1767ff 0%, #1152d9 100%);
+}
+.worker-login-page .worker-login-logo {
+  width: 66px;
+  height: 66px;
+  border-radius: 21px;
+  margin-bottom: 17px;
+  box-shadow: 0 12px 30px rgba(0, 36, 119, .16);
+}
+.worker-login-page .worker-login-logo svg {width:35px;height:35px}
+.worker-login-page .worker-login-hero h1 {
+  font-size: 27px;
+  letter-spacing: -.7px;
+  line-height: 1.25;
+  margin-bottom: 8px;
+}
+.worker-login-page .worker-login-hero>p {
+  font-size: 13px;
+  line-height: 1.55;
+  color: #e0eaff;
+}
+.worker-login-page .worker-login-features {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  gap: clamp(12px, 5vw, 26px);
+  margin-top: 23px;
+}
+.worker-login-page .worker-login-features span {
+  font-size: 11px;
+  gap: 7px;
+  white-space: nowrap;
+}
+.worker-login-page .worker-login-features span svg {
+  width: 35px;
+  height: 35px;
+  padding: 8px;
+}
+.worker-login-page .worker-login-card {
+  flex: 1;
+  width: 100%;
+  margin-top: -28px;
+  border-radius: 28px 28px 0 0;
+  padding: 29px clamp(22px, 6vw, 34px) 32px;
+  min-height: 0;
+  box-shadow: 0 -12px 34px rgba(9, 41, 105, .05);
+}
+.worker-login-page .worker-login-card h2 {
+  font-size: 22px;
+  letter-spacing: -.5px;
+  margin: 0 0 21px;
+}
+.worker-login-page .worker-login-card label {
+  display: block;
+  font-size: 13px;
+  font-weight: 750;
+  margin-bottom: 17px;
+  color: #202c42;
+}
+.worker-login-page .worker-login-card input {
+  height: 49px;
+  border-radius: 12px;
+  background: #f8faff;
+  border: 1px solid #e2e8f2;
+  padding: 0 15px;
+  margin-top: 8px;
+  font-size: 15px;
+}
+.worker-login-page .worker-login-card input:focus {
+  border-color: #1767ff;
+  box-shadow: 0 0 0 3px rgba(23, 103, 255, .11);
+}
+.worker-login-page .worker-password-field input {padding-right:48px}
+.worker-login-page .worker-password-field .password-visibility-button {
+  top: 14px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+}
+.worker-login-page .worker-login-card .worker-primary-btn {
+  width: 100%;
+  min-height: 50px;
+  border-radius: 13px;
+  margin-top: 4px;
+  font-size: 15px;
+  font-weight: 800;
+  box-shadow: 0 8px 20px rgba(23, 103, 255, .16);
+}
+.worker-login-page .worker-login-card .worker-login-error {
+  font-size: 12px;
+  line-height: 1.5;
+  margin: -3px 0 13px;
+}
+.worker-login-page .worker-login-caption {
+  margin: 18px 0 0;
+  text-align: center;
+  font-size: 11px;
+  color: #93a0b5;
+}
+@media (max-width: 360px) {
+  .worker-login-page .worker-login-hero {padding: 32px 14px 54px}
+  .worker-login-page .worker-login-features {gap: 11px}
+  .worker-login-page .worker-login-features span {font-size: 10px}
+  .worker-login-page .worker-login-card {padding-inline: 20px}
+}
+@media (max-height: 710px) {
+  .worker-login-page .worker-login-hero {padding-top: 24px;padding-bottom: 47px}
+  .worker-login-page .worker-login-features {margin-top: 14px}
+  .worker-login-page .worker-login-card {padding-top: 23px}
+}
