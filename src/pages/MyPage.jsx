@@ -79,6 +79,7 @@ export default function MyPage() {
 
   const logout = () => {
     localStorage.removeItem(CURRENT_KEY);
+    localStorage.removeItem('safehelmet_admin_token');
     navigate('/login', { replace: true });
   };
 
