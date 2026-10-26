@@ -37,6 +37,7 @@ import WorkerHazards from './pages/worker/WorkerHazards';
 import WorkerAlerts from './pages/worker/WorkerAlerts';
 import WorkerSOS from './pages/worker/WorkerSOS';
 import WorkerFallAlert from './pages/worker/WorkerFallAlert';
+import WorkerFallStatus from './pages/worker/WorkerFallStatus';
 import WorkerSettings from './pages/worker/WorkerSettings';
 import './styles/safehelmet.css';
 
@@ -64,6 +65,7 @@ export default function App() {
                 <Route path="/worker/alerts" element={<WorkerAlerts />} />
                 <Route path="/worker/sos" element={<WorkerSOS />} />
                 <Route path="/worker/fall-alert" element={<WorkerFallAlert />} />
+                <Route path="/worker/fall-status" element={<WorkerFallStatus />} />
                 <Route path="/worker/settings" element={<WorkerSettings />} />
               </Route>
 
