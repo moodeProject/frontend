@@ -1,3 +1,4 @@
+import { getMyHome } from '../../api/myHome';
 import {
   Clock3,
   Heart,
@@ -105,10 +106,18 @@ export default function WorkerHome() {
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [attendanceMsg, setAttendanceMsg] = useState('');
 
+  const resolveAttendanceWorkerId = async () => {
+    const validId = v => /^\d+$/.test(String(v ?? '').trim()) && Number(v) > 0 ? Number(v) : null;
+    const home = await getMyHome();
+    const id = validId(home?.workerId) || validId(home?.worker?.workerId) || validId(home?.worker?.id) || validId(home?.id);
+    if (!id) throw new Error('본인 작업자 ID가 없습니다. /api/me/home 응답을 확인해주세요.');
+    return id;
+  };
+
   const handleCheckIn = async () => {
     setAttendanceLoading(true);
     try {
-      await checkIn(profile.employeeNo || profile.userId);
+      await checkIn(await resolveAttendanceWorkerId());
       localStorage.setItem(ATTENDANCE_KEY, 'true');
       setCheckedIn(true);
       setAttendanceMsg('출근이 기록되었습니다.');
@@ -123,7 +132,7 @@ export default function WorkerHome() {
   const handleCheckOut = async () => {
     setAttendanceLoading(true);
     try {
-      await checkOut(profile.employeeNo || profile.userId);
+      await checkOut(await resolveAttendanceWorkerId());
       localStorage.setItem(ATTENDANCE_KEY, 'false');
       setCheckedIn(false);
       setAttendanceMsg('퇴근이 기록되었습니다.');
