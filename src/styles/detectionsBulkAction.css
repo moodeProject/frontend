@@ -1,0 +1,8 @@
+/* Only the administrator detection list bulk action. */
+.detection-bulk-actions{display:flex;align-items:center;justify-content:flex-end;flex-shrink:0}
+.detection-bulk-resolve-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:36px;padding:8px 13px;border-radius:10px;border:1px solid #b6cbff;background:#eff5ff;color:#1767ff;font-size:12px;font-weight:750;white-space:nowrap;cursor:pointer}
+.detection-bulk-resolve-btn:hover:not(:disabled){background:#e1edff}
+.detection-bulk-resolve-btn:disabled{cursor:not-allowed;opacity:.45}
+.detection-bulk-resolve-btn:focus-visible{outline:2px solid #1767ff;outline-offset:2px}
+.detection-bulk-progress{padding:10px 14px;margin:12px 0;border-radius:10px;background:#eef4ff;color:#28569c;font-size:12px;font-weight:650;line-height:1.5}
+@media(max-width:1150px){.detections-page .admin-date-filter-row{flex-wrap:wrap}.detections-page .detection-bulk-actions{margin-left:auto}.detections-page .records-search{margin-left:0!important}}
