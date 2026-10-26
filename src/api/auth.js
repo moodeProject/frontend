@@ -266,7 +266,7 @@ export function saveWorkerAuthSession(user) {
   )
 
   localStorage.setItem(
-    AUTH_USER_KEY,
+    'safehelmet_worker_user',
     JSON.stringify(normalized)
   )
 
