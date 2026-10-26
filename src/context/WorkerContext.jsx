@@ -20,6 +20,20 @@ const initialWorkers = [];
 const WorkerContext = createContext(null);
 const STORAGE_KEY = 'safehelmet-workers-v3';
 const SENSOR_REFRESH_MS = 10_000;
+const SENSOR_FRESH_MS = 30_000;
+
+function isFreshMeasurement(record) {
+  if (!record?.recordedAt) return false;
+  const stamp = new Date(record.recordedAt).getTime();
+  return Number.isFinite(stamp) && Date.now() - stamp >= -30_000 && Date.now() - stamp < SENSOR_FRESH_MS;
+}
+
+function optionalNumber(value, minExclusive = -Infinity) {
+  if (value === null || value === undefined || value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) && number > minExclusive ? number : null;
+}
+
 
 function text(value) {
   return value === undefined || value === null ? '' : String(value);
@@ -146,7 +160,7 @@ function normalizeWorker(worker) {
 
 function isNormalState(value) {
   const normalized = text(value).toUpperCase();
-  return !normalized || normalized === 'NORMAL';
+  return normalized === 'NORMAL';
 }
 
 function isTrue(value) {
@@ -179,41 +193,42 @@ function mergeWorkerStatus(worker, sensor, heatRisk) {
       externalHeatWarning: null,
       heatRiskLevel: '',
       hrv: null,
+      fallState: null,
+      healthState: null,
+      fallConfidence: null,
+      ax: null, ay: null, az: null, gx: null, gy: null, gz: null,
+      status: 'normal',
     });
   }
 
-  const fallAbnormal = sensor ? !isNormalState(sensor.fallState) : false;
-  const healthStateAbnormal = sensor
-    ? !isNormalState(sensor.healthState)
-    : false;
-  const posture = text(sensor?.posture ?? base.posture).toUpperCase();
-  const postureAbnormal = isTrue(
-    sensor?.postureAbnormal ?? base.postureAbnormal
-  );
+  const fallAbnormal = Boolean(sensor && ((sensor.fallState != null && String(sensor.fallState).trim() !== '' && !isNormalState(sensor.fallState)) || isTrue(sensor.fallDetected)));
+  const healthStateAbnormal = Boolean(sensor && ((sensor.healthState != null && String(sensor.healthState).trim() !== '' && !isNormalState(sensor.healthState)) || isTrue(sensor.healthAbnormal) || isTrue(sensor.heartRiskAbnormal)));
+  const posture = text(sensor?.posture).toUpperCase();
+  const postureAbnormal = isTrue(sensor?.postureAbnormal);
 
   const fatigueAbnormal = isTrue(
     heatRisk?.fatigueAbnormal ??
       sensor?.fatigueAbnormal ??
-      base.fatigueAbnormal
+      null
   );
 
   const heatRiskAbnormal = isTrue(
     heatRisk?.heatRiskAbnormal ??
       sensor?.heatRiskAbnormal ??
-      base.heatRiskAbnormal
+      null
   );
 
   const externalHeatWarning = isTrue(
-    heatRisk?.externalHeatWarning ?? base.externalHeatWarning
+    heatRisk?.externalHeatWarning
   );
 
   const heatRiskLevel =
-    heatRisk?.heatRiskLevel || base.heatRiskLevel || '';
+    heatRisk?.heatRiskLevel || '';
 
   const heatLevelAbnormal = isHeatLevelAbnormal(heatRiskLevel);
 
   let status = 'normal';
-  let issue = '정상 작업 중';
+  let issue = sensor || heatRisk ? '정상 작업 중' : '센서 데이터 대기';
 
   if (fallAbnormal) {
     status = 'danger';
@@ -244,12 +259,9 @@ function mergeWorkerStatus(worker, sensor, heatRisk) {
         : `자세 이상 · ${posture || 'UNKNOWN'}`;
   }
 
-  const heartRate = Number(
-    sensor?.heartRate ?? heatRisk?.heartRate
-  );
-  const spo2 = heatRisk?.spo2 ?? sensor?.spo2 ?? base.spo2;
-  const hrvRaw = heatRisk?.hrv ?? sensor?.hrv ?? base.hrv;
-  const hrv = hrvRaw == null ? NaN : Number(hrvRaw);
+  const heartRate = optionalNumber(sensor?.heartRate ?? heatRisk?.heartRate, 0);
+  const spo2 = optionalNumber(sensor?.spo2 ?? heatRisk?.spo2, 0);
+  const hrv = optionalNumber(sensor?.hrv ?? heatRisk?.hrv, 0);
   const sensorZone = readZone(sensor || {});
 
   return normalizeWorker({
@@ -259,35 +271,33 @@ function mergeWorkerStatus(worker, sensor, heatRisk) {
     issue,
     fatigue: typeof (heatRisk?.fatigueAbnormal ?? sensor?.fatigueAbnormal) === 'boolean' ? (fatigueAbnormal ? 2 : 1) : null,
     heartRate:
-      Number.isFinite(heartRate) && heartRate > 0
-        ? heartRate
-        : null,
+      heartRate,
     spo2,
-    hrv: Number.isFinite(hrv) ? hrv : base.hrv,
+    hrv,
     fatigueAbnormal,
     heatRiskAbnormal,
     externalHeatWarning,
     heatRiskLevel,
-    fallState: sensor?.fallState ?? base.fallState,
-    healthState: sensor?.healthState ?? base.healthState,
-    fallConfidence: sensor?.fallConfidence ?? base.fallConfidence,
-    posture: sensor?.posture ?? base.posture,
+    fallState: sensor?.fallState ?? (sensor?.fallDetected === true ? 'DANGER' : null),
+    healthState: sensor?.healthState ?? null,
+    fallConfidence: sensor?.fallConfidence ?? null,
+    posture: sensor?.posture ?? null,
     postureAbnormal:
-      sensor?.postureAbnormal ?? base.postureAbnormal ?? false,
+      sensor?.postureAbnormal ?? false,
     recordedAt:
-      sensor?.recordedAt ?? heatRisk?.recordedAt ?? base.recordedAt,
+      sensor?.recordedAt ?? heatRisk?.recordedAt ?? null,
     zone: sensorZone.name || base.zone,
     zoneCode: sensorZone.code || sensor?.zoneId || base.zoneCode || null,
     zoneDbId: sensorZone.id ?? base.zoneDbId ?? null,
-    ax: sensor?.ax ?? base.ax,
-    ay: sensor?.ay ?? base.ay,
-    az: sensor?.az ?? base.az,
-    gx: sensor?.gx ?? base.gx,
-    gy: sensor?.gy ?? base.gy,
-    gz: sensor?.gz ?? base.gz,
-    sensorConnected: Boolean(sensor),
-    serverDataConnected: Boolean(sensor),
-    heatRiskDataConnected: Boolean(heatRisk),
+    ax: sensor?.ax ?? null,
+    ay: sensor?.ay ?? null,
+    az: sensor?.az ?? null,
+    gx: sensor?.gx ?? null,
+    gy: sensor?.gy ?? null,
+    gz: sensor?.gz ?? null,
+    sensorConnected: isFreshMeasurement(sensor),
+    serverDataConnected: isFreshMeasurement(sensor),
+    heatRiskDataConnected: isFreshMeasurement(heatRisk),
   });
 }
 
@@ -367,22 +377,65 @@ export function WorkerProvider({ children }) {
         .map((item) => [text(item.deviceId), item])
     );
 
-    // Server identities and assignments are authoritative. Cached demo workers
-    // must never choose the owner of a real device's measurements.
+    // Use server-provided worker and helmet assignments.
     const helmetStatuses = helmetStatusResult.status === 'fulfilled'
       ? helmetStatusResult.value : [];
     const helmetRows = helmetResult.status === 'fulfilled'
       ? helmetResult.value : helmetStatuses;
+
     setWorkers((previous) => {
-      if (workerResult.status !== 'fulfilled') return previous.map(worker =>
-        mergeWorkerStatus({ ...worker, recordedAt: null }, null, null));
+      if (workerResult.status !== 'fulfilled') {
+        return previous.map(worker =>
+          mergeWorkerStatus(
+            { ...worker, recordedAt: null },
+            null,
+            null
+          )
+        );
+      }
+
       return workerResult.value.content.map(worker => {
-        const saved = previous.find(item => text(item.id) === text(worker.id));
+        const saved = previous.find(
+          item => text(item.id) === text(worker.id)
+        );
+
         const bound = bindWorkerHelmet(worker, helmetRows);
-        const sensor = measuredStatus(sensorMap.get(bound.deviceId)) ||
-          measuredStatus(helmetStatuses.find(item => text(item.deviceId) === bound.deviceId));
-        return mergeWorkerStatus({ ...bound, profileImage: saved?.profileImage || worker.profileImage },
-          sensor, measuredStatus(heatMap.get(bound.deviceId)));
+
+        const sensor = measuredStatus(
+          sensorMap.get(bound.deviceId)
+        );
+
+        const heat = measuredStatus(
+          heatMap.get(bound.deviceId)
+        );
+
+        const latest =
+          sensor && isFreshMeasurement(sensor)
+            ? sensor
+            : null;
+
+        const latestHeat =
+          heat && isFreshMeasurement(heat)
+            ? heat
+            : null;
+
+        const merged = mergeWorkerStatus(
+          {
+            ...bound,
+            profileImage: saved?.profileImage || worker.profileImage,
+          },
+          latest,
+          latestHeat
+        );
+
+        return !latest && sensor
+          ? {
+              ...merged,
+              recordedAt: sensor.recordedAt,
+              issue: '수신 지연',
+            }
+          : merged;
+
       });
     });
 
