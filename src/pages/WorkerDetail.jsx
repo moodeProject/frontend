@@ -314,8 +314,7 @@ function StatusCard({
           <strong
             className={`status-card-value ${level}`}
           >
-            {worker.heartRate ??
-              '-'}{' '}
+            {Number(worker.heartRate) > 0 && worker.serverDataConnected ? worker.heartRate : '-'}{' '}
             bpm
           </strong>
 
@@ -332,8 +331,7 @@ function StatusCard({
             </div>
 
             <b>
-              {worker.fatigue ||
-                '측정 대기'}
+              {worker.sensorConnected && worker.fatigue ? worker.fatigue : '측정 대기'}
               {worker.fatigue ? '단계' : ''}
             </b>
           </div>
@@ -341,13 +339,11 @@ function StatusCard({
           <div className="detail-personal-heat-risk">
             <span>개인 온열질환 위험도</span>
             <b>
-              {personalHeatRiskLabel(
-                worker
-              )}
+              {worker.heatRiskDataConnected ? personalHeatRiskLabel(worker) : '측정 대기'}
             </b>
           </div>
 
-          {worker.hrv != null && (
+          {worker.serverDataConnected && Number(worker.hrv) > 0 && (
             <div className="detail-personal-heat-risk">
               <span>HRV</span>
               <b>
@@ -658,6 +654,10 @@ export default function WorkerDetail() {
     );
 
   const healthLevel = blockLevel(healthBlock, worker.sensorConnected ? (worker.status === 'warning' ? 'warning' : 'normal') : 'normal');
+  const recentSensor = Boolean(worker.serverDataConnected);
+  const validHeartRate = recentSensor && Number(worker.heartRate) > 0;
+  const validSpo2 = recentSensor && Number(worker.spo2) > 0;
+  const validHrv = recentSensor && Number(worker.hrv) > 0;
 
   const fallLevel =
     blockLevel(
@@ -969,7 +969,7 @@ export default function WorkerDetail() {
 
               <span
                 className={
-                  worker.serverDataConnected
+                  recentSensor
                     ? 'sensor-ok'
                     : 'sensor-waiting'
                 }
@@ -977,8 +977,8 @@ export default function WorkerDetail() {
                 <Wifi
                   size={13}
                 />
-                {worker.serverDataConnected
-                  ? '실시간 센서 데이터 연결됨'
+                {recentSensor
+                  ? '최근 자세·동작 데이터 수신됨'
                   : '서버 센서 데이터 대기'}
               </span>
 
@@ -993,10 +993,7 @@ export default function WorkerDetail() {
                 </span>
               )}
 
-              {worker.spo2 !==
-                null &&
-                worker.spo2 !==
-                  undefined && (
+              {validSpo2 && (
                   <span>
                     SpO₂{' '}
                     {worker.spo2}
@@ -1091,11 +1088,38 @@ export default function WorkerDetail() {
                 ? '추락 감지됨'
                 : worker.postureAbnormal
                   ? '자세 이상 감지'
-                  : '감지 없음'
+                  : recentSensor && worker.fallState === 'NORMAL'
+                  ? '감지 없음'
+                  : '데이터 대기'
             )}
             worker={worker}
           />
         </div>
+
+        <section className="panel" style={{ marginTop: 20, padding: 24 }} aria-label="최근 실측 센서 데이터">
+          <h3 style={{ margin: '0 0 12px' }}>최근 실측 센서 데이터</h3>
+          <p style={{ margin: '0 0 16px', color: '#64748b', fontSize: 13 }}>
+            마지막 수신: {worker.recordedAt ? new Date(worker.recordedAt).toLocaleString('ko-KR') : '기록 없음'} · {recentSensor ? '최근 30초 이내' : '수신 지연 또는 데이터 없음'}
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(155px, 1fr))', gap: 12 }}>
+            {[
+              ['심박수', validHeartRate ? `${worker.heartRate} bpm` : '측정 대기'],
+              ['산소포화도', validSpo2 ? `${worker.spo2}%` : '측정 대기'],
+              ['HRV', validHrv ? Number(worker.hrv).toFixed(1) : '측정 대기'],
+              ['가속도 X / Y / Z', recentSensor && [worker.ax, worker.ay, worker.az].every(v => v != null) ? [worker.ax, worker.ay, worker.az].join(' / ') : '데이터 대기'],
+              ['자이로 X / Y / Z', recentSensor && [worker.gx, worker.gy, worker.gz].every(v => v != null) ? [worker.gx, worker.gy, worker.gz].join(' / ') : '데이터 대기'],
+              ['자세', recentSensor && worker.posture ? postureLabel(worker.posture) : '데이터 대기'],
+              ['추락 판정', recentSensor && worker.fallState ? worker.fallState : '데이터 대기'],
+              ['추락 신뢰도', recentSensor && worker.fallConfidence != null ? String(worker.fallConfidence) : '데이터 대기'],
+            ].map(([label, value]) => (
+              <div key={label} style={{ background: '#f7f9fc', borderRadius: 12, padding: '12px 14px' }}>
+                <div style={{ fontSize: 12, color: '#64748b' }}>{label}</div>
+                <strong style={{ display: 'block', marginTop: 6, fontSize: 14 }}>{value}</strong>
+              </div>
+            ))}
+          </div>
+          <p style={{ margin: '12px 0 0', color: '#64748b', fontSize: 12 }}>0으로 전송된 생체신호는 유효한 측정값으로 간주하지 않습니다.</p>
+        </section>
       </div>
 
       <DeleteWorkerModal
