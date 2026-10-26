@@ -9,7 +9,7 @@ export default function WorkerProtectedRoute() {
 
   const token =
     localStorage.getItem(
-      'auth_token'
+      'safehelmet_worker_token'
     );
 
   const session =
