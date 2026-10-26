@@ -121,3 +121,58 @@
   .worker-login-page .worker-login-features {margin-top: 14px}
   .worker-login-page .worker-login-card {padding-top: 23px}
 }
+
+/* Password visibility control: override generic worker button styling. */
+.worker-login-page .worker-login-card .worker-password-field {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+.worker-login-page .worker-login-card .worker-password-field input {
+  box-sizing: border-box;
+  width: 100%;
+  padding-right: 52px !important;
+}
+.worker-login-page .worker-login-card .worker-password-field button.password-visibility-button {
+  position: absolute !important;
+  top: calc(50% + 4px) !important;
+  right: 10px !important;
+  left: auto !important;
+  bottom: auto !important;
+  transform: translateY(-50%) !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 32px !important;
+  min-width: 32px !important;
+  max-width: 32px !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  max-height: 32px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 8px !important;
+  outline: 0;
+  box-shadow: none !important;
+  background: transparent !important;
+  color: #8796ad !important;
+  font-size: 0;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 2;
+}
+.worker-login-page .worker-login-card .worker-password-field button.password-visibility-button svg {
+  width: 19px;
+  height: 19px;
+  flex: none;
+}
+.worker-login-page .worker-login-card .worker-password-field button.password-visibility-button:hover {
+  background: #eaf0fb !important;
+  color: #1767ff !important;
+}
+.worker-login-page .worker-login-card .worker-password-field button.password-visibility-button:focus-visible {
+  outline: 2px solid #1767ff !important;
+  outline-offset: 1px;
+}
