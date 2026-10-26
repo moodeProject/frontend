@@ -91,3 +91,27 @@ await test('server failures preserve HTTP status and endpoint for diagnosis', as
   handler = () => new Response(JSON.stringify({ message: '로그인이 필요합니다.', code: 'UNAUTHENTICATED' }), { status: 401 });
   await assert.rejects(helmets.getHelmets, error => error.status === 401 && error.code === 'UNAUTHENTICATED' && error.message.includes('/api/helmets'));
 });
+
+await test('slow reads have no automatic timeout and share pending requests', async () => {
+  const helmets = await loadApi('helmets');
+  const originalTimeout = globalThis.setTimeout;
+  let timers = 0, resolve;
+  globalThis.setTimeout = (...args) => { timers++; return originalTimeout(...args); };
+  handler = () => new Promise(done => { resolve = done; });
+  try {
+    const count = calls.length;
+    const first = helmets.getHelmets();
+    const second = helmets.getHelmets();
+    assert.equal(calls.length, count + 1);
+    assert.equal(timers, 0);
+    resolve(ok([{ id: 42 }]));
+    assert.deepEqual(await first, [{ id: 42 }]);
+    assert.deepEqual(await second, [{ id: 42 }]);
+    handler = () => new Response('{}', { status: 502 });
+    await assert.rejects(helmets.getHelmets, error => error.status === 502);
+    handler = () => ok([]);
+    assert.deepEqual(await helmets.getHelmets(), [], 'a failed read can be retried');
+  } finally {
+    globalThis.setTimeout = originalTimeout;
+  }
+});
