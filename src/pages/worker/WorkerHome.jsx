@@ -552,10 +552,10 @@ export default function WorkerHome() {
         <button
           className="urgent-fall-detail-btn"
           onClick={() =>
-            navigate('/worker/fall-alert')
+            navigate(fallSeverity === 'danger' ? '/worker/fall-alert' : '/worker/fall-status')
           }
         >
-          <Siren size={16} />
+          {fallSeverity === 'danger' ? <Siren size={16} /> : <ShieldCheck size={16} />}
           상세보기
         </button>
       </section>
