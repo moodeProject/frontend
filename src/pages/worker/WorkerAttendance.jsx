@@ -186,24 +186,20 @@ export default function WorkerAttendance() {
     () =>
       workers.find(
         (item) =>
+          (profile.userId && String(item.id) === String(profile.userId)) ||
           (profile.employeeNo &&
             String(
               item.employeeNumber ||
                 item.workerCode ||
                 ''
             ) === String(profile.employeeNo)) ||
-          (profile.helmetNo &&
-            String(item.helmetId || '') ===
-              String(profile.helmetNo)) ||
-          (profile.name &&
-            String(item.name || '') ===
-              String(profile.name))
+          (profile.workerId && String(item.id) === String(profile.workerId))
       ) || null,
     [
       workers,
+      profile.userId,
+      profile.workerId,
       profile.employeeNo,
-      profile.helmetNo,
-      profile.name,
     ]
   );
 
@@ -214,11 +210,7 @@ export default function WorkerAttendance() {
     profile.userId ||
     '';
 
-  const attendanceIdentity =
-    profile.employeeNo ||
-    currentWorker?.employeeNumber ||
-    currentWorker?.workerCode ||
-    workerId;
+  const attendanceIdentity = workerId;
 
   const monthStr =
     `${month.year}-${String(month.month).padStart(2, '0')}`;

@@ -36,3 +36,28 @@ export async function unassignHelmet(helmetId) {
   const res = await api.post(`/api/helmets/${encodeURIComponent(helmetId)}/unassign`);
   return res?.data ?? res;
 }
+
+export async function createHelmet({ helmetNumber, deviceId, workerId, memo = '' }) {
+  const res = await api.post('/api/helmets', {
+    helmetNo: helmetNumber,
+    deviceId,
+    ...(workerId ? { workerId: Number(workerId) } : {}),
+    memo,
+  });
+  return res?.data ?? res;
+}
+
+export async function updateHelmet(helmetId, { memo }) {
+  const res = await api.put(`/api/helmets/${encodeURIComponent(helmetId)}`, { memo });
+  return res?.data ?? res;
+}
+
+export async function deleteHelmet(helmetId) {
+  return api.delete(`/api/helmets/${encodeURIComponent(helmetId)}`);
+}
+
+export async function reconnectHelmet(helmetId) {
+  const res = await api.post(`/api/helmets/${encodeURIComponent(helmetId)}/reconnect`);
+  return res?.data ?? res;
+}
+

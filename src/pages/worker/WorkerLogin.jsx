@@ -102,7 +102,7 @@ export default function WorkerLogin() {
         ...current,
         employeeNo:
           authUser.employeeNo ||
-          authUser.id ||
+          authUser.loginId ||
           employeeNo.trim(),
         name:
           authUser.name ||

@@ -22,6 +22,10 @@ import { getAllWorkerStatuses } from '../api/workerStatus';
 import {
   assignHelmet,
   unassignHelmet,
+  createHelmet,
+  updateHelmet,
+  deleteHelmet,
+  reconnectHelmet,
   getHelmets,
   getHelmetsStatus,
 } from '../api/helmets';
@@ -62,7 +66,7 @@ function classifyServerStatus(status) {
   ).toUpperCase();
 
   if (
-    ['ACTION_REQUIRED','FALLING','FALLEN','DANGER'].includes(state)
+    ['ACTION_REQUIRED','FALLING','FALLEN','UNCONSCIOUS','DANGER'].includes(state)
   ) {
     return 'danger';
   }
@@ -194,7 +198,6 @@ function listFromPayload(payload) {
 export default function HelmetManagement() {
   const {
     workers,
-    updateWorker,
     refreshWorkerStatuses,
   } = useWorkers();
 
@@ -204,6 +207,7 @@ export default function HelmetManagement() {
     useState('');
   const [registerOpen, setRegisterOpen] =
     useState(false);
+  const [editingHelmet, setEditingHelmet] = useState(null);
   const [connectOpen, setConnectOpen] =
     useState(false);
   const [connectPreset, setConnectPreset] =
@@ -305,8 +309,8 @@ export default function HelmetManagement() {
           (result) => result.status === 'rejected'
         );
 
-        if (failures.length === 3) {
-          throw failures[0].reason;
+        if (failures.length) {
+          setServerError(failures.map(result => result.reason?.message || '조회 실패').join(' / '));
         }
       } catch (error) {
         setServerError(
@@ -446,26 +450,25 @@ export default function HelmetManagement() {
     (item) => item.riskLevel === 'danger'
   ).length;
 
-  const addHelmet = (helmet) => {
-    setHelmets((prev) => [...prev, helmet]);
+  const syncAfterMutation = async () => {
+    await Promise.allSettled([refreshHelmetServerStatus(), refreshWorkerStatuses()]);
+  };
 
-    if (helmet.workerId) {
-      updateWorker(helmet.workerId, {
-        helmetId: helmet.helmetNumber,
-        sensorConnected: helmet.sensorConnected,
-      });
+  const saveHelmet = async (helmet) => {
+    if (editingHelmet) {
+      await updateHelmet(editingHelmet.id, { memo: helmet.memo });
+    } else {
+      await createHelmet(helmet);
     }
-
-    setToast(
-      `${helmet.helmetNumber} 헬멧을 화면에 추가했습니다. 현재 확인된 배포 API에 헬멧 생성 endpoint가 없어 서버 영구 저장은 하지 않습니다.`
-    );
+    setToast(editingHelmet ? '헬멧 메모를 저장했습니다.' : '헬멧을 서버에 등록했습니다.');
+    await syncAfterMutation();
   };
 
   const connectHelmet = async (helmetNumber, workerId) => {
     const helmet = helmets.find(item => item.helmetNumber === helmetNumber);
     if (helmet?.id == null) throw new Error('서버에 등록된 헬멧만 연결할 수 있습니다.');
     await assignHelmet(helmet.id, workerId);
-    await Promise.all([refreshHelmetServerStatus(), refreshWorkerStatuses()]);
+    await syncAfterMutation();
     setToast(`${helmetNumber} 헬멧 배정을 서버에 저장했습니다.`);
   };
 
@@ -473,14 +476,13 @@ export default function HelmetManagement() {
     setReconnectingFor(helmetNumber);
 
     try {
-      await Promise.allSettled([
-        refreshHelmetServerStatus(),
-        refreshWorkerStatuses?.(),
-      ]);
-
-      setToast(
-        `${helmetNumber} 최신 서버 상태를 갱신했습니다.`
-      );
+      const helmet = helmets.find(item => item.helmetNumber === helmetNumber);
+      if (helmet?.id == null) throw new Error('서버에 등록된 헬멧이 아닙니다.');
+      await reconnectHelmet(helmet.id);
+      setToast(`${helmetNumber} 센서 재연결을 요청했습니다.`);
+      await syncAfterMutation();
+    } catch (error) {
+      setToast(`재연결 요청 실패: ${error.message}`);
     } finally {
       setReconnectingFor('');
     }
@@ -491,24 +493,24 @@ export default function HelmetManagement() {
     try {
       if (helmet?.id == null) throw new Error('서버에 등록된 헬멧이 아닙니다.');
       await unassignHelmet(helmet.id);
-      await Promise.all([refreshHelmetServerStatus(), refreshWorkerStatuses()]);
+      await syncAfterMutation();
       setToast(`${helmetNumber} 배정을 서버에서 해제했습니다.`);
     } catch (error) {
       setToast(`배정 해제 실패: ${error.message}`);
     }
   };
 
-  const remove = (helmetNumber) => {
-    setHelmets((prev) =>
-      prev.filter(
-        (item) =>
-          item.helmetNumber !== helmetNumber
-      )
-    );
-
-    setToast(
-      `${helmetNumber} 헬멧을 화면에서 제거했습니다. 서버 삭제 API가 현재 확인되지 않아 다음 서버 동기화 시 다시 나타날 수 있습니다.`
-    );
+  const remove = async (helmetNumber) => {
+    const helmet = helmets.find(item => item.helmetNumber === helmetNumber);
+    try {
+      if (helmet?.id == null) throw new Error('서버에 등록된 헬멧이 아닙니다.');
+      await deleteHelmet(helmet.id);
+      setHelmets(previous => previous.filter(item => item.id !== helmet.id));
+      setToast(`${helmetNumber} 헬멧을 서버에서 삭제했습니다.`);
+      await syncAfterMutation();
+    } catch (error) {
+      setToast(`헬멧 삭제 실패: ${error.message}`);
+    }
   };
 
   return (
@@ -550,9 +552,10 @@ export default function HelmetManagement() {
 
             <button
               className="helmet-register-btn"
-              onClick={() =>
-                setRegisterOpen(true)
-              }
+              onClick={() => {
+                setEditingHelmet(null);
+                setRegisterOpen(true);
+              }}
             >
               <Plus size={16} />
               헬멧 등록
@@ -756,6 +759,13 @@ export default function HelmetManagement() {
                         </button>
                       )}
 
+                      <button onClick={() => {
+                        setEditingHelmet(helmet);
+                        setRegisterOpen(true);
+                        setMenuFor('');
+                      }}>
+                        메모 수정
+                      </button>
                       <button
                         className="danger"
                         onClick={() => {
@@ -787,7 +797,8 @@ export default function HelmetManagement() {
         onClose={() =>
           setRegisterOpen(false)
         }
-        onAdd={addHelmet}
+        initialHelmet={editingHelmet}
+        onAdd={saveHelmet}
         helmets={helmets}
         workers={workers}
       />
@@ -817,3 +828,4 @@ export default function HelmetManagement() {
     </>
   );
 }
+

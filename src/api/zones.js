@@ -5,7 +5,8 @@ import { api } from './client'
  * GET /zones
  */
 export async function getZones() {
-  return api.get('/zones')
+  const response = await api.get('/api/zones')
+  return response?.data ?? response ?? []
 }
 
 /**
