@@ -148,32 +148,23 @@ export default function WorkerHome() {
 
   const deviceId = getWorkerDeviceId(profile);
 
-  const currentWorker = useMemo(
-    () =>
-      workers.find(
-        (worker) =>
-          (deviceId &&
-            String(worker.deviceId || '') ===
-              String(deviceId)) ||
-          (profile.helmetNo &&
-            String(worker.helmetId || '') ===
-              String(profile.helmetNo)) ||
-          (profile.name &&
-            String(worker.name || '') ===
-              String(profile.name))
-      ) || null,
-    [
-      workers,
-      deviceId,
-      profile.helmetNo,
-      profile.name,
-    ]
-  );
+  const currentWorker = useMemo(() => {
+    const employeeNo = String(profile.employeeNo || '').trim();
+    const workerId = String(profile.workerId || profile.userId || '').trim();
+    // Only use data identified by the signed-in worker. Never borrow another
+    // worker's sensor data based on a cached helmet number or display name.
+    return workers.find((worker) =>
+      (employeeNo && String(worker.employeeNumber || worker.employeeNo || worker.workerCode || '').trim() === employeeNo) ||
+      (workerId && String(worker.id || worker.workerId || '').trim() === workerId)
+    ) || null;
+  }, [workers, profile.employeeNo, profile.workerId, profile.userId]);
 
   const sensor =
     currentWorker?.serverDataConnected
       ? currentWorker
       : null;
+  const linkedHelmet = currentWorker?.helmetId || currentWorker?.helmetNo || '';
+  const linkedDeviceId = currentWorker?.deviceId || '';
 
   useEffect(() => {
     refreshWorkerStatuses().catch(() => {});
@@ -309,9 +300,7 @@ export default function WorkerHome() {
       <div className="worker-home-statusline">
         <span>
           <ShieldCheck size={14} />
-          {profile.helmetConnected !== false
-            ? '안전모 연결됨'
-            : '안전모 연결 확인 필요'}
+          {linkedHelmet ? '안전모 배정 확인' : '안전모 배정 확인 필요'}
         </span>
 
         <span>
@@ -329,7 +318,7 @@ export default function WorkerHome() {
       {sensorError && (
         <div className="worker-filter-banner danger">
           <span>
-            {deviceId || 'deviceId'} · {sensorError}
+            센서 조회: {sensorError}
           </span>
         </div>
       )}
@@ -376,7 +365,7 @@ export default function WorkerHome() {
             <ShieldCheck size={17} /> 안전모
           </span>
           <b className="ok">
-            {currentWorker?.helmetId || profile.helmetNo || '-'}
+            {linkedHelmet || '배정 정보 없음'}
           </b>
         </div>
 
@@ -386,7 +375,7 @@ export default function WorkerHome() {
           </span>
           <b className={sensorConnected ? 'ok' : ''}>
             {sensorConnected
-              ? deviceId
+              ? linkedDeviceId || '센서 ID 확인 필요'
               : '최신 데이터 없음'}
           </b>
         </div>
