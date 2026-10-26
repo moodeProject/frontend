@@ -307,6 +307,7 @@ export function WorkerDrawer({ open, onClose }) {
 
   const logout = () => {
     localStorage.removeItem('safehelmet_worker_session');
+    localStorage.removeItem('safehelmet_worker_token');
     navigate('/worker/login', { replace: true });
   };
 
