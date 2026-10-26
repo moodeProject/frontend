@@ -328,7 +328,7 @@ export function WorkerProvider({ children }) {
     // Worker tokens must not enumerate all workers, helmet assignments, or
     // site-wide health readings. The backend rejects these admin APIs with 403.
     // Use a server-authorized self-service endpoint when one is available.
-    if (localStorage.getItem('safehelmet_worker_session')) {
+    if (window.location.pathname.startsWith('/worker/') && localStorage.getItem('safehelmet_worker_session')) {
       setSensorLoading(true);
       try {
         const home = normalizeMyHome(await getMyHome());
