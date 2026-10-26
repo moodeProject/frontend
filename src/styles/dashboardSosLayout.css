@@ -1,0 +1,15 @@
+/* Admin dashboard right-column repair, isolated from all other pages. */
+.dashboard-sos-list.sos-panel {min-width:0; overflow:hidden;}
+.dashboard-sos-list .panel-title-row {display:flex;align-items:center;min-width:0;gap:8px;padding:16px 18px;}
+.dashboard-sos-list .title-with-dot {display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap;}
+.dashboard-sos-list .title-with-dot strong {display:inline-flex;align-items:center;gap:6px;white-space:nowrap;font-size:13px;}
+.dashboard-sos-list .sos-row {display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;padding:14px 18px;border-top:1px solid #edf0f5;min-width:0;}
+.dashboard-sos-list .sos-row-info {display:flex;flex-direction:column;align-items:flex-start;gap:5px;min-width:0;max-width:100%;}
+.dashboard-sos-list .sos-row-info strong {display:block;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px;line-height:1.4;color:#172033;}
+.dashboard-sos-list .sos-row-info span {display:block;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px;line-height:1.4;color:#64748b;}
+.dashboard-sos-list .sos-row-info small {display:block;font-size:11px;line-height:1.4;color:#94a3b8;}
+.dashboard-sos-list .sos-resolve-btn {position:static;display:inline-flex;justify-content:center;align-items:center;white-space:nowrap;flex:0 0 auto;min-width:68px;min-height:32px;padding:7px 10px;border:1px solid #b7d1ff;border-radius:9px;background:#f0f6ff;color:#1767ff;font-size:12px;font-weight:700;cursor:pointer;}
+.dashboard-sos-list .sos-resolve-btn:hover {background:#e4efff;}
+.dashboard-sos-list .sos-resolve-btn:focus-visible {outline:2px solid #1767ff;outline-offset:2px;}
+@media(max-width:1150px){.dashboard-sos-list .sos-row{grid-template-columns:minmax(0,1fr);gap:8px;}.dashboard-sos-list .sos-resolve-btn{justify-self:start;}}
+.dashboard-sos-list + .zone-panel,.dashboard-sos-list ~ .risk-list-panel {min-width:0;}
