@@ -285,6 +285,8 @@ function StatusCard({
 
   const movementTone =
     postureTone(worker);
+  const receivedAt = worker?.recordedAt ? new Date(worker.recordedAt).getTime() : NaN;
+  const recentSensor = worker?.sensorConnected === true && Number.isFinite(receivedAt) && Date.now() - receivedAt >= -30000 && Date.now() - receivedAt < 30000;
 
   return (
     <section
