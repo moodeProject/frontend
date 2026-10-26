@@ -29,23 +29,11 @@ export async function getAttendanceHistory(workerId, month) {
 }
 
 function attendanceIdentityBody(identifier) {
-  const value = String(identifier ?? '').trim()
-
-  if (!value) {
-    throw new Error('출퇴근 처리에 필요한 작업자 식별자가 없습니다.')
+  const workerId = Number(identifier)
+  if (!Number.isSafeInteger(workerId) || workerId <= 0) {
+    throw new Error('작업자 정보를 확인할 수 없습니다. 다시 로그인해주세요.')
   }
-
-  if (/^WK-/i.test(value)) {
-    return { employeeNo: value }
-  }
-
-  const numeric = Number(value)
-
-  if (Number.isFinite(numeric) && String(numeric) === value) {
-    return { workerId: numeric }
-  }
-
-  return { employeeNo: value }
+  return { workerId }
 }
 
 export async function checkIn(identifier) {

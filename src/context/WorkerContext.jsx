@@ -312,107 +312,117 @@ export function WorkerProvider({ children }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(workers));
   }, [workers]);
 
-  const refreshSequence = useRef(0);
-  const refreshWorkerStatuses = useCallback(async () => {
-    const sequence = ++refreshSequence.current;
-    setSensorLoading(true);
-    setSensorError('');
+  const refreshInFlight = useRef(null);
+  const refreshWorkerStatuses = useCallback(() => {
+    if (refreshInFlight.current) return refreshInFlight.current;
+    refreshInFlight.current = (async () => {
+      setSensorLoading(true);
+      setSensorError('');
 
-    const [statusResult, heatResult, workerResult, helmetResult, helmetStatusResult] = await Promise.allSettled([
-      getAllWorkerStatuses(),
-      getAllWorkerHeatRisk(),
-      getWorkers({ size: 100 }),
-      getHelmets(),
-      getHelmetsStatus(),
-    ]);
+      const [statusResult, heatResult, workerResult, helmetResult, helmetStatusResult] = await Promise.allSettled([
+        getAllWorkerStatuses(),
+        getAllWorkerHeatRisk(),
+        getWorkers({ size: 100 }),
+        getHelmets(),
+        getHelmetsStatus(),
+      ]);
 
-    if (sequence !== refreshSequence.current) return;
+      const statuses =
+        statusResult.status === 'fulfilled' ? statusResult.value : [];
+      const heatStatuses =
+        heatResult.status === 'fulfilled' ? heatResult.value : [];
 
-    const statuses =
-      statusResult.status === 'fulfilled' ? statusResult.value : [];
-    const heatStatuses =
-      heatResult.status === 'fulfilled' ? heatResult.value : [];
+      setSensorApiConnected(statusResult.status === 'fulfilled');
+      setHeatRiskApiConnected(heatResult.status === 'fulfilled');
 
-    setSensorApiConnected(statusResult.status === 'fulfilled');
-    setHeatRiskApiConnected(heatResult.status === 'fulfilled');
+      const errors = [];
+      for (const [result, label] of [[workerResult, '작업자 목록'], [helmetResult, '헬멧 배정'], [helmetStatusResult, '헬멧 센서 상태']]) {
+        if (result.status === 'rejected') errors.push(`${label} 조회 실패: ${result.reason?.message || ''}`);
+      }
+      if (statusResult.status === 'rejected') {
+        console.error('작업자 센서 상태 조회 실패:', statusResult.reason);
+        errors.push(
+          statusResult.reason?.message || '센서 상태 API 조회 실패'
+        );
+      }
+      if (heatResult.status === 'rejected') {
+        console.error('작업자 온열/피로도 조회 실패:', heatResult.reason);
+        errors.push(
+          heatResult.reason?.message || '온열/피로도 API 조회 실패'
+        );
+      }
 
-    const errors = [];
-    for (const [result, label] of [[workerResult, '작업자 목록'], [helmetResult, '헬멧 배정']]) {
-      if (result.status === 'rejected') errors.push(`${label} 조회 실패: ${result.reason?.message || ''}`);
-    }
-    if (statusResult.status === 'rejected') {
-      console.error('작업자 센서 상태 조회 실패:', statusResult.reason);
-      errors.push(
-        statusResult.reason?.message || '센서 상태 API 조회 실패'
+      setSensorError(errors.join(' / '));
+
+      const sensorMap = new Map(
+        statuses
+          .filter((item) => item?.deviceId)
+          .map((item) => [text(item.deviceId), item])
       );
-    }
-    if (heatResult.status === 'rejected') {
-      console.error('작업자 온열/피로도 조회 실패:', heatResult.reason);
-      errors.push(
-        heatResult.reason?.message || '온열/피로도 API 조회 실패'
+
+      const heatMap = new Map(
+        heatStatuses
+          .filter((item) => item?.deviceId)
+          .map((item) => [text(item.deviceId), item])
       );
-    }
 
-    setSensorError(errors.join(' / '));
-
-    const sensorMap = new Map(
-      statuses
-        .filter((item) => item?.deviceId)
-        .map((item) => [text(item.deviceId), item])
-    );
-
-    const heatMap = new Map(
-      heatStatuses
-        .filter((item) => item?.deviceId)
-        .map((item) => [text(item.deviceId), item])
-    );
-
-    // Server identities and assignments are authoritative. Cached demo workers
-    // must never choose the owner of a real device's measurements.
-    const helmetStatuses = helmetStatusResult.status === 'fulfilled'
-      ? helmetStatusResult.value : [];
-    const helmetRows = helmetResult.status === 'fulfilled'
-      ? helmetResult.value : helmetStatuses;
-    setWorkers((previous) => {
-      if (workerResult.status !== 'fulfilled') return previous.map(worker =>
-        mergeWorkerStatus({ ...worker, recordedAt: null }, null, null));
-      return workerResult.value.content.map(worker => {
-        const saved = previous.find(item => text(item.id) === text(worker.id));
-        const bound = bindWorkerHelmet(worker, helmetRows);
-        const sensor = measuredStatus(sensorMap.get(bound.deviceId)) ||
-          measuredStatus(helmetStatuses.find(item => text(item.deviceId) === bound.deviceId));
-        return mergeWorkerStatus({ ...bound, profileImage: saved?.profileImage || worker.profileImage },
-          sensor, measuredStatus(heatMap.get(bound.deviceId)));
+      // Server identities and assignments are authoritative. Cached demo workers
+      // must never choose the owner of a real device's measurements.
+      const helmetStatuses = helmetStatusResult.status === 'fulfilled'
+        ? helmetStatusResult.value : [];
+      const helmetRows = helmetResult.status === 'fulfilled'
+        ? helmetResult.value : helmetStatuses;
+      setWorkers((previous) => {
+        if (workerResult.status !== 'fulfilled') return previous.map(worker =>
+          mergeWorkerStatus({ ...worker, recordedAt: null }, null, null));
+        return workerResult.value.content.map(worker => {
+          const saved = previous.find(item => text(item.id) === text(worker.id));
+          const bound = bindWorkerHelmet(worker, helmetRows);
+          const sensor = measuredStatus(sensorMap.get(bound.deviceId)) ||
+            measuredStatus(helmetStatuses.find(item => text(item.deviceId) === bound.deviceId));
+          return mergeWorkerStatus({ ...bound, profileImage: saved?.profileImage || worker.profileImage },
+            sensor, measuredStatus(heatMap.get(bound.deviceId)));
+        });
       });
+
+      if (
+        statusResult.status === 'fulfilled' ||
+        heatResult.status === 'fulfilled'
+      ) {
+        setLastSensorUpdated(new Date());
+      }
+
+      if (
+        statusResult.status === 'rejected' &&
+        heatResult.status === 'rejected'
+      ) {
+        throw statusResult.reason || heatResult.reason;
+      }
+
+      return { statuses, heatStatuses };
+    })().finally(() => {
+      refreshInFlight.current = null;
+      setSensorLoading(false);
     });
-
-    if (
-      statusResult.status === 'fulfilled' ||
-      heatResult.status === 'fulfilled'
-    ) {
-      setLastSensorUpdated(new Date());
-    }
-
-    setSensorLoading(false);
-
-    if (
-      statusResult.status === 'rejected' &&
-      heatResult.status === 'rejected'
-    ) {
-      throw statusResult.reason || heatResult.reason;
-    }
-
-    return { statuses, heatStatuses };
+    return refreshInFlight.current;
   }, []);
 
   useEffect(() => {
-    refreshWorkerStatuses().catch(() => {});
-
-    const timer = window.setInterval(() => {
-      refreshWorkerStatuses().catch(() => {});
-    }, SENSOR_REFRESH_MS);
-
-    return () => window.clearInterval(timer);
+    let cancelled = false;
+    let timer;
+    const poll = async () => {
+      try {
+        await refreshWorkerStatuses();
+      } catch {
+        // Individual failures are displayed through sensorError.
+      }
+      if (!cancelled) timer = window.setTimeout(poll, SENSOR_REFRESH_MS);
+    };
+    poll();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
   }, [refreshWorkerStatuses]);
 
   const api = useMemo(
@@ -482,3 +492,4 @@ export function useWorkers() {
 
   return context;
 }
+

@@ -29,6 +29,7 @@ export default function ConnectHelmetModal({ open, onClose, onConnect, helmets, 
 
   const submit = async (event) => {
     event.preventDefault();
+    if (saving) return;
     if (!helmetNumber || !workerId) {
       setError('연결할 헬멧과 작업자를 모두 선택해주세요.');
       return;
@@ -37,7 +38,9 @@ export default function ConnectHelmetModal({ open, onClose, onConnect, helmets, 
     setError('');
     try {
       await onConnect(helmetNumber, workerId);
-      close();
+      setHelmetNumber('');
+      setWorkerId('');
+      onClose();
     } catch (error) {
       setError(error?.message || '헬멧 배정을 저장하지 못했습니다.');
     } finally {
@@ -92,3 +95,4 @@ export default function ConnectHelmetModal({ open, onClose, onConnect, helmets, 
     </div>
   );
 }
+

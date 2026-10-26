@@ -34,6 +34,8 @@ export function normalizeAuthUser(
 
   const role = String(
     firstValue(
+      raw?.userType,
+      data?.userType,
       raw?.role,
       raw?.authority,
       raw?.userRole,
@@ -47,6 +49,8 @@ export function normalizeAuthUser(
   return {
     ...raw,
     id: firstValue(
+      raw?.userId,
+      raw?.workerId,
       raw?.id,
       raw?.loginId,
       raw?.username,
@@ -111,8 +115,7 @@ export function isWorkerUser(user) {
 /**
  * POST /api/auth/login
  *
- * Notion 문서에 request body 상세가 없으므로
- * 기존 프론트 명세와 동일하게 { id, password }를 사용합니다.
+ * Swagger: { loginId, password, userType }
  */
 export async function loginApi(id, password, userType) {
   const response = await api.post(
