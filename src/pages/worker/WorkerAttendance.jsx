@@ -1,3 +1,4 @@
+import { getMyHome } from '../../api/myHome';
 import {
   useEffect,
   useMemo,
@@ -215,11 +216,17 @@ export default function WorkerAttendance() {
     profile.userId ||
     '';
 
-  const attendanceIdentity =
-    profile.employeeNo ||
-    currentWorker?.employeeNumber ||
-    currentWorker?.workerCode ||
-    workerId;
+  const attendanceIdentity = workerId;
+
+  const resolveAttendanceWorkerId = async () => {
+    const validId = value => /^\d+$/.test(String(value ?? '').trim()) && Number(value) > 0 ? Number(value) : null;
+    const fromContext = validId(currentWorker?.workerId) || validId(currentWorker?.id) || validId(profile.workerId);
+    if (fromContext) return fromContext;
+    const home = await getMyHome();
+    const resolved = validId(home?.workerId) || validId(home?.worker?.workerId) || validId(home?.worker?.id) || validId(home?.id);
+    if (!resolved) throw new Error('내 작업자 ID를 조회하지 못했습니다. /api/me/home의 workerId를 확인해주세요.');
+    return resolved;
+  };
 
   const monthStr =
     `${month.year}-${String(month.month).padStart(2, '0')}`;
@@ -298,9 +305,9 @@ export default function WorkerAttendance() {
 
     try {
       if (status === '근무 중') {
-        await checkIn(attendanceIdentity);
+        await checkIn(await resolveAttendanceWorkerId());
       } else if (status === '퇴근') {
-        await checkOut(attendanceIdentity);
+        await checkOut(await resolveAttendanceWorkerId());
       }
 
       applyLocalStatus(status);
