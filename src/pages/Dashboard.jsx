@@ -1,3 +1,4 @@
+import { statusWithOpenIncidents } from '../utils/workerIncidentStatus';
 import {
   AlertTriangle,
   Eye,
@@ -137,11 +138,12 @@ export default function Dashboard() {
     }
   };
 
-  const riskyWorkers = workers.filter(
+  const attentionWorkers = attentionWorkers.map(worker => statusWithOpenIncidents(worker, detections));
+  const riskyWorkers = attentionWorkers.filter(
     (worker) => worker.status !== 'normal'
   );
 
-  const counts = workers.reduce(
+  const counts = attentionWorkers.reduce(
     (acc, worker) => ({
       ...acc,
       [worker.status]:
@@ -214,7 +216,7 @@ export default function Dashboard() {
   };
 
   const expandedWorkers = expandedStatus
-    ? workers.filter(
+    ? attentionWorkers.filter(
         (worker) => worker.status === expandedStatus
       )
     : [];
