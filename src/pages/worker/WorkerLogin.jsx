@@ -112,11 +112,15 @@ export default function WorkerLogin() {
           employeeNo.trim(),
         name:
           authUser.name ||
-          current.name,
+          (sameAccount ? current.name : '') ||
+          '작업자',
         userId:
-          authUser.userId ||
-          authUser.id ||
+          authUser.userId ??
           null,
+        workerId:
+          authUser.workerId ??
+          authUser.worker?.id ??
+          (Number.isInteger(Number(authUser.userId)) ? Number(authUser.userId) : null),
       };
 
       saveWorkerProfile(
@@ -193,7 +197,7 @@ export default function WorkerLogin() {
                 e.target.value
               )
             }
-            placeholder="사번을 입력하세요"
+            placeholder="예: WK-0001"
             autoComplete="username"
           />
         </label>
