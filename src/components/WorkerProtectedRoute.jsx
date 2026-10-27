@@ -4,6 +4,8 @@ import {
   useLocation,
 } from 'react-router-dom';
 
+import SafetyAlertCenter from './SafetyAlertCenter';
+
 export default function WorkerProtectedRoute() {
   const location = useLocation();
 
@@ -29,5 +31,5 @@ export default function WorkerProtectedRoute() {
     );
   }
 
-  return <Outlet />;
+  return <><SafetyAlertCenter role="worker" /><Outlet /></>;
 }

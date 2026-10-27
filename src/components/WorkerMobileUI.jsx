@@ -380,54 +380,8 @@ export function WorkerScaffold({
     ]
   );
 
-  /*
-   * 본인 위험 상태:
-   * 기존처럼 새 위험 센서 기록당 1회
-   * SOS 화면으로 자동 이동합니다.
-   */
-  useEffect(() => {
-    if (
-      !currentWorker ||
-      sensorUiStatus(currentWorker?.serverDataConnected ? currentWorker : null).key !== 'danger'
-    ) {
-      return;
-    }
-
-    if (location.pathname === '/worker/sos') {
-      return;
-    }
-
-    const dangerKey = workerDangerKey(
-      currentWorker
-    );
-
-    const lastShown =
-      sessionStorage.getItem(
-        'safeon-worker-danger-sos-key'
-      ) || '';
-
-    if (
-      dangerKey &&
-      dangerKey !== lastShown
-    ) {
-      sessionStorage.setItem(
-        'safeon-worker-danger-sos-key',
-        dangerKey
-      );
-
-      navigate(
-        `/worker/sos?auto=1&reason=${encodeURIComponent(
-          currentWorker.issue ||
-            '위험 상태 감지'
-        )}`,
-        { replace: false }
-      );
-    }
-  }, [
-    currentWorker,
-    location.pathname,
-    navigate,
-  ]);
+  // Own danger events are displayed by the persistent SafetyAlertCenter.
+  // Keep the current screen available instead of replacing it with SOS.
 
   /*
    * 주변 작업자 위험 상태:
