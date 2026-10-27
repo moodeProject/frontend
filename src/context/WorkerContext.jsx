@@ -17,6 +17,7 @@ import {
   getAllWorkerStatuses,
 } from '../api/workerStatus';
 import { getDefaultWorkerProfile } from '../utils/defaultWorkerProfiles';
+import { applySavedWorkerProfileImage } from '../utils/workerProfileImageStorage';
 
 const initialWorkers = [];
 const WorkerContext = createContext(null);
@@ -491,19 +492,20 @@ export function WorkerProvider({ children }) {
         const merged = mergeWorkerStatus(
           {
             ...bound,
-            profileImage: saved?.profileImage || worker.profileImage,
+            profileImage: worker.profileImage || saved?.profileImage,
           },
           latest || sensor,
           latestHeat || heat
         );
 
-        return !latest && sensor
+        const current = !latest && sensor
           ? {
               ...merged,
               recordedAt: sensor.recordedAt,
               issue: merged.issue === '정상 작업 중' ? '수신 지연' : merged.issue,
             }
           : merged;
+        return applySavedWorkerProfileImage(current);
 
       });
     });
@@ -544,6 +546,19 @@ export function WorkerProvider({ children }) {
     document.addEventListener('visibilitychange', onVisible);
     return () => { window.clearInterval(timer); window.removeEventListener('focus', onFocus); document.removeEventListener('visibilitychange', onVisible); };
   }, [refreshWorkerStatuses]);
+
+  // Synchronize photos immediately across dashboard, worker list and detail pages.
+  useEffect(() => {
+    const syncPhotos = () => setWorkers(current =>
+      current.map(worker => applySavedWorkerProfileImage(worker))
+    );
+    window.addEventListener('safeon-worker-profile-image-updated', syncPhotos);
+    window.addEventListener('storage', syncPhotos);
+    return () => {
+      window.removeEventListener('safeon-worker-profile-image-updated', syncPhotos);
+      window.removeEventListener('storage', syncPhotos);
+    };
+  }, []);
 
   const api = useMemo(
     () => ({
