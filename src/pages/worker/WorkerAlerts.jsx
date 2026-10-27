@@ -4,6 +4,7 @@ import {
   useState,
 } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { CheckCircle2 } from 'lucide-react';
 import { getMyHome, normalizeMyHome } from '../../api/myHome';
 import { getNotifications, markNotificationRead } from '../../api/notifications';
 import { WorkerScaffold } from '../../components/WorkerMobileUI';
@@ -289,8 +290,7 @@ export default function WorkerAlerts() {
                 <time>{item.time}</time>
               </div>
 
-              <strong>{item.type}</strong>
-              {recordStatus(item) && <span className={`worker-alert-status-chip ${recordStatus(item).className}`}>{recordStatus(item).label}</span>}
+              <div className="worker-alert-event-title"><strong>{item.type}</strong>{recordStatus(item)?.className === 'resolved' ? <CheckCircle2 size={19} className="worker-alert-resolved-check" aria-label="처리완료" /> : recordStatus(item)?.className === 'processing' ? <span className="worker-alert-inline-progress">처리중</span> : null}</div>
 
               <p>
                 {item.detailDescription ||
