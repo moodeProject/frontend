@@ -22,6 +22,7 @@ import { getAllWorkerStatuses } from '../api/workerStatus';
 import {
   assignHelmet,
   unassignHelmet,
+  createHelmet,
   getHelmets,
   getHelmetsStatus,
 } from '../api/helmets';
@@ -446,19 +447,17 @@ export default function HelmetManagement() {
     (item) => item.riskLevel === 'danger'
   ).length;
 
-  const addHelmet = (helmet) => {
-    setHelmets((prev) => [...prev, helmet]);
-
-    if (helmet.workerId) {
-      updateWorker(helmet.workerId, {
-        helmetId: helmet.helmetNumber,
-        sensorConnected: helmet.sensorConnected,
-      });
-    }
-
-    setToast(
-      `${helmet.helmetNumber} 헬멧을 화면에 추가했습니다. 현재 확인된 배포 API에 헬멧 생성 endpoint가 없어 서버 영구 저장은 하지 않습니다.`
-    );
+  const addHelmet = async (helmet) => {
+    // Only server-confirmed helmets should enter the list.
+    await createHelmet({
+      helmetNo: helmet.helmetNumber,
+      deviceId: helmet.deviceId,
+      workerId: helmet.workerId || undefined,
+      memo: helmet.memo || '',
+    });
+    await refreshHelmetServerStatus();
+    await refreshWorkerStatuses();
+    setToast(`${helmet.helmetNumber} 헬멧을 서버에 등록했습니다.`);
   };
 
   const connectHelmet = async (helmetNumber, workerId) => {
