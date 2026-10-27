@@ -22,21 +22,14 @@ const WorkerContext = createContext(null);
 const STORAGE_KEY = 'safehelmet-workers-v3';
 const SENSOR_REFRESH_MS = 5_000;
 const SENSOR_FRESH_MS = 30_000;
-// 건강 센서 결측 시 화면에만 사용하는 예시 수치. 서버 상태/알림에는 적용하지 않는다.
-const HEALTH_FALLBACK = { heartRate: 78, spo2: 98, hrv: 48 };
-
+// 서버가 반환한 최신 저장 건강값만 표시하며, 0·결측치는 표시하지 않는다.
 function withHealthFallback(worker) {
-  const hasValidHeart = worker.sensorConnected === true && Number(worker.heartRate) > 0;
-  const hasValidSpo2 = worker.sensorConnected === true && Number(worker.spo2) > 0;
-  const hasValidHrv = worker.sensorConnected === true && Number(worker.hrv) > 0;
   return normalizeWorker({
     ...worker,
-    heartRate: hasValidHeart ? worker.heartRate : HEALTH_FALLBACK.heartRate,
-    spo2: hasValidSpo2 ? worker.spo2 : HEALTH_FALLBACK.spo2,
-    hrv: hasValidHrv ? worker.hrv : HEALTH_FALLBACK.hrv,
-    healthExampleFields: {
-      heartRate: !hasValidHeart, spo2: !hasValidSpo2, hrv: !hasValidHrv,
-    },
+    heartRate: optionalNumber(worker.heartRate, 0),
+    spo2: optionalNumber(worker.spo2, 0),
+    hrv: optionalNumber(worker.hrv, 0),
+    healthExampleFields: { heartRate: false, spo2: false, hrv: false },
   });
 }
 
@@ -465,15 +458,15 @@ export function WorkerProvider({ children }) {
             ...bound,
             profileImage: saved?.profileImage || worker.profileImage,
           },
-          latest,
-          latestHeat
+          latest || sensor,
+          latestHeat || heat
         );
 
         return !latest && sensor
           ? {
               ...merged,
               recordedAt: sensor.recordedAt,
-              issue: '수신 지연',
+              issue: merged.issue === '정상 작업 중' ? '수신 지연' : merged.issue,
             }
           : merged;
 
