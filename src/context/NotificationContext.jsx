@@ -161,7 +161,8 @@ function serverLevel(raw) {
 }
 
 function serverTarget(raw) {
-  const eventId = raw?.eventId ?? raw?.hazardEventId;
+  const eventId = raw?.hazardEventId ?? raw?.eventId;
+  if (raw?.sosId != null) return '/notifications';
   const category = String(raw?.category || '').toUpperCase();
 
   if (eventId) {
@@ -179,9 +180,9 @@ function serverTarget(raw) {
 
 function normalizeServerNotification(raw) {
   const createdAt =
+    raw?.sentAt ??
     raw?.createdAt ??
     raw?.occurredAt ??
-    raw?.sentAt ??
     raw?.timestamp;
 
   const { date, time } = formatDateTime(createdAt);
@@ -195,7 +196,7 @@ function normalizeServerNotification(raw) {
       raw?.title ??
       raw?.notificationTitle ??
       raw?.typeLabel ??
-      '알림',
+      (raw?.sosId != null ? 'SOS 긴급 요청' : raw?.hazardEventId != null ? '위험 감지 알림' : '건강·안전 알림'),
     message:
       raw?.message ??
       raw?.content ??
@@ -303,9 +304,14 @@ export function NotificationProvider({ children }) {
   );
 
   const notifications = useMemo(() => {
+    // 서버에 저장된 위험 이벤트가 있으면 로컬 이벤트 알림과 중복 표시하지 않는다.
+    const serverEventIds = new Set(serverNotifications
+      .map((item) => item.hazardEventId)
+      .filter((id) => id != null)
+      .map(String));
     const combined = [
       ...serverNotifications,
-      ...hazardNotifications,
+      ...hazardNotifications.filter((item) => !serverEventIds.has(String(item.eventId))),
       ...manualWithReadState,
     ];
 
@@ -371,8 +377,9 @@ export function NotificationProvider({ children }) {
                 : item
             )
           );
-        } catch {
-          // 서버 읽음 처리 실패 시 로컬 상태는 유지
+        } catch (error) {
+          setServerNotificationError(error?.message || '알림 읽음 처리에 실패했습니다.');
+          return;
         }
       }
 
@@ -396,8 +403,9 @@ export function NotificationProvider({ children }) {
           read: true,
         }))
       );
-    } catch {
-      // 로컬 읽음 상태는 아래에서 계속 적용
+    } catch (error) {
+      setServerNotificationError(error?.message || '전체 읽음 처리에 실패했습니다.');
+      return;
     }
 
     setReadIds((items) => {
