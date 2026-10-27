@@ -209,7 +209,7 @@ export default function WorkerAlerts() {
       navigate('/worker/nearby');
     } else {
       // Notification history opens a read-only status page, never the emergency countdown.
-      navigate('/worker/fall-status');
+      navigate('/worker/fall-status', { state: { fallEvent: item } });
     }
   };
 
