@@ -469,67 +469,30 @@ export default function SensorFallDetail() {
 
         <div className="incident-layout">
           <div className="incident-main">
-            <section className="panel video-panel">
-              <div className="section-caption">
-                사고 센서 확인
-                <span>MPU 기반 감지</span>
-              </div>
-
-              <div className="fake-video">
-                <div className="video-top">
-                  <span>
-                    ● SENSOR · {deviceId}
-                  </span>
-                  <time>
-                    {formatTime(
-                      detail?.recordedAt
-                    )}
-                  </time>
-                </div>
-
-                <div className="fall-scene">
-                  <div className="fall-box">
-                    ⚠ FALL STATE ·{' '}
-                    {detail?.fallState || '-'}
-                  </div>
-
-                  <div className="impact">
-                    {postureLabel(
-                      detail?.posture
-                    )}
-                  </div>
-                </div>
-
-                <div className="video-bottom">
-                  <span>
-                    SENSOR ACTIVE · POSTURE{' '}
-                    {detail?.posture || '-'} ·
-                    FALL CONFIDENCE{' '}
-                    {confidence(
-                      detail?.fallConfidence
-                    )}
-                  </span>
-                </div>
-
-                <div className="video-controls">
-                  <Play size={18} />
-                  <b>센서 감지 시점</b>
-                  <span>
-                    {formatTime(
-                      detail?.recordedAt
-                    )}
-                  </span>
+            <section className="panel cause-panel" style={{ marginBottom: 16 }}>
+              <div className="section-caption">추락 감지 정보 · 센서 기반</div>
+              <div className="health-recommend-box">
+                <Activity size={20} />
+                <div>
+                  <strong>영상 기록이 아닌 센서 감지 결과입니다.</strong>
+                  <p>현재 추락 감지는 가속도·자이로·자세 데이터를 기반으로 합니다. 사고 영상은 자동 촬영·저장되지 않습니다.</p>
                 </div>
               </div>
-
-              <div className="timeline-labels">
-                <span>가속도</span>
-                <b>▶ 감지 시점</b>
-                <span>자이로</span>
+              <div className="final-cause">
+                <span>감지 시각</span>
+                <strong>{formatTime(detail?.recordedAt)}</strong>
+              </div>
+              <div className="final-cause">
+                <span>추락 상태 · 자세</span>
+                <strong>{detail?.fallState || '-'} · {postureLabel(detail?.posture)}</strong>
+              </div>
+              <div className="final-cause">
+                <span>추락 신뢰도</span>
+                <strong>{confidence(detail?.fallConfidence)}</strong>
               </div>
             </section>
 
-            <section className="panel cause-panel">
+                        <section className="panel cause-panel">
               <h3>추락 원인 분석</h3>
 
               <div className="final-cause">
