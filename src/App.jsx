@@ -13,6 +13,7 @@ import Dashboard from './pages/Dashboard';
 import Detections from './pages/Detections';
 import ExternalDetectionDetail from './pages/ExternalDetectionDetail';
 import HealthDetectionDetail from './pages/HealthDetectionDetail';
+import HealthNotificationDetail from './pages/HealthNotificationDetail';
 import HealthDemo from './pages/HealthDemo';
 import HealthApiTest from './pages/HealthApiTest';
 import FindId from './pages/FindId';
@@ -76,6 +77,7 @@ export default function App() {
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/detections" element={<Detections />} />
                   <Route path="/detections/health/:id" element={<HealthDetectionDetail />} />
+                  <Route path="/detections/health-notification/:id" element={<HealthNotificationDetail />} />
                   <Route path="/detections/:id" element={<ExternalDetectionDetail />} />
                   <Route path="/incident/:id" element={<IncidentDetail />} />
                   <Route path="/incident" element={<IncidentDetail />} />
