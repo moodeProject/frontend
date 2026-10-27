@@ -9,7 +9,11 @@
 
 
 /* Tint the full event row; keep the original compact status chip. */
-.detections-page .detection-table-row.danger{background:#fff1f2!important}
-.detections-page .detection-table-row.warning{background:#fff8ec!important}
-.detections-page .detection-table-row.danger:hover{background:#ffe8eb!important}
-.detections-page .detection-table-row.warning:hover{background:#fff0da!important}
+.detections-page .detection-table-row.danger{background:#fff7f7!important}
+.detections-page .detection-table-row.warning{background:#fffbf2!important}
+.detections-page .detection-table-row.danger:hover{background:#fff0f1!important}
+.detections-page .detection-table-row.warning:hover{background:#fff5e4!important}
+
+/* Keep the detection type icon and text consistent with the event severity. */
+.detections-page .detection-table-row.warning .detection-type, .detections-page .detection-table-row.warning .detection-type b, .detections-page .detection-table-row.warning .detection-type svg{color:#c77800!important;stroke:#c77800!important}
+.detections-page .detection-table-row.danger .detection-type, .detections-page .detection-table-row.danger .detection-type b, .detections-page .detection-table-row.danger .detection-type svg{color:#c92535!important;stroke:#c92535!important}
