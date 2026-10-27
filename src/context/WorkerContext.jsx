@@ -1,3 +1,4 @@
+import { getLatestVitals } from '../api/latestVitals';
 import { getMe } from '../api/auth';
 import { getMyHome, normalizeMyHome } from '../api/myHome';
 import {
@@ -362,7 +363,9 @@ export function WorkerProvider({ children }) {
       setSensorLoading(true);
       try {
         const home = normalizeMyHome(await getMyHome());
-        setWorkers(home.id || home.employeeNo ? [home] : []);
+        setWorkers(previous => home.id || home.employeeNo ? [{ ...home,
+          lastValidVitals: previous.find(row => row.deviceId && row.deviceId === home.deviceId && String(row.id) === String(home.id))?.lastValidVitals,
+        }] : []);
         setSensorApiConnected(true);
         setHeatRiskApiConnected(true);
         setSensorError('');
@@ -492,6 +495,7 @@ export function WorkerProvider({ children }) {
         const merged = mergeWorkerStatus(
           {
             ...bound,
+            lastValidVitals: saved?.deviceId === bound.deviceId ? saved?.lastValidVitals : undefined,
             profileImage: worker.profileImage || saved?.profileImage,
           },
           latest || sensor,
@@ -546,6 +550,36 @@ export function WorkerProvider({ children }) {
     document.addEventListener('visibilitychange', onVisible);
     return () => { window.clearInterval(timer); window.removeEventListener('focus', onFocus); document.removeEventListener('visibilitychange', onVisible); };
   }, [refreshWorkerStatuses]);
+
+  const vitalsTargets = workers.filter(row => row.deviceId &&
+    [row.heartRate, row.spo2, row.hrv].some(value => !(Number(value) > 0)))
+    .map(row => String(row.deviceId)).sort().join('|');
+  useEffect(() => {
+    if (!lastSensorUpdated || !vitalsTargets) return;
+    let active = true;
+    const ids = [...new Set(vitalsTargets.split('|'))];
+    // Bound optional fallback reads so a large site does not burst the API.
+    const hydrate = async () => {
+      for (let offset = 0; offset < ids.length && active; offset += 4) {
+        const results = await Promise.all(ids.slice(offset, offset + 4).map(async deviceId => {
+          try { return await getLatestVitals(deviceId); } catch { return null; }
+        }));
+        if (!active) return;
+        setWorkers(previous => {
+          let changed = false;
+          const next = previous.map(worker => {
+            const vitals = results.find(item => item && item.deviceId === String(worker.deviceId));
+            if (!vitals || JSON.stringify(vitals) === JSON.stringify(worker.lastValidVitals)) return worker;
+            changed = true;
+            return { ...worker, lastValidVitals: vitals };
+          });
+          return changed ? next : previous;
+        });
+      }
+    };
+    hydrate();
+    return () => { active = false; };
+  }, [vitalsTargets, lastSensorUpdated]);
 
   // Synchronize photos immediately across dashboard, worker list and detail pages.
   useEffect(() => {

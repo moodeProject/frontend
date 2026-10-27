@@ -1,3 +1,4 @@
+import VitalValue from '../components/VitalValue';
 import '../styles/dashboardSosLayout.css';
 import {
   AlertTriangle,
@@ -686,7 +687,7 @@ export default function Dashboard() {
 
                       <p>
                         <HeartPulse size={12} />{' '}
-                        {worker.heartRate || '-'}{' '}
+                        <VitalValue worker={worker} valueOnly />{' '}
                         <small>bpm</small>{' '}
                         <span>
                           {worker.zone}

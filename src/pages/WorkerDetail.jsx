@@ -1,3 +1,4 @@
+import VitalValue from '../components/VitalValue';
 import '../styles/workerDetailLayoutRefine.css';
 import { statusWithOpenIncidents } from '../utils/workerIncidentStatus';
 import {
@@ -324,7 +325,7 @@ function StatusCard({
           <strong
             className={`status-card-value ${level}`}
           >
-            {healthMeasured ? <>{Number(worker.heartRate) > 0 ? worker.heartRate : '-'} bpm</> : '데이터 대기'}
+            <VitalValue worker={worker} unit="bpm" />
           </strong>
 
           <div className="detail-fatigue">
@@ -1162,7 +1163,7 @@ export default function WorkerDetail() {
           </p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(155px, 1fr))', gap: 12 }}>
             {[
-              ['심박수', validHeartRate ? `${worker.heartRate} bpm` : '측정 대기'],
+              ['심박수', <VitalValue worker={worker} unit="bpm" />],
               ['산소포화도', validSpo2 ? `${worker.spo2}%` : '측정 대기'],
               ['HRV', validHrv ? `${Number(worker.hrv).toFixed(1)}` : '측정 대기'],
               ['가속도 X / Y / Z', recentSensor && [worker.ax, worker.ay, worker.az].every(v => v != null) ? [worker.ax, worker.ay, worker.az].join(' / ') : '데이터 대기'],

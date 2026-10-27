@@ -1,3 +1,4 @@
+import VitalValue from './VitalValue';
 import {
   Activity,
   Heart,
@@ -199,7 +200,7 @@ export default function WorkerCard({
         <div className="metric-row">
           <span>심박수</span>
           <b>
-            <Heart size={14} /> {hasServerData && Number(worker.heartRate) > 0 ? worker.heartRate : '-'}
+            <Heart size={14} /> <VitalValue worker={worker} valueOnly />
           </b>
           <small>bpm</small>
         </div>

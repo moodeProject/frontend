@@ -1,3 +1,4 @@
+import VitalValue from '../../components/VitalValue';
 import { getMyHome, normalizeMyHome } from '../../api/myHome';
 import {
   Clock3,
@@ -452,7 +453,7 @@ export default function WorkerHome() {
             <Heart size={18} />
             <span>심박수</span>
             <strong>
-              {Number(sensor?.heartRate) > 0 ? sensor.heartRate : '-'}{' '}
+              <VitalValue worker={sensor} valueOnly />{' '}
               <small>bpm</small>
             </strong>
           </div>

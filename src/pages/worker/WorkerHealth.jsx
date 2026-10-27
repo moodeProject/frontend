@@ -1,3 +1,4 @@
+import VitalValue from '../../components/VitalValue';
 import {
   Coffee,
   Heart,
@@ -238,7 +239,7 @@ export default function WorkerHealth() {
           <p>
             <span>심박수</span>
             <strong>
-              {Number(sensor?.heartRate) > 0 ? sensor.heartRate : '-'}{' '}
+              <VitalValue worker={sensor} valueOnly />{' '}
               <small>bpm</small>
             </strong>
           </p>
@@ -246,9 +247,9 @@ export default function WorkerHealth() {
           <b>
             {sensorLoading
               ? '갱신 중'
-              : sensor?.heartRate != null
+              : Number(sensor?.heartRate) > 0
                 ? sensor.sensorConnected ? '실시간' : '최근 저장값'
-                : '데이터 없음'}
+                : '현재 측정 대기'}
           </b>
         </div>
 
@@ -260,7 +261,7 @@ export default function WorkerHealth() {
           <p>
             <span>SpO₂</span>
             <strong>
-              {Number(sensor?.spo2) > 0 ? sensor.spo2 : '-'}{' '}
+              <VitalValue worker={sensor} metric="spo2" valueOnly />{' '}
               <small>%</small>
             </strong>
           </p>
