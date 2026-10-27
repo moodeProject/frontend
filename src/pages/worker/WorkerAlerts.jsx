@@ -4,6 +4,8 @@ import {
   useState,
 } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getMyHome, normalizeMyHome } from '../../api/myHome';
+import { getNotifications, markNotificationRead } from '../../api/notifications';
 import { WorkerScaffold } from '../../components/WorkerMobileUI';
 import { useDetections } from '../../context/DetectionContext';
 import { getWorkerProfile } from '../../utils/workerProfile';
@@ -38,6 +40,29 @@ function loadNearbyAlerts() {
 
 export default function WorkerAlerts() {
   const [tab, setTab] = useState('all');
+  const [serverHealthAlerts, setServerHealthAlerts] = useState([]);
+  const [serverError, setServerError] = useState('');
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      try {
+        const home = normalizeMyHome(await getMyHome());
+        const workerId = Number(home.workerId);
+        if (!Number.isInteger(workerId) || workerId <= 0) return;
+        const rows = await getNotifications({ recipientType: 'WORKER', recipientId: workerId, page: 0, size: 100 });
+        if (!alive) return;
+        setServerHealthAlerts(rows.filter(row => String(row.message || '').includes('건강 이상')).map(row => ({
+          id: `worker-health-${row.id}`, notificationId: row.id, category: 'health', level: 'warning',
+          type: '건강 이상 알림', detailDescription: row.message, occurredAt: row.sentAt,
+          time: row.sentAt ? new Date(row.sentAt).toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit', hour12:false }) : '--:--',
+          source: 'worker-health-notification', isRead: row.isRead === true
+        })));
+        setServerError('');
+      } catch(e) { if(alive) setServerError(e.message || '건강 알림 조회 실패'); }
+    };
+    load(); const timer = window.setInterval(load, 10000);
+    return () => { alive = false; window.clearInterval(timer); };
+  }, []);
   const [nearbyAlerts, setNearbyAlerts] =
     useState(loadNearbyAlerts);
   const navigate = useNavigate();
@@ -121,7 +146,7 @@ export default function WorkerAlerts() {
 
   const allItems = useMemo(
     () =>
-      [...nearbyItems, ...items].sort(
+      [...serverHealthAlerts, ...nearbyItems, ...items].sort(
         (a, b) =>
           new Date(
             b.createdAt ||
@@ -134,7 +159,7 @@ export default function WorkerAlerts() {
               0
           ).getTime()
       ),
-    [nearbyItems, items]
+    [serverHealthAlerts, nearbyItems, items]
   );
 
   const filtered =
@@ -169,6 +194,11 @@ export default function WorkerAlerts() {
   );
 
   const openItem = (item) => {
+    if (item.source === 'worker-health-notification') {
+      if (!item.isRead) markNotificationRead(item.notificationId).catch(() => {});
+      navigate('/worker/health');
+      return;
+    }
     if (item.category === 'external') {
       navigate('/worker/hazards');
     } else if (item.category === 'health') {
@@ -206,12 +236,12 @@ export default function WorkerAlerts() {
 
       <div
         className={`worker-filter-banner ${
-          hazardError ? 'danger' : 'normal'
+          hazardError || serverError ? 'danger' : 'normal'
         }`}
       >
         <span>
-          {hazardError
-            ? `알림 연동 실패: ${hazardError}`
+          {hazardError || serverError
+            ? `알림 연동 실패: ${hazardError || serverError}`
             : hazardLoading
               ? '알림을 불러오는 중입니다.'
               : hazardStreamConnected
