@@ -191,6 +191,21 @@ function displayProcessStatus(item) {
   return { label: '미처리', className: 'unprocessed' };
 }
 
+function hasMatchingActionableEvent(record, serverEvents) {
+  if (record.source !== 'sensor-alert' && record.source !== 'health-notification') return false;
+  const occurred = new Date(record.occurredAt || record.recordedAt || 0).getTime();
+  if (!Number.isFinite(occurred)) return false;
+  return serverEvents.some(event => {
+    if (event.source !== 'server' || event.category !== record.category) return false;
+    const other = new Date(event.occurredAt || 0).getTime();
+    if (!Number.isFinite(other) || Math.abs(other - occurred) > 120000) return false;
+    // Match by device's worker or exact worker name: never dedupe unrelated workers by time alone.
+    const sameWorker = record.name && event.name && record.name !== '미확인 작업자'
+      && String(record.name) === String(event.name);
+    return sameWorker;
+  });
+}
+
 function isInDateRange(item, range) {
   if (!range.start && !range.end) return true;
 
@@ -322,6 +337,7 @@ export default function Detections() {
   const allItems = useMemo(
     () =>
       [...detections, ...fallAlerts, ...healthRecords]
+        .filter((item) => !hasMatchingActionableEvent(item, detections))
         .filter((item) => {
           const resolved = ['RESOLVED', 'COMPLETED', 'CLOSED', 'DONE'].includes(String(item.status || '').toUpperCase())
             || ['completed', 'confirmed', 'resolved'].includes(String(item.processClass || '').toLowerCase())
