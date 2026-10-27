@@ -309,8 +309,8 @@ function mergeWorkerStatus(worker, sensor, heatRisk) {
     gy: sensor?.gy ?? null,
     gz: sensor?.gz ?? null,
     sensorConnected: isFreshMeasurement(sensor),
-    serverDataConnected: isFreshMeasurement(sensor),
-    heatRiskDataConnected: isFreshMeasurement(heatRisk),
+    serverDataConnected: Boolean(sensor?.recordedAt),
+    heatRiskDataConnected: Boolean(heatRisk?.recordedAt),
   });
 }
 
@@ -438,17 +438,17 @@ export function WorkerProvider({ children }) {
       setSensorError([...new Set(errors.filter(Boolean))].join(' / '));
     }
 
-    const sensorMap = new Map(
-      statuses
-        .filter((item) => item?.deviceId)
-        .map((item) => [text(item.deviceId), item])
-    );
-
-    const heatMap = new Map(
-      heatStatuses
-        .filter((item) => item?.deviceId)
-        .map((item) => [text(item.deviceId), item])
-    );
+    const indexReadings = rows => {
+      const index = new Map();
+      rows.forEach(row => {
+        const keys = [row?.deviceId, row?.helmet?.deviceId, row?.helmetNo, row?.workerId, row?.worker?.id]
+          .filter(value => value != null && String(value).trim() !== '');
+        keys.forEach(key => index.set(String(key).trim(), row));
+      });
+      return index;
+    };
+    const sensorMap = indexReadings(statuses);
+    const heatMap = indexReadings(heatStatuses);
 
     // Use server-provided worker and helmet assignments.
     const helmetStatuses = helmetStatusResult.status === 'fulfilled'
@@ -474,13 +474,9 @@ export function WorkerProvider({ children }) {
 
         const bound = bindWorkerHelmet(worker, helmetRows);
 
-        const sensor = measuredStatus(
-          sensorMap.get(bound.deviceId)
-        );
-
-        const heat = measuredStatus(
-          heatMap.get(bound.deviceId)
-        );
+        const keys = [bound.deviceId, bound.helmetNo, bound.id, bound.workerId].filter(Boolean).map(String);
+        const sensor = measuredStatus(keys.map(key => sensorMap.get(key)).find(Boolean));
+        const heat = measuredStatus(keys.map(key => heatMap.get(key)).find(Boolean));
 
         const latest =
           sensor && isFreshMeasurement(sensor)
