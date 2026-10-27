@@ -137,6 +137,7 @@ export default function TopHeader({
 
   const [refreshing, setRefreshing] =
     useState(false);
+  const [refreshError, setRefreshError] = useState('');
 
   const popoverRef = useRef(null);
   const recent = notifications.slice(0, 4);
@@ -279,21 +280,24 @@ export default function TopHeader({
       )
     );
 
+    let succeeded = false;
     try {
+      setRefreshError('');
       if (onRefresh) {
         await onRefresh();
+      } else {
+        window.dispatchEvent(new Event('safehelmet-manual-refresh'));
       }
-
-      await new Promise((resolve) =>
-        window.setTimeout(resolve, 350)
-      );
+      succeeded = true;
+    } catch (error) {
+      setRefreshError(error?.message || '새로고침에 실패했습니다.');
     } finally {
       const completedAt = new Date();
 
-      setLastUpdated(completedAt);
+      if (succeeded) setLastUpdated(completedAt);
 
       try {
-        sessionStorage.setItem(
+        if (succeeded) sessionStorage.setItem(
           `safehelmet-last-updated:${location.pathname}`,
           completedAt.toISOString()
         );
@@ -355,6 +359,8 @@ export default function TopHeader({
           </span>
 
           <button
+            type="button"
+            disabled={refreshing}
             className={`page-refresh-btn ${
               refreshing
                 ? 'refreshing'
@@ -373,6 +379,7 @@ export default function TopHeader({
           </button>
         </div>
 
+        {refreshError && <span role="alert" title={refreshError} style={{color:'#e23b48',fontSize:11,maxWidth:220}}>{refreshError}</span>}
         <div
           className="notification-wrap"
           ref={popoverRef}
