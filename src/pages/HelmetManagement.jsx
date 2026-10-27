@@ -1,3 +1,4 @@
+import '../styles/helmetSensorConnection.css';
 import {
   Link2,
   MoreHorizontal,
