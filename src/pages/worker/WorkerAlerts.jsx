@@ -218,7 +218,7 @@ export default function WorkerAlerts() {
       return;
     }
     if (item.category === 'external') {
-      navigate('/worker/hazards');
+      navigate(`/worker/hazards/${encodeURIComponent(item.id)}`, { state: { hazardEvent: item } });
     } else if (item.category === 'health') {
       navigate('/worker/health');
     } else if (
