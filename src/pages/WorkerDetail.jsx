@@ -669,9 +669,9 @@ export default function WorkerDetail() {
   const receivedMs = worker.recordedAt ? new Date(worker.recordedAt).getTime() : NaN;
   const ageSeconds = Number.isFinite(receivedMs) ? Math.max(0, Math.floor((nowMs - receivedMs) / 1000)) : null;
   const recentSensor = worker.sensorConnected === true && ageSeconds !== null && ageSeconds <= 30;
-  const validHeartRate = Number(worker.heartRate) > 0 && (recentSensor || worker.healthExampleFields?.heartRate);
-  const validSpo2 = Number(worker.spo2) > 0 && (recentSensor || worker.healthExampleFields?.spo2);
-  const validHrv = Number(worker.hrv) > 0 && (recentSensor || worker.healthExampleFields?.hrv);
+  const validHeartRate = Number(worker.heartRate) > 0;
+  const validSpo2 = Number(worker.spo2) > 0;
+  const validHrv = Number(worker.hrv) > 0;
 
   const fallLevel =
     blockLevel(
@@ -1154,16 +1154,15 @@ export default function WorkerDetail() {
         </div>
 
         <section className="panel" style={{ marginTop: 20, padding: 24 }} aria-label="최근 센서 데이터">
-          <h3 style={{ margin: '0 0 12px' }}>최근 센서 데이터</h3>
+          <h3 style={{ margin: '0 0 12px' }}>최근 저장된 센서 데이터</h3>
           <p style={{ margin: '0 0 16px', color: '#64748b', fontSize: 13 }}>
             마지막 수신: {worker.recordedAt ? new Date(worker.recordedAt).toLocaleString('ko-KR') : '기록 없음'}{ageSeconds != null ? ` · ${ageSeconds}초 전` : ''} · {recentSensor ? '최근 30초 이내' : '수신 지연 또는 데이터 없음'}
           </p>
-          <p style={{ margin: '0 0 12px', color: '#64748b', fontSize: 12 }}>건강 센서 수신값이 없거나 유효하지 않은 항목에는 예시값을 표시합니다. 실제 수신 데이터와 구분해서 확인하세요.</p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(155px, 1fr))', gap: 12 }}>
             {[
-              ['심박수', validHeartRate ? `${worker.heartRate} bpm$` : '측정 대기'],
-              ['산소포화도', validSpo2 ? `${worker.spo2}%$` : '측정 대기'],
-              ['HRV', validHrv ? `${Number(worker.hrv).toFixed(1)}$` : '측정 대기'],
+              ['심박수', validHeartRate ? `${worker.heartRate} bpm` : '측정 대기'],
+              ['산소포화도', validSpo2 ? `${worker.spo2}%` : '측정 대기'],
+              ['HRV', validHrv ? `${Number(worker.hrv).toFixed(1)}` : '측정 대기'],
               ['가속도 X / Y / Z', recentSensor && [worker.ax, worker.ay, worker.az].every(v => v != null) ? [worker.ax, worker.ay, worker.az].join(' / ') : '데이터 대기'],
               ['자이로 X / Y / Z', recentSensor && [worker.gx, worker.gy, worker.gz].every(v => v != null) ? [worker.gx, worker.gy, worker.gz].join(' / ') : '데이터 대기'],
               ['자세', recentSensor && worker.posture ? postureLabel(worker.posture) : '데이터 대기'],
