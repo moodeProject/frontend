@@ -7,6 +7,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import { DetectionProvider } from './context/DetectionContext';
+import { PreventionProvider } from './context/PreventionContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { WorkerProvider } from './context/WorkerContext';
 import Dashboard from './pages/Dashboard';
@@ -51,6 +52,7 @@ export default function App() {
   return (
     <WorkerProvider>
       <DetectionProvider>
+        <PreventionProvider>
         <NotificationProvider>
           <BrowserRouter>
             <Routes>
@@ -103,6 +105,7 @@ export default function App() {
             </Routes>
           </BrowserRouter>
         </NotificationProvider>
+        </PreventionProvider>
       </DetectionProvider>
     </WorkerProvider>
   );

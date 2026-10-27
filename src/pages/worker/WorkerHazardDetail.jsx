@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { getHazardEvent } from '../../api/hazardEvents';
 import '../../styles/workerHazardPolish.css';
 import { WorkerScaffold } from '../../components/WorkerMobileUI';
+import { guidance } from '../../utils/prevention';
 import { useDetections } from '../../context/DetectionContext';
 import '../../styles/workerFallHistory.css';
 
@@ -56,7 +57,7 @@ export default function WorkerHazardDetail() {
     </section>
     <section className={`worker-recommend-card worker-fall-recommend tone-${tone} worker-hazard-guidance`}>
       <h3>권장 행동</h3>
-      <p>✓ {event.actionText || event.rawEvent?.recommendedAction || '위험요인에 접근하지 말고 안전한 구역으로 이동하세요.'}</p>
+      <p>✓ {guidance(event.kind)[1]}</p>
       <p>✓ 위험 구역을 우회하고 주변 작업자의 안전을 확인하세요.</p>
       <p>✓ 위험이 지속되면 관리자에게 즉시 알려주세요.</p>
     </section>
