@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { getMyHome, normalizeMyHome } from '../../api/myHome';
 import { getNotifications, markNotificationRead } from '../../api/notifications';
 import { WorkerScaffold } from '../../components/WorkerMobileUI';
+import '../../styles/workerAlertStatus.css';
 import { useDetections } from '../../context/DetectionContext';
 import { getWorkerProfile } from '../../utils/workerProfile';
 import { detectionBelongsToWorker } from '../../utils/workerRealtime';
@@ -18,6 +19,22 @@ const tabs = [
   ['fall', '추락'],
   ['nearby', '주변'],
 ];
+
+function recordStatus(item) {
+  // Acknowledging a notification is not the same as resolving the incident.
+  const status = String(item?.status || item?.rawEvent?.status || '').toUpperCase();
+  if (['RESOLVED', 'COMPLETED', 'CLOSED', 'DONE'].includes(status) ||
+      ['completed', 'confirmed', 'resolved'].includes(String(item?.processClass || '').toLowerCase())) {
+    return { label: '처리완료', className: 'resolved' };
+  }
+  if (status === 'IN_PROGRESS' || item?.processClass === 'processing') {
+    return { label: '처리중', className: 'processing' };
+  }
+  if (item.source === 'worker-health-notification' && item.isRead) {
+    return { label: '알림 확인', className: 'read' };
+  }
+  return null;
+}
 
 const NEARBY_ALERTS_KEY =
   'safeon_worker_nearby_danger_alerts_v1';
@@ -273,6 +290,7 @@ export default function WorkerAlerts() {
               </div>
 
               <strong>{item.type}</strong>
+              {recordStatus(item) && <span className={`worker-alert-status-chip ${recordStatus(item).className}`}>{recordStatus(item).label}</span>}
 
               <p>
                 {item.detailDescription ||
