@@ -20,6 +20,7 @@ import {
   useSearchParams,
 } from 'react-router-dom';
 import DateRangeFilter from '../components/DateRangeFilter';
+import TablePagination from '../components/TablePagination';
 import TopHeader from '../components/TopHeader';
 import { useDetections } from '../context/DetectionContext';
 import { useWorkers } from '../context/WorkerContext';
@@ -271,6 +272,8 @@ export default function Detections() {
   });
 
   const [search, setSearch] = useState('');
+  const [pageSize, setPageSize] = useState(20);
+  const [page, setPage] = useState(1);
   const [bulkProcessing, setBulkProcessing] = useState(false);
   const [bulkProgress, setBulkProgress] = useState('');
 
@@ -442,6 +445,12 @@ export default function Detections() {
     }
   };
 
+  useEffect(() => { setPage(1); }, [active, search, dateRange.start, dateRange.end]);
+  const totalPages = pageSize === 'all' ? 1 : Math.max(1, Math.ceil(rows.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const paginatedRows = pageSize === 'all' ? rows : rows.slice((safePage - 1) * pageSize, safePage * pageSize);
+  const handlePageSizeChange = (nextSize) => { setPageSize(nextSize); setPage(1); };
+
   const refreshPage = async () => {
     await Promise.allSettled([
       refreshHazardEvents(),
@@ -575,7 +584,7 @@ export default function Detections() {
             <span />
           </div>
 
-          {rows.map((item) => {
+          {paginatedRows.map((item) => {
             const {
               Icon,
               className,
@@ -651,6 +660,7 @@ export default function Detections() {
               </div>
             )}
         </section>
+        <TablePagination total={rows.length} page={safePage} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={handlePageSizeChange} />
       </div>
     </>
   );
