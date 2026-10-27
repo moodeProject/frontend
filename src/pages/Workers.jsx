@@ -1,4 +1,3 @@
-import { statusWithOpenIncidents } from '../utils/workerIncidentStatus';
 import {
   Plus,
   Search,
@@ -170,7 +169,6 @@ export default function Workers() {
     useMemo(
       () =>
         liveWorkers
-          .map(worker => statusWithOpenIncidents(worker, detections))
           .filter(worker => !search.trim() || `${worker.name} ${worker.employeeNumber}`.toLowerCase().includes(search.trim().toLowerCase()))
           .filter(worker => statusFilter === 'all' || worker.status === statusFilter)
           .map(
