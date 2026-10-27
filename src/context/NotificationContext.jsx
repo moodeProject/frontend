@@ -162,6 +162,9 @@ function serverLevel(raw) {
 
 function serverTarget(raw) {
   const eventId = raw?.hazardEventId ?? raw?.eventId;
+  if (raw?.id != null && raw?.hazardEventId == null && String(raw?.message || '').includes('건강 이상')) {
+    return `/detections/health-notification/${encodeURIComponent(raw.id)}`;
+  }
   if (raw?.sosId != null) return '/notifications';
   const category = String(raw?.category || '').toUpperCase();
 
