@@ -37,9 +37,11 @@ export function normalizeAuthUser(
   const role = String(
     firstValue(
       raw?.role,
+      raw?.userType,
       raw?.authority,
       raw?.userRole,
       data?.role,
+      data?.userType,
       ''
     )
   )
@@ -94,7 +96,6 @@ export function isAdminUser(user) {
   const role = String(user?.role || '').toUpperCase()
 
   return (
-    !role ||
     role === 'ADMIN' ||
     role === 'SUPER_ADMIN' ||
     role.includes('ADMIN')
@@ -155,6 +156,11 @@ export async function loginApi(id, password, userType) {
   } catch {
     // 로그인 성공 후 /me 응답 형식이 달라도
     // 로그인 응답에 포함된 사용자 정보로 세션을 유지합니다.
+  }
+
+  if (user.role !== role) {
+    localStorage.removeItem(roleTokenKey)
+    throw new Error('로그인한 계정의 권한이 요청한 사용자 유형과 일치하지 않습니다.')
   }
 
   localStorage.setItem(
