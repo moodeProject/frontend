@@ -17,3 +17,8 @@
 /* Keep the detection type icon and text consistent with the event severity. */
 .detections-page .detection-table-row.warning .detection-type, .detections-page .detection-table-row.warning .detection-type b, .detections-page .detection-table-row.warning .detection-type svg{color:#c77800!important;stroke:#c77800!important}
 .detections-page .detection-table-row.danger .detection-type, .detections-page .detection-table-row.danger .detection-type b, .detections-page .detection-table-row.danger .detection-type svg{color:#c92535!important;stroke:#c92535!important}
+
+/* Sticky table labels while scrolling the detection list. */
+.detections-page .detection-table-wrap{overflow:visible!important}
+.detections-page .detection-table-head{position:sticky;top:0;z-index:8;background:#fff;box-shadow:0 1px 0 #e5eaf0}
+.detections-page .process-chip.unknown{background:#f3f5f8;color:#65748b;border:1px solid #e0e5ec}
