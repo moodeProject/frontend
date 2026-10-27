@@ -55,7 +55,16 @@ export function activeEvents(events, now) {
 }
 
 export function buildPreventionItems(workers, events, observations, now) {
-  const recent = activeEvents(events, now);
+  const recent = activeEvents(events, now).map(event => {
+    const label = `${event.type || ''} ${event.rawEvent?.hazardType || ''}`;
+    // The legacy mapper uses fatigue as a fallback for every health event.
+    // Keep generic health warnings distinct from confirmed fatigue signals.
+    if (event.category === 'health' && event.kind === 'fatigue' && !/fatigue|피로/i.test(label)) {
+      return { ...event, kind: 'health' };
+    }
+    if (event.category === 'fall' && /stumble|휘청/i.test(label)) return { ...event, kind: 'posture' };
+    return event;
+  });
   const items = recent.map(event => {
     const worker = workers.find(row => belongsTo(event, row));
     const count = new Set(recent.filter(row => row.kind === event.kind &&

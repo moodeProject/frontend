@@ -15,7 +15,7 @@ export function WorkerPreventionNotice({ worker }) {
   if (!item) return null;
   const [title, action] = guidance(item.kind);
   const seen = acknowledged.includes(item.key);
-  const target = item.kind === 'fall' ? '/worker/sos' : item.category === 'external'
+  const target = item.kind === 'fall' ? '/worker/sos' : item.kind === 'posture' ? '/worker/fall-status' : item.category === 'external'
     ? `/worker/hazards/${encodeURIComponent(item.id)}` : '/worker/health';
   const acknowledge = () => {
     const next = [...acknowledged, item.key].slice(-200);

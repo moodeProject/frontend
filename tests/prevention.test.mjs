@@ -37,3 +37,11 @@ test('continuous observation raises priority only after 30 seconds; live sensor 
   assert.equal(buildPreventionItems([abnormal], [{ ...event, category:'health', status:'RESOLVED' }], map, now)[0].sustained, true);
   assert.equal(buildPreventionItems([abnormal], [], new Map(), now)[0].priority, false);
 });
+
+test('generic health and stumble events offer preventive guidance without labeling them fatigue or a completed fall', () => {
+  const rows = buildPreventionItems([worker], [
+    { ...event, category: 'health', kind: 'fatigue', type: '건강 이상 감지' },
+    { ...event, id: 2, category: 'fall', kind: 'fall', type: '휘청거림' }
+  ], new Map(), now);
+  assert.deepEqual(new Set(rows.map(row => row.kind)), new Set(['health', 'posture']));
+});
