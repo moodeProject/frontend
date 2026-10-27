@@ -38,25 +38,29 @@ export default function WorkerHazardDetail() {
   const caution = event.level === 'warning';
   const tone = caution ? 'warning' : 'danger';
   const clipUrl = serverDetail?.clip?.playbackUrl || '';
+  const description = event.detailDescription || event.rawEvent?.description || '작업 구역에서 위험요인이 감지되었습니다.';
+  const statusLabel = resolved ? '처리완료' : processing ? '처리중' : state === 'UNHANDLED' ? '미처리' : '조치 미확인';
   const occurred = event.occurredAt ? new Date(event.occurredAt).toLocaleString('ko-KR') : [event.dateLabel,event.time].filter(Boolean).join(' ');
   return <WorkerScaffold active="alerts" title="외부요인 감지 상세" back>
     <section className={`worker-white-card worker-health-detail-card worker-fall-history-card worker-hazard-clean tone-${tone}`}>
-      <div className="worker-card-title"><strong>외부 위험요인 기록</strong><span className="worker-count-pill">{caution ? '주의' : '위험'}</span></div>
+      <div className="worker-card-title"><strong>외부 위험요인 기록</strong><span className="worker-hazard-level">{caution ? '주의' : '위험'}</span></div>
+      <div className="worker-hazard-level-bars" aria-label={caution ? '주의 단계' : '위험 단계'}><i/><i/><i/></div>
 
-      <p className="worker-hazard-summary">{event.detailDescription || event.rawEvent?.description || '작업 구역에서 위험요인이 감지되었습니다.'}</p>
-      {resolved && <span className="worker-fall-resolution-chip"><ShieldCheck size={15}/> 관리자 처리완료</span>}
+      <p className="worker-hazard-summary">{description}</p>
+      {resolved && <span className="worker-hazard-complete"><ShieldCheck size={15}/> 관리자 처리완료</span>}
       <hr/>
       <div className="worker-health-detail-item"><i><TriangleAlert size={22}/></i><p><span>감지 유형</span><strong>{event.type || '외부 위험요인'}</strong></p></div>
       <div className="worker-health-detail-item"><i><Clock3 size={22}/></i><p><span>발생 시각</span><strong>{occurred || '확인 불가'}</strong></p></div>
       <div className="worker-health-detail-item"><i><MapPin size={22}/></i><p><span>발생 위치</span><strong>{event.zone || '위치 미확인'}</strong></p></div>
-      <div className="worker-health-detail-item"><i><ShieldCheck size={22}/></i><p><span>처리 상태</span><strong>{resolved ? '처리완료' : processing ? '처리중' : state === 'UNHANDLED' ? '미처리' : '조치 미확인'}</strong></p></div>
+      <div className="worker-health-detail-item"><i><ShieldCheck size={22}/></i><p><span>처리 상태</span><strong>{statusLabel}</strong></p></div>
+    </section>
+    <section className={`worker-recommend-card worker-fall-recommend tone-${tone} worker-hazard-guidance`}>
+      <h3>권장 행동</h3>
+      <p>✓ {event.actionText || event.rawEvent?.recommendedAction || '위험요인에 접근하지 말고 안전한 구역으로 이동하세요.'}</p>
+      <p>✓ 위험 구역을 우회하고 주변 작업자의 안전을 확인하세요.</p>
+      <p>✓ 위험이 지속되면 관리자에게 즉시 알려주세요.</p>
     </section>
     {clipUrl && <section className="worker-white-card worker-hazard-video"><div className="worker-card-title"><strong><Video size={18}/> 현장 감지 영상</strong></div><video key={clipUrl} src={clipUrl} controls playsInline preload="metadata" onError={() => setVideoError("영상을 재생할 수 없습니다. 영상 주소가 만료되었을 수 있습니다.")}/>{videoError && <p>{videoError}</p>}<small>서버가 제공한 사고 기록 영상입니다. 실시간 카메라 영상은 아닙니다.</small></section>}
-    <section className={`worker-recommend-card worker-fall-recommend tone-${tone} worker-hazard-guidance`}>
-      <h3>안전 안내</h3>
-      <p>✓ {event.actionText || event.rawEvent?.recommendedAction || '위험요인에 접근하지 말고 안전한 구역으로 이동하세요.'}</p>
-      <p>✓ 현장 위험요인이 남아 있다면 관리자에게 즉시 알려주세요.</p>
-    </section>
     <div className="worker-two-actions">
       <button type="button" onClick={() => navigate('/worker/alerts')}><ArrowLeft size={18}/> 알림 목록</button>
       <button type="button" className="secondary" onClick={() => navigate('/worker/sos')}><TriangleAlert size={18}/> SOS</button>
