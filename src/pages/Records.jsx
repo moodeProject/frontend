@@ -317,7 +317,13 @@ export default function Records() {
 
   const loadHealthRecords = useCallback(async () => {
     try {
-      const rows = await getNotifications({recipientType: 'MANAGER', page: 0, size: 1000});
+      const pages = [];
+      for (let page = 0; page < 20; page += 1) {
+        const batch = await getNotifications({recipientType: 'MANAGER', page, size: 100});
+        pages.push(...batch);
+        if (batch.length < 100) break;
+      }
+      const rows = pages;
       setHealthRecords(rows.map(healthNotificationToRecord).filter(Boolean));
       setHealthError('');
     } catch (error) { setHealthError(error?.message || '건강 알림 기록 조회 실패'); }
