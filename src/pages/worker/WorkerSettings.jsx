@@ -4,6 +4,7 @@ import { getMyHome, normalizeMyHome } from '../../api/myHome';
 import { Bell, Camera, Check, KeyRound, Link2, Mail, MapPin, Phone, Radio, RefreshCw, ShieldCheck, UserRound } from 'lucide-react';
 import { WorkerScaffold } from '../../components/WorkerMobileUI';
 import { getWorkerProfile, saveWorkerProfile } from '../../utils/workerProfile';
+import { saveWorkerProfileImage, getSavedWorkerProfileImage } from '../../utils/workerProfileImageStorage';
 
 export default function WorkerSettings() {
   const [push, setPush] = useState(true);
@@ -24,7 +25,7 @@ export default function WorkerSettings() {
   const [passwordError, setPasswordError] = useState('');
   const [helmetBusy, setHelmetBusy] = useState(false);
   const [helmetMessage, setHelmetMessage] = useState('');
-  const { workers } = useWorkers();
+  const { workers, updateLocalWorker } = useWorkers();
   const [myHome, setMyHome] = useState(null);
   const [homeError, setHomeError] = useState('');
 
@@ -73,6 +74,10 @@ export default function WorkerSettings() {
     }
     const updated = { ...profile, ...form };
     saveWorkerProfile(updated);
+    if (serverWorker && form.photo && form.photo !== getSavedWorkerProfileImage(serverWorker)) {
+      saveWorkerProfileImage(serverWorker, form.photo);
+      updateLocalWorker?.(serverWorker.id, { profileImage: form.photo });
+    }
     setProfile(updated);
     setProfileMessage('회원정보가 저장되었습니다.');
   };
