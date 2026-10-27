@@ -282,7 +282,13 @@ export default function Detections() {
   const allItems = useMemo(
     () =>
       [...detections, ...fallAlerts, ...healthRecords]
-        .filter((item) => item.source === 'health-notification' || (item.processClass !== 'completed' && !['RESOLVED','COMPLETED','CLOSED'].includes(String(item.status || '').toUpperCase())))
+        .filter((item) => {
+          const resolved = ['RESOLVED', 'COMPLETED', 'CLOSED', 'DONE'].includes(String(item.status || '').toUpperCase())
+            || ['completed', 'confirmed', 'resolved'].includes(String(item.processClass || '').toLowerCase())
+            || ['처리완료', '조치완료', '완료'].includes(String(item.process || '').replace(/\s/g, ''))
+            || ['처리완료', '조치완료', '완료'].includes(String(item.statusLabel || '').replace(/\s/g, ''));
+          return !resolved;
+        })
         .filter((item) => isInDateRange(item, dateRange))
         .sort(
           (a, b) =>
