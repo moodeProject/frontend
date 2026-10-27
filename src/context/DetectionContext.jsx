@@ -299,8 +299,12 @@ export function DetectionProvider({ children }) {
   useEffect(() => {
     refreshHazardEvents().catch(() => {});
     // Also refresh without SSE, which can disconnect behind authenticated proxies.
-    const interval = window.setInterval(() => refreshHazardEvents().catch(() => {}), 20000);
-    return () => window.clearInterval(interval);
+    const interval = window.setInterval(() => refreshHazardEvents().catch(() => {}), 5000);
+    const onFocus = () => refreshHazardEvents().catch(() => {});
+    const onVisible = () => { if (!document.hidden) onFocus(); };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { window.clearInterval(interval); window.removeEventListener('focus', onFocus); document.removeEventListener('visibilitychange', onVisible); };
   }, [refreshHazardEvents]);
 
   // 목록 API의 폴링과 별개로 SSE를 연결해 새 이벤트를 즉시 반영합니다.
