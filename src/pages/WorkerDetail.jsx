@@ -36,6 +36,7 @@ import { useDetections } from '../context/DetectionContext';
 import {
   deleteWorkerApi,
   getWorker,
+  updateWorkerApi,
 } from '../api/workers';
 import {
   getWorkerStatus,
@@ -465,6 +466,9 @@ export default function WorkerDetail() {
 
   const [toast, setToast] =
     useState('');
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState('');
+  const [savingName, setSavingName] = useState(false);
 
   const imageInput =
     useRef(null);
@@ -785,6 +789,28 @@ export default function WorkerDetail() {
       }
     };
 
+  const saveWorkerName = async () => {
+    const name = nameDraft.trim();
+    if (!name) { setToast('이름을 입력해주세요.'); return; }
+    if (savingName) return;
+    setSavingName(true);
+    try {
+      const updated = await updateWorkerApi(decodedId, {
+        name,
+        zoneName: worker.zoneName || worker.zone || '',
+        detailLocation: worker.detailLocation || '',
+      });
+      updateLocalWorker(decodedId, { name: updated?.name || name });
+      setServerWorker(previous => ({ ...(previous || {}), name: updated?.name || name }));
+      setEditingName(false);
+      setToast('서버 작업자 이름이 변경되었습니다.');
+    } catch (error) {
+      setToast(`이름 변경 실패: ${error?.message || '서버 요청을 확인해주세요.'}`);
+    } finally {
+      setSavingName(false);
+    }
+  };
+
   const handleDelete =
     async () => {
       try {
@@ -927,9 +953,18 @@ export default function WorkerDetail() {
 
           <div className="worker-profile-copy">
             <div className="profile-name-row">
-              <h2>
-                {worker.name}
-              </h2>
+              {editingName ? (
+                <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+                  <input value={nameDraft} onChange={e => setNameDraft(e.target.value)} maxLength={50} aria-label="작업자 이름" style={{minWidth:140,maxWidth:220,minHeight:34,border:'1px solid #b6c5df',borderRadius:8,padding:'6px 10px'}} />
+                  <button type="button" disabled={savingName || !nameDraft.trim()} onClick={saveWorkerName} style={{padding:'7px 11px',borderRadius:8,border:'1px solid #1767ff',background:'#1767ff',color:'#fff',cursor:'pointer'}}>{savingName ? '저장 중' : '저장'}</button>
+                  <button type="button" disabled={savingName} onClick={() => setEditingName(false)} style={{padding:'7px 10px',borderRadius:8,border:'1px solid #dce3ee',background:'#fff',cursor:'pointer'}}>취소</button>
+                </div>
+              ) : (
+                <>
+                  <h2>{worker.name}</h2>
+                  <button type="button" onClick={() => {setNameDraft(worker.name || '');setEditingName(true);}} style={{border:'1px solid #dce3ee',background:'#fff',borderRadius:8,padding:'6px 10px',fontSize:12,color:'#1767ff',cursor:'pointer'}}>이름 변경</button>
+                </>
+              )}
 
               <StatusBadge
                 level={
