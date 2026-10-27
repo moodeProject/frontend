@@ -143,7 +143,7 @@ function sensorAlertToDetection(alert, workers) {
     dateLabel,
     occurredAt: alert.recordedAt,
     recordedAt: alert.recordedAt,
-    process: '센서 감지',
+    process: '조치 미확인',
     processClass: 'unprocessed',
     deviceId: alert.deviceId,
     heartRate: alert.heartRate,
@@ -166,10 +166,28 @@ function healthNotificationToDetection(raw) {
     level: 'warning', type: '건강 이상 감지',
     name: name || '작업자 정보 없음', zone: zone || '위치 미확인',
     time, dateLabel, occurredAt: raw.sentAt,
-    process: raw.isRead ? '알림 확인함 · 조치 미확인' : '조치 필요',
+    process: '조치 미확인',
     processClass: 'unprocessed',
     message
   };
+}
+
+function displayProcessStatus(item) {
+  const rawStatus = String(item.status || item.rawEvent?.status || '').toUpperCase();
+  const rawClass = String(item.processClass || '').toLowerCase();
+  if (['RESOLVED', 'COMPLETED', 'CLOSED', 'DONE'].includes(rawStatus) ||
+      ['completed', 'resolved', 'confirmed'].includes(rawClass)) {
+    return { label: '처리완료', className: 'completed' };
+  }
+  if (['IN_PROGRESS', 'PROCESSING'].includes(rawStatus) ||
+      ['processing', 'in-progress', 'in_progress'].includes(rawClass)) {
+    return { label: '처리중', className: 'processing' };
+  }
+  // Sensor readings and notification read flags do not have a true resolution state.
+  if (item.source === 'sensor-alert' || item.source === 'health-notification') {
+    return { label: '조치 미확인', className: 'unknown' };
+  }
+  return { label: '미처리', className: 'unprocessed' };
 }
 
 function isInDateRange(item, range) {
@@ -603,9 +621,9 @@ export default function Detections() {
 
                 <div>
                   <span
-                    className={`process-chip ${item.processClass}`}
+                    className={`process-chip ${displayProcessStatus(item).className}`}
                   >
-                    {item.process}
+                    {displayProcessStatus(item).label}
                   </span>
                 </div>
 
