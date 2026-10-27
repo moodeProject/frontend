@@ -19,7 +19,6 @@ import {
   Link,
   useNavigate,
 } from 'react-router-dom';
-import { ManagerPreventionPanel } from '../components/PreventionUI';
 import TopHeader from '../components/TopHeader';
 import StatusBadge from '../components/StatusBadge';
 import WorkerCard from '../components/WorkerCard';
@@ -384,8 +383,6 @@ export default function Dashboard() {
             </span>
           </div>
         )}
-
-        <ManagerPreventionPanel />
 
         <section className="summary-grid">
           {summary.map(

@@ -15,7 +15,6 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { WorkerPreventionNotice } from './PreventionUI';
 import { useDetections } from '../context/DetectionContext';
 import { useWorkers } from '../context/WorkerContext';
 import { getWorkerProfile } from '../utils/workerProfile';
@@ -546,8 +545,6 @@ export function WorkerScaffold({
           }
         />
       )}
-
-      <WorkerPreventionNotice worker={currentWorker} />
 
       {nearbyDangerAlert && (
         <button

@@ -53,7 +53,7 @@ function mapKind(category, hazardType) {
       return 'heat';
     }
 
-    return value.includes('fatigue') ? 'fatigue' : 'health';
+    return 'fatigue';
   }
 
   if (
@@ -81,7 +81,6 @@ function defaultType(kind) {
     unguarded: '난간 없는 구간',
     puddle: '물웅덩이 감지',
     obstacle: '장애물 감지',
-    health: '건강 이상 감지',
     fatigue: '피로도 이상',
     heat: '열사병 위험',
   }[kind] || '이상 감지';
@@ -93,7 +92,6 @@ function defaultRisk(kind) {
     unguarded: '추락',
     puddle: '미끄럼 및 낙상',
     obstacle: '충돌 및 전도',
-    health: '건강 이상',
     fatigue: '피로 누적',
     heat: '온열질환',
   }[kind] || '위험';
@@ -108,7 +106,6 @@ function defaultDescription(kind) {
       '작업 구역 바닥의 물 또는 젖은 구간이 감지되었습니다.',
     obstacle:
       '작업 동선에 장애물이 감지되어 충돌 또는 전도 위험이 있습니다.',
-    health: '센서 데이터에서 건강 이상 신호가 감지되었습니다.',
     fatigue:
       '센서 데이터에서 작업자의 피로 또는 건강 이상 징후가 감지되었습니다.',
     heat:
@@ -118,9 +115,6 @@ function defaultDescription(kind) {
 
 function defaultAction(kind, level) {
   if (kind === 'fall') return '즉시 작업자 상태 확인이 필요합니다.';
-  if (['health', 'fatigue', 'heat'].includes(kind)) {
-    return '작업을 중단하고 작업자 상태를 확인한 뒤 안전한 장소에서 휴식하도록 안내하세요. 이상이 지속되면 도움을 요청하세요.';
-  }
   if (kind === 'unguarded' || level === 'danger') {
     return '즉각적인 위험 구역 통제가 필요합니다.';
   }
