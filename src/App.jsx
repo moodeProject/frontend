@@ -10,6 +10,7 @@ import { DetectionProvider } from './context/DetectionContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { WorkerProvider } from './context/WorkerContext';
 import Dashboard from './pages/Dashboard';
+import SOSDetail from './pages/SOSDetail';
 import Detections from './pages/Detections';
 import ExternalDetectionDetail from './pages/ExternalDetectionDetail';
 import HealthDetectionDetail from './pages/HealthDetectionDetail';
@@ -87,6 +88,7 @@ export default function App() {
                   <Route path="/records" element={<Records />} />
                   <Route path="/helmets" element={<HelmetManagement />} />
                   <Route path="/notifications" element={<Notifications />} />
+                  <Route path="/sos/:sosId" element={<SOSDetail />} />
                   <Route path="/demo/health" element={<HealthDemo />} />
                   <Route path="/test/health-api" element={<HealthApiTest />} />
                   <Route path="/mypage" element={<MyPage />} />
