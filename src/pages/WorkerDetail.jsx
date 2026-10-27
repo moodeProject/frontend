@@ -55,6 +55,7 @@ import '../styles/workerProfileImageSave.css';
 import '../styles/workerPersonalHeatRisk.css';
 
 const labels = {
+  pending: '데이터 대기',
   normal: '정상',
   warning: '주의',
   danger: '위험',
@@ -284,6 +285,9 @@ function StatusCard({
     fall: ArrowDownRight,
   };
 
+  const healthMeasured = [worker.heartRate, worker.spo2, worker.hrv].some(value => Number(value) > 0);
+  if (type === 'health' && !healthMeasured) level = 'pending';
+
   const Icon =
     icons[type];
 
@@ -320,14 +324,13 @@ function StatusCard({
           <strong
             className={`status-card-value ${level}`}
           >
-            {Number(worker.heartRate) > 0 ? worker.heartRate : '-'}{' '}
-            bpm
+            {healthMeasured ? <>{Number(worker.heartRate) > 0 ? worker.heartRate : '-'} bpm</> : '데이터 대기'}
           </strong>
 
           <div className="detail-fatigue">
             <div
               className={`fatigue-bar level-${
-                worker.fatigue ||
+                (healthMeasured && worker.fatigue) ||
                 0
               }`}
             >
@@ -337,14 +340,14 @@ function StatusCard({
             </div>
 
             <b>
-              {typeof worker.fatigueAbnormal === 'boolean' && worker.recordedAt ? (worker.fatigueAbnormal ? '이상 감지' : '정상') : '측정 대기'}
+              {healthMeasured && typeof worker.fatigueAbnormal === 'boolean' && worker.recordedAt ? (worker.fatigueAbnormal ? '이상 감지' : '정상') : '측정 대기'}
             </b>
           </div>
 
           <div className="detail-personal-heat-risk">
             <span>개인 온열질환 위험도</span>
             <b>
-              {worker.heatRiskDataConnected ? personalHeatRiskLabel(worker) : '측정 대기'}
+              {healthMeasured && worker.heatRiskDataConnected ? personalHeatRiskLabel(worker) : '측정 대기'}
             </b>
           </div>
 

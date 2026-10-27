@@ -6,6 +6,7 @@ import { getWorkerStatus } from '../api/workerStatus';
 import TopHeader from '../components/TopHeader';
 
 const CASES = {
+  WAITING: { title: '데이터 대기 · 미측정', heartRate: 0, spo2: 0, hrv: 0, healthAbnormal: false, fatigueAbnormal: false, heatRiskAbnormal: false, level: 'NORMAL' },
   NORMAL: { title: '정상', heartRate: 78, spo2: 98, hrv: 48, healthAbnormal: false, fatigueAbnormal: false, heatRiskAbnormal: false, level: 'NORMAL' },
   RECOMMEND: { title: '주의 · 휴식 권고', heartRate: 112, spo2: 96, hrv: 29, healthAbnormal: true, fatigueAbnormal: true, heatRiskAbnormal: false, level: 'RECOMMEND' },
   ACTION_REQUIRED: { title: '조치 필요 · 건강 이상', heartRate: 132, spo2: 92, hrv: 18, healthAbnormal: true, fatigueAbnormal: true, heatRiskAbnormal: true, level: 'ACTION_REQUIRED' },
@@ -36,14 +37,14 @@ export default function HealthApiTest() {
   },[]);
 
   const applyScenario = (key) => {
-    setScenario(key); setValues(CASES[key]); setConfirmed(false); setResponse(null); setLatest(null);
+    setError(''); setVerifyError(''); setScenario(key); setValues(CASES[key]); setConfirmed(false); setResponse(null); setLatest(null);
   };
   const send = async () => {
     const id = deviceId.trim();
     if (!confirmed || !id) { setError('디바이스 ID와 실제 DB 저장 확인을 체크해 주세요.'); return; }
-    if (!Number.isFinite(Number(values.heartRate)) || Number(values.heartRate)<=0 ||
+    if (scenario !== 'WAITING' && (!Number.isFinite(Number(values.heartRate)) || Number(values.heartRate)<=0 ||
         !Number.isFinite(Number(values.spo2)) || Number(values.spo2)<=0 || Number(values.spo2)>100 ||
-        !Number.isFinite(Number(values.hrv)) || Number(values.hrv)<=0) {
+        !Number.isFinite(Number(values.hrv)) || Number(values.hrv)<=0)) {
       setError('건강 데이터 숫자를 확인해 주세요.'); return;
     }
     setSending(true); setError(''); setVerifyError(''); setResponse(null); setLatest(null);
@@ -86,8 +87,9 @@ export default function HealthApiTest() {
           {Object.entries(CASES).map(([key,c])=><button type="button" key={key} onClick={()=>applyScenario(key)} disabled={sending} style={{padding:'12px 18px',borderRadius:10,border:scenario===key?'2px solid #193d59':'1px solid #dce4ed',background:scenario===key?'#eef6fd':'white',fontWeight:700,cursor:'pointer'}}>{c.title}</button>)}
         </div>
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',gap:14,marginTop:20}}>
-          {[['heartRate','심박수 (bpm)'],['spo2','SpO₂ (%)'],['hrv','HRV (ms)']].map(([key,label])=><label key={key}>{label}<input type="number" min="1" max={key==='spo2'?100:undefined} style={inputStyle} value={values[key]} onChange={e=>setValues(v=>({...v,[key]:e.target.value}))}/></label>)}
+          {[['heartRate','심박수 (bpm)'],['spo2','SpO₂ (%)'],['hrv','HRV (ms)']].map(([key,label])=><label key={key}>{label}<input type="number" disabled={sending || scenario === 'WAITING'} min={scenario === 'WAITING' ? 0 : 1} max={key==='spo2'?100:undefined} style={inputStyle} value={values[key]} onChange={e=>setValues(v=>({...v,[key]:e.target.value}))}/></label>)}
         </div>
+        {scenario === 'WAITING' && <p role="status" style={{color:'#64748b',lineHeight:1.6}}>심박수·SpO₂·HRV를 0(미측정)으로 전송합니다. 건강 이상 플래그는 모두 false이며, NORMAL은 API 전송용 값입니다. 실제 센서 연결을 끊거나 기존 기록을 삭제하지 않습니다. 다른 센서의 테스트값은 그대로 전송됩니다.</p>}
         <p style={{fontSize:13,color:'#64748b',marginBottom:0}}>서버 건강 단계: <b>{values.level}</b> · 추락 데이터는 STABLE / fallDetected=false로 전송됩니다.</p>
       </section>
       <section style={panelStyle}>
