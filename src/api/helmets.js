@@ -36,3 +36,11 @@ export async function unassignHelmet(helmetId) {
   const res = await api.post(`/api/helmets/${encodeURIComponent(helmetId)}/unassign`);
   return res?.data ?? res;
 }
+
+/** Register helmet in server DB. POST /api/helmets */
+export async function createHelmet({ helmetNo, deviceId, workerId, memo }) {
+  const payload = { helmetNo: String(helmetNo).trim(), deviceId: String(deviceId).trim(), memo: memo || '' };
+  if (workerId !== undefined && workerId !== null && workerId !== '') payload.workerId = Number(workerId);
+  const res = await api.post('/api/helmets', payload);
+  return res?.data ?? res;
+}
