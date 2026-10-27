@@ -51,8 +51,8 @@ export default function WorkerFallAlert() {
     return () => window.clearInterval(timer);
   }, []);
   useEffect(() => {
-    if (seconds === 0 && !request && !sending) sendAutoRequest();
-  }, [seconds, request, sending]);
+    if (seconds === 0 && !request && !sending && !error && !requestedRef.current) sendAutoRequest();
+  }, [seconds, request, sending, error]);
 
   const zone = home?.zone || profile.location || '위치 미확인';
   return <WorkerScaffold active="sos" title="추락 자동 구조 요청" className="worker-fall-alert-page" hideNav>
