@@ -1,3 +1,4 @@
+import '../styles/workerDetailLayoutRefine.css';
 import { statusWithOpenIncidents } from '../utils/workerIncidentStatus';
 import {
   Activity,
@@ -967,10 +968,10 @@ export default function WorkerDetail() {
                   <button type="button" disabled={savingName} onClick={() => setEditingName(false)} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box', height: 32, minHeight: 32, padding: '0 10px', borderRadius: 8, border: '1px solid #dce3ee', background: '#fff', color: '#475569', fontSize: 12, fontWeight: 700, lineHeight: 1, cursor: 'pointer' }}>취소</button>
                 </div>
               ) : (
-                <>
+                <div className="worker-detail-name-group">
                   <h2>{worker.name}</h2>
-                  <button type="button" onClick={() => { setNameDraft(worker.name || ''); setEditingName(true); }} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box', height: 32, minHeight: 32, padding: '0 10px', border: '1px solid #dce3ee', background: '#fff', borderRadius: 8, fontSize: 12, fontWeight: 700, lineHeight: 1, color: '#1767ff', cursor: 'pointer' }}>이름 변경</button>
-                </>
+                  <button type="button" className="worker-detail-name-edit" onClick={() => { setNameDraft(worker.name || ''); setEditingName(true); }}>이름 변경</button>
+                </div>
               )}
 
               <StatusBadge
