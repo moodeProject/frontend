@@ -635,24 +635,10 @@ export default function HelmetManagement() {
               <code>{helmet.deviceId}</code>
 
               <span
-                className={`sensor-state ${
-                  helmet.riskLevel === 'danger'
-                    ? 'danger'
-                    : helmet.riskLevel === 'warning'
-                      ? 'warning'
-                      : helmet.sensorConnected
-                        ? 'connected'
-                        : 'disconnected'
-                }`}
+                className={`sensor-state ${helmet.sensorConnected ? 'connected' : 'disconnected'}`}
               >
                 <Wifi size={13} />
-                {helmet.riskLevel === 'danger'
-                  ? '위험'
-                  : helmet.riskLevel === 'warning'
-                    ? '주의'
-                    : helmet.sensorConnected
-                      ? '연결'
-                      : '미연결'}
+                {helmet.sensorConnected ? '연결' : '미연결'}
               </span>
 
               <span className="muted">
