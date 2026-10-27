@@ -1,383 +1,95 @@
-import {
-  MapPin,
-  Phone,
-  TriangleAlert,
-  UserRound,
-} from 'lucide-react';
-import {
-  useEffect,
-  useMemo,
-} from 'react';
-import {
-  useNavigate,
-} from 'react-router-dom';
+import { AlertTriangle, Bell, MapPin, Radar, RefreshCw, ShieldCheck } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { WorkerScaffold } from '../../components/WorkerMobileUI';
-import { useWorkers } from '../../context/WorkerContext';
-import { getWorkerProfile } from '../../utils/workerProfile';
-import {
-  getWorkerDeviceId,
-} from '../../utils/workerRealtime';
+import { getMyHome, normalizeMyHome } from '../../api/myHome';
+import '../../styles/workerNearbyReal.css';
 
-const DISTANCES = [14, 28, 41, 67, 89];
-const POSITIONS = [
-  { x: 49, y: 38 },
-  { x: 56, y: 52 },
-  { x: 32, y: 34 },
-  { x: 38, y: 70 },
-  { x: 74, y: 22 },
-];
+const ALERT_KEY = 'safeon_worker_nearby_danger_alerts_v1';
 
-function currentWorkerFrom(
-  workers,
-  profile
-) {
-  const deviceId =
-    getWorkerDeviceId(profile);
-
-  return (
-    workers.find(
-      (worker) =>
-        (deviceId &&
-          String(worker.deviceId || '') ===
-            String(deviceId)) ||
-        (profile.helmetNo &&
-          String(worker.helmetId || '') ===
-            String(profile.helmetNo)) ||
-        (profile.name &&
-          String(worker.name || '') ===
-            String(profile.name))
-    ) || null
-  );
-}
-
-function statusMeta(worker) {
-  if (worker?.status === 'danger') {
-    return {
-      label: '위험',
-      className: 'danger',
-    };
-  }
-
-  const savedStatus =
-    localStorage.getItem(
-      `safeon_worker_status_${worker?.id}`
-    ) || '';
-
-  if (
-    savedStatus === '휴식 중' ||
-    savedStatus === '휴식'
-  ) {
-    return {
-      label: '휴식 중',
-      className: 'rest',
-    };
-  }
-
-  return {
-    label: '근무 중',
-    className: 'work',
-  };
+function loadSavedAlerts() {
+  try {
+    const value = JSON.parse(localStorage.getItem(ALERT_KEY) || '[]');
+    return Array.isArray(value) ? value : [];
+  } catch { return []; }
 }
 
 export default function WorkerNearby() {
   const navigate = useNavigate();
-  const { workers } = useWorkers();
-  const profile = getWorkerProfile();
+  const [myHome, setMyHome] = useState(null);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [alerts, setAlerts] = useState(loadSavedAlerts);
 
-  const currentWorker = useMemo(
-    () =>
-      currentWorkerFrom(
-        workers,
-        profile
-      ),
-    [
-      workers,
-      profile.name,
-      profile.helmetNo,
-      profile.employeeNo,
-    ]
-  );
-
-  const people = useMemo(() => {
-    const candidates = workers
-      .filter(
-        (worker) =>
-          !currentWorker ||
-          worker.id !== currentWorker.id
-      )
-      .slice(0, 5);
-
-    return candidates.map(
-      (worker, index) => {
-        const meta =
-          statusMeta(worker);
-
-        return {
-          ...worker,
-          initial:
-            worker.name?.slice(0, 1) ||
-            '?',
-          distance:
-            DISTANCES[index] ??
-            100 + index * 10,
-          x:
-            POSITIONS[index]?.x ??
-            50,
-          y:
-            POSITIONS[index]?.y ??
-            50,
-          state: meta.label,
-          className:
-            meta.className,
-        };
-      }
-    );
-  }, [workers, currentWorker]);
-
-  const nearest =
-    people[0] || null;
-
-  const dangerCount =
-    people.filter(
-      (person) =>
-        person.className === 'danger'
-    ).length;
-
-  /*
-   * 주변 페이지를 열면 주변 위험 알림은 읽음 처리.
-   */
-  useEffect(() => {
+  const load = useCallback(async () => {
     try {
-      const key =
-        'safeon_worker_nearby_danger_alerts_v1';
-
-      const alerts = JSON.parse(
-        localStorage.getItem(key) || '[]'
-      );
-
-      if (Array.isArray(alerts)) {
-        localStorage.setItem(
-          key,
-          JSON.stringify(
-            alerts.map((item) => ({
-              ...item,
-              read: true,
-            }))
-          )
-        );
-
-        window.dispatchEvent(
-          new CustomEvent(
-            'safeon-worker-nearby-alerts-updated'
-          )
-        );
-      }
-    } catch {
-      // ignore
+      const home = normalizeMyHome(await getMyHome());
+      setMyHome(home);
+      setError('');
+    } catch (e) {
+      setError(e?.message || '내 구역 정보를 불러오지 못했습니다.');
+    } finally {
+      setLoading(false);
     }
   }, []);
 
+  useEffect(() => {
+    load();
+    const timer = window.setInterval(load, 15000);
+    return () => window.clearInterval(timer);
+  }, [load]);
+
+  useEffect(() => {
+    try {
+      const saved = loadSavedAlerts().map(item => ({ ...item, read: true }));
+      localStorage.setItem(ALERT_KEY, JSON.stringify(saved));
+      setAlerts(saved);
+      window.dispatchEvent(new CustomEvent('safeon-worker-nearby-alerts-updated'));
+    } catch {}
+    const sync = () => setAlerts(loadSavedAlerts());
+    window.addEventListener('storage', sync);
+    window.addEventListener('safeon-worker-nearby-alerts-updated', sync);
+    return () => {
+      window.removeEventListener('storage', sync);
+      window.removeEventListener('safeon-worker-nearby-alerts-updated', sync);
+    };
+  }, []);
+
   return (
-    <WorkerScaffold
-      active="nearby"
-      title="주변 작업자"
-    >
-      {dangerCount > 0 && (
-        <div className="worker-nearby-danger-summary">
-          <TriangleAlert size={20} />
-
-          <div>
-            <strong>
-              주변 작업자 {dangerCount}명
-              위험 상태
-            </strong>
-
-            <span>
-              위험 작업자를 확인하고
-              필요 시 관리자에게 알려주세요.
-            </span>
-          </div>
-        </div>
-      )}
-
-      <section className="worker-white-card worker-radar-card">
+    <WorkerScaffold active="nearby" title="주변 안전">
+      <section className="worker-white-card nearby-real-header">
         <div className="worker-card-title">
-          <strong>주변 작업자 레이더</strong>
-
-          <span className="worker-live">
-            ● 실시간
-          </span>
+          <strong>내 작업 구역</strong>
+          <button type="button" className="nearby-refresh" onClick={() => { setLoading(true); load(); }} aria-label="구역 정보 새로고침"><RefreshCw size={17} /></button>
         </div>
-
-        <div className="worker-radar">
-          <div className="worker-radar-center">
-            나
-          </div>
-
-          <span className="worker-ring-label r30">
-            30m
-          </span>
-
-          <span className="worker-ring-label r60">
-            60m
-          </span>
-
-          {people.map((person) => (
-            <div
-              key={person.id}
-              className={`worker-radar-dot ${person.className}`}
-              style={{
-                left: `${person.x}%`,
-                top: `${person.y}%`,
-              }}
-            >
-              <i />
-
-              <small>
-                {person.name}
-              </small>
-            </div>
-          ))}
+        <div className="nearby-zone-line">
+          <span className="nearby-zone-icon"><MapPin size={22}/></span>
+          <div><small>서버 등록 위치</small><strong>{loading && !myHome ? '조회 중' : myHome?.zone || '위치 미확인'}</strong></div>
         </div>
-
-        <div className="worker-radar-legend">
-          <span>
-            <i className="work" />
-            근무 중
-          </span>
-
-          <span>
-            <i className="rest" />
-            휴식 중
-          </span>
-
-          <span>
-            <i className="danger" />
-            위험
-          </span>
-        </div>
+        {error && <p className="nearby-error">구역 정보 조회 실패: {error}</p>}
+        <p className="nearby-zone-note">작업자 본인의 서버 등록 구역입니다. GPS나 실시간 위치 추적 정보는 아닙니다.</p>
       </section>
 
-      {nearest && (
-        <section className="worker-nearest-card">
-          <div>
-            <UserRound size={23} />
+      <section className="worker-white-card nearby-real-status">
+        <div className="worker-card-title"><strong>주변 작업자 현황</strong></div>
+        <div className="nearby-placeholder-icon"><Radar size={30}/></div>
+        <h3>실시간 주변 거리 정보 준비 중</h3>
+        <p>현재 연결된 근로자 API에는 다른 작업자의 실시간 위치나 거리 정보가 제공되지 않습니다. 따라서 임의의 거리와 레이더 위치를 표시하지 않습니다.</p>
+        <div className="nearby-capability-row"><ShieldCheck size={17}/><span>내 작업 구역 정보는 서버 API로 확인 가능</span></div>
+        <div className="nearby-capability-row muted"><AlertTriangle size={17}/><span>주변 작업자·거리·비콘 위치는 별도 API 연동 필요</span></div>
+      </section>
 
-            <p>
-              <small>
-                가장 가까운 작업자
-              </small>
-
-              <strong>
-                {nearest.name}{' '}
-                <b>
-                  {nearest.distance}m
-                </b>
-              </strong>
-
-              <span>
-                {nearest.zone || '-'}
-                {' · '}
-                {nearest.state}
-              </span>
-            </p>
-          </div>
-
-          <button
-            type="button"
-            disabled={!nearest.phone}
-            onClick={() => {
-              if (nearest.phone) {
-                window.location.href =
-                  `tel:${nearest.phone}`;
-              }
-            }}
-          >
-            <Phone size={19} />
-            연락하기
+      <section className="worker-white-card nearby-real-alerts">
+        <div className="worker-card-title"><strong>주변 위험 알림</strong><span className="nearby-alert-count">{alerts.length}건</span></div>
+        {alerts.length ? alerts.slice(0, 5).map((alert, index) => (
+          <button type="button" className="nearby-alert-row" key={alert.id || index} onClick={() => navigate('/worker/alerts')}>
+            <span className="nearby-alert-icon"><AlertTriangle size={18}/></span>
+            <span className="nearby-alert-copy"><strong>{alert.title || '주변 위험 알림'}</strong><small>{[alert.zone, alert.message].filter(Boolean).join(' · ') || '알림 상세를 확인해 주세요.'}</small></span>
           </button>
-        </section>
-      )}
-
-      <div className="worker-nearby-list">
-        {people.map(
-          (person, index) => (
-            <article
-              key={person.id}
-              className={
-                person.className ===
-                'danger'
-                  ? 'danger'
-                  : ''
-              }
-              onClick={() =>
-                navigate('/worker/alerts')
-              }
-            >
-              <div
-                className={`worker-person-avatar ${person.className}`}
-              >
-                {person.initial}
-
-                {index === 0 && (
-                  <b>1</b>
-                )}
-              </div>
-
-              <div className="worker-person-copy">
-                <strong>
-                  {person.name}{' '}
-
-                  <em
-                    className={
-                      person.className
-                    }
-                  >
-                    ● {person.state}
-                  </em>
-                </strong>
-
-                <span>
-                  <MapPin size={13} />
-                  {person.zone || '-'}
-                </span>
-
-                {person.className ===
-                  'danger' && (
-                  <small className="worker-nearby-danger-reason">
-                    {person.issue ||
-                      '위험 상태 감지'}
-                  </small>
-                )}
-              </div>
-
-              <div className="worker-distance">
-                <strong>
-                  {person.distance}m
-                </strong>
-
-                <small>
-                  {person.heartRate ??
-                    '-'}{' '}
-                  bpm
-                </small>
-              </div>
-            </article>
-          )
-        )}
-      </div>
-
-      <p className="worker-last-update">
-        상태 정보는 서버 작업자 상태 API를
-        기준으로 표시합니다.
-      </p>
-
-      <div className="worker-nearby-api-note">
-        현재 실제 거리/BLE 비콘 위치 API가
-        없어서 레이더 거리값은 화면용
-        임시값이며, 작업자의 위험·심박·상태는
-        서버 상태값을 사용합니다.
-      </div>
+        )) : <div className="nearby-empty"><Bell size={20}/><span>표시할 주변 위험 알림이 없습니다.</span></div>}
+        <button type="button" className="nearby-alert-link" onClick={() => navigate('/worker/alerts')}>전체 알림 확인 →</button>
+      </section>
+      <p className="worker-last-update">주변 위험 알림은 기기에 저장된 내역으로, 실시간 주변 인원 조회 결과가 아닙니다.</p>
     </WorkerScaffold>
   );
 }
