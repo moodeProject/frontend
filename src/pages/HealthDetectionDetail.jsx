@@ -318,9 +318,11 @@ export default function HealthDetectionDetail() {
   };
 
   const finish = async () => {
+    // type 이 이미 "건강 이상 감지"면 그대로 붙였을 때 "건강 이상 감지 건강 이상 감지"가 된다
+    const label = type.includes('건강 이상') ? type : `${type} 건강 이상`;
     await runAction(
       'RESOLVE',
-      `${type} 건강 이상 감지 처리 완료`,
+      `${label} 처리 완료`,
       '건강 이상 감지 건을 처리완료로 변경했습니다.'
     );
   };
