@@ -265,6 +265,9 @@ export default function Dashboard() {
       } · 추락 ${hazardSummary.fall ?? 0}`
     : `전체 ${detections.length}건`;
 
+  // SSE is an optional fast path; background API polling remains active every five seconds.
+  const hazardConnectionLabel = hazardStreamConnected ? '실시간 연결' : '5초 간격 서버 갱신';
+
   return (
     <>
       <TopHeader
@@ -399,9 +402,7 @@ export default function Dashboard() {
                 <i className="red-dot" />
                 <strong>실시간 이상 감지</strong>
                 <span>
-                  {hazardStreamConnected
-                    ? `● 실시간 연결 · ${hazardCountLabel}`
-                    : `서버 조회 · ${hazardCountLabel}`}
+                  {`${hazardConnectionLabel} · ${hazardCountLabel}`}
                 </span>
               </div>
 
