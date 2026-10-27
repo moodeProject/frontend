@@ -9,7 +9,7 @@ const emptyForm = {
   name: '',
   zone: 'A구역',
   floor: '',
-  helmetNo: '',
+  helmetId: '',
 };
 
 function FieldLabel({
@@ -54,6 +54,8 @@ export default function AddWorkerModal({
   open,
   onClose,
   onAdd,
+  availableHelmets = [],
+  helmetOptionsError = '',
 }) {
   const [form, setForm] =
     useState(emptyForm);
@@ -98,9 +100,7 @@ export default function AddWorkerModal({
         name:
           form.name.trim(),
         zoneName,
-        helmetNo:
-          form.helmetNo.trim() ||
-          undefined,
+        helmetId: form.helmetId || undefined,
       });
 
       close();
@@ -209,20 +209,22 @@ export default function AddWorkerModal({
 
         <label className="form-field form-field-full">
           <FieldLabel optional>
-            헬멧 번호
+            헬멧 배정
           </FieldLabel>
-
-          <input
-            value={form.helmetNo}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                helmetNo:
-                  e.target.value,
-              })
-            }
-            placeholder="예: H-002"
-          />
+          <select
+            value={form.helmetId}
+            onChange={(e) => setForm({ ...form, helmetId: e.target.value })}
+          >
+            <option value="">헬멧 배정 안 함</option>
+            {availableHelmets.map((helmet) => (
+              <option key={helmet.id} value={helmet.id}>
+                {helmet.helmetNo} · {helmet.deviceId || '기기 ID 없음'}
+              </option>
+            ))}
+          </select>
+          <small style={{ color: helmetOptionsError ? '#dc2626' : '#64748b', marginTop: 6 }}>
+            {helmetOptionsError || (availableHelmets.length ? '서버에 등록된 미배정 헬멧만 표시됩니다.' : '현재 배정 가능한 헬멧이 없습니다.')}
+          </small>
         </label>
 
         <div
