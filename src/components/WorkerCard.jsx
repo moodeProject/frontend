@@ -126,10 +126,10 @@ export default function WorkerCard({
     Date.now() - measuredAt >= -30_000 && Date.now() - measuredAt < 30_000;
   const movementTone = postureTone(hasServerData ? worker : null);
   const fatigueKnown =
-    isRecent &&
+    hasServerData &&
     typeof worker.fatigueAbnormal === 'boolean';
   const heatKnown =
-    (worker.heatRiskDataConnected === true && isRecent) && (Boolean(worker.heatRiskLevel) || typeof worker.heatRiskAbnormal === 'boolean');
+    hasServerData && (Boolean(worker.heatRiskLevel) || typeof worker.heatRiskAbnormal === 'boolean');
 
   const personalHeatTone =
     heatRiskTone(worker);
@@ -187,7 +187,7 @@ export default function WorkerCard({
             </div>
           </div>
 
-          {isRecent ? (
+          {hasServerData ? (
             <StatusBadge level={worker.status}>
               {labels[worker.status]}
             </StatusBadge>
@@ -199,7 +199,7 @@ export default function WorkerCard({
         <div className="metric-row">
           <span>심박수</span>
           <b>
-            <Heart size={14} /> {isRecent && Number(worker.heartRate) > 0 ? worker.heartRate : '-'}
+            <Heart size={14} /> {hasServerData && Number(worker.heartRate) > 0 ? worker.heartRate : '-'}
           </b>
           <small>bpm</small>
         </div>
@@ -215,7 +215,7 @@ export default function WorkerCard({
             <b>측정 대기</b>
           )}
 
-          {isRecent && worker.hrv != null && Number(worker.hrv) > 0 && (
+          {hasServerData && worker.hrv != null && Number(worker.hrv) > 0 && (
             <small>HRV {Number(worker.hrv).toFixed(1)}</small>
           )}
         </div>
@@ -224,7 +224,7 @@ export default function WorkerCard({
           <span>움직임</span>
           <b>
             <Activity size={14} />
-            {isRecent && worker.posture ? postureLabel(worker.posture) : '데이터 대기'}
+            {hasServerData && worker.posture ? postureLabel(worker.posture) : '데이터 대기'}
           </b>
         </div>
 
