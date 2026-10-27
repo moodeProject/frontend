@@ -69,12 +69,13 @@ export async function getWorkerHeatRisk(
 
 /**
  * 추락 감지 이력 조회
- * GET /api/workers/alerts
+ * GET /api/workers/alerts?type=FALL
+ * 서버가 추락 단계(휘청거림 이상) 기록만 골라서 준다. 건강만 이상인 기록은 오지 않는다.
  */
 export async function getWorkerAlerts() {
   return unwrapList(
     await api.get(
-      '/api/workers/alerts'
+      '/api/workers/alerts?type=FALL'
     )
   )
 }

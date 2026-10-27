@@ -48,11 +48,11 @@ export async function getHelmetStatusList() {
 
 /**
  * 낙상(FALLEN) 이력 전체 조회 — 실제 백엔드 연동
- * GET /api/workers/alerts
+ * GET /api/workers/alerts?type=FALL (건강만 이상인 기록은 서버가 빼고 준다)
  * 응답: { success, message, data: [{ deviceId, state, recordedAt }] }
  */
 export async function getFallAlerts() {
-  const res = await api.get('/api/workers/alerts')
+  const res = await api.get('/api/workers/alerts?type=FALL')
   return res.data
 }
 
