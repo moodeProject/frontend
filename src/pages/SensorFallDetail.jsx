@@ -270,6 +270,13 @@ export default function SensorFallDetail() {
         ...latest,
         ...selected,
         ...(personalHeatRisk || {}),
+        // 사고 당시 스냅샷이 있는 경우만 표시. 최신 센서값으로 과거 사고를 채우지 않음.
+        heartRate: selected?.heartRate ?? null,
+        spo2: selected?.spo2 ?? null,
+        hrv: selected?.hrv ?? null,
+        heatRiskLevel: selected?.heatRiskLevel ?? null,
+        heatRiskAbnormal: selected?.heatRiskAbnormal ?? null,
+        externalHeatWarning: selected?.externalHeatWarning ?? null,
       });
     } catch (err) {
       setError(
@@ -576,9 +583,7 @@ export default function SensorFallDetail() {
                 <div>
                   <dt>심박수</dt>
                   <dd>
-                    {detail?.heartRate ??
-                      '-'}{' '}
-                    bpm
+                    {validMeasurement(detail?.heartRate, ' bpm')}
                   </dd>
                 </div>
 
@@ -683,15 +688,14 @@ export default function SensorFallDetail() {
             </section>
 
             <section className="panel related-card">
-              <h3>건강 센서</h3>
+              <h3>사고 기록의 건강 센서</h3>
+              <p style={{fontSize:12,color:'#7b899d',margin:'0 0 10px'}}>해당 사고 이력에 수치가 포함된 경우만 표시합니다.</p>
 
               <div className="blue">
                 <HeartPulse size={15} />
                 심박수
                 <b>
-                  {detail?.heartRate ??
-                    '-'}{' '}
-                  bpm
+                  {validMeasurement(detail?.heartRate, ' bpm')}
                 </b>
               </div>
 
@@ -699,7 +703,7 @@ export default function SensorFallDetail() {
                 <ShieldCheck size={15} />
                 SpO₂
                 <b>
-                  {detail?.spo2 ?? '-'}%
+                  {validMeasurement(detail?.spo2, '%')}
                 </b>
               </div>
 
@@ -737,7 +741,7 @@ export default function SensorFallDetail() {
                 </b>
               </div>
 
-              {detail?.hrv != null && (
+              {Number(detail?.hrv) > 0 && (
                 <div className="blue">
                   <HeartPulse size={15} />
                   HRV
