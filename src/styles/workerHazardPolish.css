@@ -16,3 +16,8 @@
 .worker-hazard-guidance{margin-top:16px!important;background:#ecf4ff!important;border:1px solid #cce2ff!important;border-radius:19px!important;color:#1767ff!important}
 .worker-hazard-guidance h3,.worker-hazard-guidance p{color:#1767ff!important}
 .worker-hazard-guidance p{font-size:13px!important;margin:10px 0!important}
+
+/* Keep external incident values proportional to the mobile detail cards. */
+.worker-hazard-clean .worker-health-detail-item strong{font-size:clamp(15px,3.6vw,18px)!important;line-height:1.45!important;letter-spacing:-.035em;word-break:keep-all;overflow-wrap:anywhere}
+.worker-hazard-clean .worker-health-detail-item span{font-size:12px!important;line-height:1.4}
+@media(max-width:480px){.worker-hazard-clean .worker-health-detail-item{padding:14px!important;gap:12px!important}.worker-hazard-clean .worker-health-detail-item>i{width:44px;height:44px;min-width:44px}.worker-hazard-clean .worker-health-detail-item strong{font-size:16px!important}}
