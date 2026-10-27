@@ -22,6 +22,7 @@ import { useDetections } from '../context/DetectionContext';
 import {
   createWorker,
 } from '../api/workers';
+import { getHelmets, assignHelmet } from '../api/helmets';
 import {
   getWeatherHeatRisk,
 } from '../api/weather';
@@ -82,6 +83,23 @@ export default function Workers() {
 
   const [addOpen, setAddOpen] =
     useState(false);
+  const [availableHelmets, setAvailableHelmets] = useState([]);
+  const [helmetOptionsError, setHelmetOptionsError] = useState('');
+  const [addWarning, setAddWarning] = useState('');
+
+  useEffect(() => {
+    if (!addOpen) return;
+    let alive = true;
+    setHelmetOptionsError('');
+    getHelmets().then(rows => {
+      if (!alive) return;
+      const values = Array.isArray(rows) ? rows : (rows?.content || rows?.items || []);
+      setAvailableHelmets(values.filter(h => h?.workerId == null));
+    }).catch(error => {
+      if (alive) { setAvailableHelmets([]); setHelmetOptionsError(error?.message || '헬멧 목록을 불러오지 못했습니다.'); }
+    });
+    return () => { alive = false; };
+  }, [addOpen]);
 
   const [
     searchParams,
@@ -215,14 +233,21 @@ export default function Workers() {
       weatherLevel
     );
 
-  const handleAddWorker =
-    async (payload) => {
-      await createWorker(
-        payload
-      );
-
-      await refreshWorkerStatuses?.();
-    };
+  const handleAddWorker = async (payload) => {
+    setAddWarning('');
+    // Backend POST /api/workers with helmetNo creates a NEW helmet.
+    // Existing helmets must be assigned through POST /api/helmets/{id}/assign.
+    const { helmetId, ...workerFields } = payload;
+    const created = await createWorker(workerFields);
+    if (helmetId) {
+      try {
+        await assignHelmet(helmetId, created.id);
+      } catch (error) {
+        setAddWarning(`작업자는 서버에 등록되었지만 헬멧 배정은 실패했습니다: ${error?.message || '배정 실패'}. 헬멧 관리에서 다시 배정해주세요.`);
+      }
+    }
+    await refreshWorkerStatuses?.().catch(() => {});
+  };
 
   return (
     <>
@@ -365,6 +390,8 @@ export default function Workers() {
           </div>
         )}
 
+        {addWarning && <div className="worker-filter-banner warning"><span>{addWarning}</span></div>}
+
         {(loading ||
           sensorError) && (
           <div
@@ -437,9 +464,9 @@ export default function Workers() {
         onClose={() =>
           setAddOpen(false)
         }
-        onAdd={
-          handleAddWorker
-        }
+        onAdd={handleAddWorker}
+        availableHelmets={availableHelmets}
+        helmetOptionsError={helmetOptionsError}
       />
     </>
   );
