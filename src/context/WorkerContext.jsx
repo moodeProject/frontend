@@ -1,3 +1,4 @@
+import { getMe } from '../api/auth';
 import { getMyHome, normalizeMyHome } from '../api/myHome';
 import {
   createContext,
@@ -418,9 +419,24 @@ export function WorkerProvider({ children }) {
     const permissionDenied = [workerResult, helmetResult, statusResult, heatResult].some(
       result => result.status === 'rejected' && result.reason?.status === 403
     );
-    setSensorError(permissionDenied
-      ? '관리자 API 접근 권한이 거부되었습니다(403). 로그인 계정의 ROLE_ADMIN 권한과 서버 JWT 인증 설정을 확인해주세요.'
-      : [...new Set(errors.filter(Boolean))].join(' / '));
+    if (permissionDenied) {
+      // Check the same token against the server's authenticated identity,
+      // rather than assuming a valid-looking JWT has ADMIN authority.
+      try {
+        const me = await getMe('ADMIN');
+        setSensorError(
+          String(me?.role || '').toUpperCase() === 'ADMIN'
+            ? '서버가 관리자 계정을 확인했지만 작업자·헬멧 API 접근은 403으로 거부했습니다. 서버의 API 권한 설정을 확인해주세요.'
+            : `현재 로그인 권한은 ${me?.role || '알 수 없음'}입니다. 관리자 계정으로 다시 로그인해주세요.`
+        );
+      } catch (authError) {
+        setSensorError(
+          `관리자 인증 확인 실패 (${authError?.status || '연결 오류'}). 서버가 로그인 정보를 검증하지 못했습니다. 로그인 또는 API 프록시 설정을 확인해주세요.`
+        );
+      }
+    } else {
+      setSensorError([...new Set(errors.filter(Boolean))].join(' / '));
+    }
 
     const sensorMap = new Map(
       statuses
