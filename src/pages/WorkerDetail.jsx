@@ -320,8 +320,8 @@ function StatusCard({
           <strong
             className={`status-card-value ${level}`}
           >
-            {Number(worker.heartRate) > 0 && worker.serverDataConnected ? worker.heartRate : '-'}{' '}
-            bpm
+            {Number(worker.heartRate) > 0 ? worker.heartRate : '-'}{' '}
+            bpm{worker.healthExampleFields?.heartRate ? ' · 예시' : ''}
           </strong>
 
           <div className="detail-fatigue">
@@ -349,7 +349,7 @@ function StatusCard({
             </b>
           </div>
 
-          {worker.serverDataConnected && Number(worker.hrv) > 0 && (
+          {Number(worker.hrv) > 0 && (
             <div className="detail-personal-heat-risk">
               <span>HRV</span>
               <b>
