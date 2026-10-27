@@ -19,8 +19,13 @@ export default function HealthNotificationDetail() {
   const load = useCallback(async () => {
     setLoading(true); setError('');
     try {
-      const rows = await getNotifications({ recipientType: 'MANAGER', page: 0, size: 1000 });
-      const found = rows.find(row => String(row.id) === String(id) && String(row.message || '').includes('건강 이상') && row.hazardEventId == null);
+      // The server supports paged notification lists; avoid size=1000 and search by notification ID.
+      let found = null;
+      for (let page = 0; page < 20 && !found; page += 1) {
+        const rows = await getNotifications({ recipientType: 'MANAGER', page, size: 100 });
+        found = rows.find(row => String(row.id) === String(id));
+        if (rows.length < 100) break;
+      }
       if (!found) throw new Error('건강 이상 알림 기록을 찾지 못했습니다.');
       setItem(found);
     } catch(e) { setError(e.message || '알림 조회 실패'); }
@@ -34,6 +39,7 @@ export default function HealthNotificationDetail() {
     catch(e) { setError(e.message || '읽음 처리 실패'); }
     finally { setSaving(false); }
   };
+  const isRead = item?.read === true || item?.isRead === true;
   const parts = String(item?.message || '').split(' · ');
   const name = parts[0] || '작업자 정보 없음';
   const zone = parts[1] || '위치 미확인';
@@ -48,7 +54,7 @@ export default function HealthNotificationDetail() {
       {item && <>
         <div className="health-notice-banner">
           <div className="health-notice-banner-title"><ShieldAlert size={23}/><div><strong>건강 이상 징후가 감지되었습니다.</strong><span>{name} · {zone} · {date}</span></div></div>
-          <span className={item.isRead ? 'health-notice-status resolved' : 'health-notice-status'}>{item.isRead ? '알림 확인함 · 조치 미확인' : '조치 필요'}</span>
+          <span className={isRead ? 'health-notice-status resolved' : 'health-notice-status'}>{item.isRead ? '알림 확인함 · 조치 미확인' : '조치 필요'}</span>
         </div>
         <div className="health-notice-grid">
           <div className="health-notice-main">
@@ -80,8 +86,8 @@ export default function HealthNotificationDetail() {
             </section>
             <section className="panel health-notice-panel health-notice-actions">
               <h3>관리자 조치</h3>
-              <button type="button" className="health-notice-primary" onClick={confirm} disabled={saving || item.isRead}><CheckCircle2 size={17}/>{item.isRead ? '알림 확인함' : saving ? '처리 중...' : '알림 확인 처리'}</button>
-              <button type="button" className="health-notice-secondary" onClick={load}><RefreshCw size={16}/>새로고침</button>
+              <button type="button" className="health-notice-primary" onClick={confirm} disabled={saving || isRead}><CheckCircle2 size={17}/>{item.isRead ? '알림 확인함' : saving ? '처리 중...' : '알림 확인 처리'}</button>
+              <button type="button" className="health-notice-secondary" onClick={() => load()} disabled={loading}><RefreshCw size={16}/>{loading ? "갱신 중..." : "새로고침"}</button>
               <p>알림 확인은 읽음 상태만 변경하며 사고 조치 완료로 처리되지는 않습니다.</p>
             </section>
           </aside>
