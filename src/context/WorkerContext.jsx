@@ -20,7 +20,8 @@ import { getDefaultWorkerProfile } from '../utils/defaultWorkerProfiles';
 const initialWorkers = [];
 const WorkerContext = createContext(null);
 const STORAGE_KEY = 'safehelmet-workers-v3';
-const SENSOR_REFRESH_MS = 5_000;
+const SENSOR_REFRESH_MS = 15_000;
+const REFRESH_TIMEOUT_MS = 12_000;
 const SENSOR_FRESH_MS = 30_000;
 // 서버가 반환한 최신 저장 건강값만 표시하며, 0·결측치는 표시하지 않는다.
 function withHealthFallback(worker) {
@@ -334,7 +335,11 @@ export function WorkerProvider({ children }) {
   }, [workers]);
 
   const refreshSequence = useRef(0);
+  const refreshInFlight = useRef(false);
   const refreshWorkerStatuses = useCallback(async () => {
+    if (refreshInFlight.current) return;
+    refreshInFlight.current = true;
+    try {
     // Worker tokens must not enumerate all workers, helmet assignments, or
     // site-wide health readings. The backend rejects these admin APIs with 403.
     // Use a server-authorized self-service endpoint when one is available.
@@ -362,13 +367,13 @@ export function WorkerProvider({ children }) {
     setSensorLoading(true);
     setSensorError('');
 
-    const [statusResult, heatResult, workerResult, helmetResult, helmetStatusResult] = await Promise.allSettled([
+    const [statusResult, heatResult, workerResult, helmetResult, helmetStatusResult] = await Promise.race([Promise.allSettled([
       getAllWorkerStatuses(),
       getAllWorkerHeatRisk(),
       getWorkers({ size: 100 }),
       getHelmets(),
       getHelmetsStatus(),
-    ]);
+    ]), new Promise(resolve => setTimeout(() => resolve(Array.from({ length: 5 }, () => ({ status: 'rejected', reason: new Error('서버 응답 시간 초과') }))), REFRESH_TIMEOUT_MS))]);
 
     if (sequence !== refreshSequence.current) return;
 
@@ -495,6 +500,10 @@ export function WorkerProvider({ children }) {
     }
 
     return { statuses, heatStatuses };
+    } finally {
+      refreshInFlight.current = false;
+      setSensorLoading(false);
+    }
   }, []);
 
   useEffect(() => {
