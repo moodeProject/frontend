@@ -132,15 +132,20 @@ export default function Dashboard() {
       }).catch(error => { setSosError(error?.message || 'SOS 조회 실패'); });
     };
     fetchSOS();
-    const id = setInterval(fetchSOS, 10000);
-    return () => clearInterval(id);
+    const id = setInterval(fetchSOS, 5000);
+    window.addEventListener('focus', fetchSOS);
+    const onVisible = () => { if (!document.hidden) fetchSOS(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { clearInterval(id); window.removeEventListener('focus', fetchSOS); document.removeEventListener('visibilitychange', onVisible); };
   }, []);
 
   const handleResolve = async (sosId) => {
     if (!window.confirm('정말 SOS 경고를 끄시겠습니까?')) return;
     try {
       await resolveSOSRequest(sosId);
-      setSosList((prev) => prev.filter((s) => s.id !== sosId));
+      setSosList((prev) => prev.filter((s) => (s.sosId ?? s.id) !== sosId));
+      const refreshed = await getSOSList('REQUESTED');
+      if (Array.isArray(refreshed)) setSosList(refreshed);
     } catch (e) {
       alert(e.message || '처리 중 오류가 발생했습니다.');
     }
@@ -486,13 +491,13 @@ export default function Dashboard() {
                 </div>
                 {sosError && <p className="dashboard-sos-error">SOS 조회 실패 · {sosError}</p>}
                 {sosList.map((s) => (
-                  <div key={s.id} className="sos-row">
+                  <div key={s.sosId ?? s.id} className="sos-row">
                     <div className="sos-row-info">
                       <strong>{s.requesterName || s.loginId || '작업자'}</strong>
                       <span>{s.zoneName || '위치 확인 중'}</span>
                       <small>{s.createdAt ? new Date(s.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }) : ''}</small>
                     </div>
-                    <button className="sos-resolve-btn" onClick={() => handleResolve(s.id)}>처리완료</button>
+                    <button className="sos-resolve-btn" onClick={() => handleResolve(s.sosId ?? s.id)}>처리완료</button>
                   </div>
                 ))}
               </section>
