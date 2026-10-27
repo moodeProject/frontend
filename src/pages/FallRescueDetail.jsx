@@ -39,7 +39,6 @@ export default function FallRescueDetail() {
             <div><span>알림 확인</span><strong>{alert.read ? '확인함' : '미확인'}</strong></div>
           </div>
           <p className="fall-rescue-detail-note">이 화면은 관리자 알림에 기록된 정보를 표시합니다. 과거 로컬 알림에는 서버 SOS 번호·처리 상태가 없어 실제 구조요청 접수나 처리완료를 증명하지 않습니다. 서버 SOS 기록은 관리자 홈의 SOS 미처리 목록에서 확인해 주세요.</p>
-          <div className="fall-rescue-detail-actions"><Link to="/">관리자 홈 · SOS 확인</Link><Link to="/notifications">알림 전체보기</Link></div>
         </section>
       )}
     </div>
