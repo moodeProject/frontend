@@ -69,12 +69,14 @@ export function sensorUiStatus(sensor) {
     };
   }
 
+  const fallKnown = sensor.fallState !== null && sensor.fallState !== undefined && sensor.fallState !== '';
+  const healthKnown = sensor.healthState !== null && sensor.healthState !== undefined && sensor.healthState !== '';
   const fallNormal = isNormalState(sensor.fallState);
   const healthNormal = isNormalState(sensor.healthState);
   const posture = String(sensor.posture || '').toUpperCase();
   const postureAbnormal = isTrue(sensor.postureAbnormal);
 
-  if (!fallNormal) {
+  if (fallKnown && !fallNormal) {
     return {
       key: 'danger',
       label: '위험',
@@ -106,7 +108,7 @@ export function sensorUiStatus(sensor) {
     };
   }
 
-  if (!healthNormal) {
+  if (healthKnown && !healthNormal) {
     return {
       key: 'warning',
       label: '주의',
@@ -123,6 +125,10 @@ export function sensorUiStatus(sensor) {
           ? '휘청거림이 감지되었습니다.'
           : '자세 이상이 감지되었습니다.',
     };
+  }
+
+  if (!fallKnown && !healthKnown) {
+    return { key: 'unknown', label: '확인 필요', description: '최근 센서 상태를 확인할 수 없습니다.' };
   }
 
   return {
