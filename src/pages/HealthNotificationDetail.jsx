@@ -1,11 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { HeartPulse, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { HeartPulse, RefreshCw, CheckCircle2, MapPin, Clock3, UserRound, ShieldAlert } from 'lucide-react';
 import TopHeader from '../components/TopHeader';
 import { getNotifications, markNotificationRead } from '../api/notifications';
+import { useWorkers } from '../context/WorkerContext';
 
+function DetailItem({ label, value }) {
+  return <div className="health-notice-field"><span>{label}</span><strong>{value || '-'}</strong></div>;
+}
 export default function HealthNotificationDetail() {
   const { id } = useParams();
+  const { workers } = useWorkers();
   const [item, setItem] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -15,7 +20,7 @@ export default function HealthNotificationDetail() {
     try {
       const rows = await getNotifications({ recipientType: 'MANAGER', page: 0, size: 1000 });
       const found = rows.find(row => String(row.id) === String(id) && String(row.message || '').includes('건강 이상') && row.hazardEventId == null);
-      if (!found) throw new Error('건강 이상 알림 기록을 찾지 못했습니다. 조회 범위 밖이거나 삭제되었을 수 있습니다.');
+      if (!found) throw new Error('건강 이상 알림 기록을 찾지 못했습니다.');
       setItem(found);
     } catch(e) { setError(e.message || '알림 조회 실패'); }
     finally { setLoading(false); }
@@ -29,29 +34,58 @@ export default function HealthNotificationDetail() {
     finally { setSaving(false); }
   };
   const parts = String(item?.message || '').split(' · ');
+  const name = parts[0] || '작업자 정보 없음';
+  const zone = parts[1] || '위치 미확인';
+  const worker = workers.find(w => w.name === name);
+  const date = item?.sentAt ? new Date(item.sentAt).toLocaleString('ko-KR') : '-';
   return (<>
-    <TopHeader title="건강 이상 상세" subtitle="건강 이상 알림 기록" onRefresh={load} />
-    <div className="page-body" style={{ maxWidth: 1100, margin: '0 auto' }}>
-      <Link className="back-link detail-back" to="/detections?tab=health">← 건강 이상 목록</Link>
+    <TopHeader title="이상 감지" subtitle="외부요인 · 건강 · 추락" onRefresh={load} />
+    <div className="page-body health-notice-page">
+      <Link className="back-link detail-back" to="/detections?tab=health">← 이상 감지 목록</Link>
       {error && <div className="worker-filter-banner danger" role="alert">{error}</div>}
-      {loading && <div className="worker-filter-banner normal">건강 이상 기록을 조회하는 중입니다.</div>}
-      {item && <div className="panel" style={{ padding: 26, marginTop: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-          <HeartPulse color="#dc5555" size={26} />
-          <div><h2 style={{ margin: 0 }}>건강 이상 징후 감지</h2><p style={{ color:'#718096', margin: '7px 0 0' }}>작업자 상태 확인 및 초기 대응</p></div>
+      {loading && !item && <div className="worker-filter-banner normal">건강 이상 기록을 불러오는 중입니다.</div>}
+      {item && <>
+        <div className="health-notice-banner">
+          <div className="health-notice-banner-title"><ShieldAlert size={23}/><div><strong>건강 이상 징후가 감지되었습니다.</strong><span>{name} · {zone} · {date}</span></div></div>
+          <span className={item.isRead ? 'health-notice-status resolved' : 'health-notice-status'}>{item.isRead ? '확인 완료' : '조치 필요'}</span>
         </div>
-        <div className="final-cause"><span>대상 작업자</span><strong>{parts[0] || '정보 없음'}</strong></div>
-        <div className="final-cause"><span>감지 구역</span><strong>{parts[1] || '위치 미확인'}</strong></div>
-        <div className="final-cause"><span>발생 시간</span><strong>{item.sentAt ? new Date(item.sentAt).toLocaleString('ko-KR') : '-'}</strong></div>
-        <div className="final-cause"><span>감지 내용</span><strong>{item.message}</strong></div>
-        <div className="final-cause"><span>확인 상태</span><strong>{item.isRead ? '확인함' : '확인 필요'}</strong></div>
-        <div className="health-recommend-box" style={{ marginTop: 16 }}>
-          <HeartPulse size={18} /><div><strong>권장 조치</strong><p>작업 중단과 휴식을 안내하고 작업자의 상태를 확인하세요. 필요할 경우 현장 관리자에게 긴급 대응을 요청하세요.</p></div>
+        <div className="health-notice-grid">
+          <div className="health-notice-main">
+            <section className="panel health-notice-panel">
+              <div className="section-caption">건강 이상 감지 정보</div>
+              <div className="health-notice-field-grid">
+                <DetailItem label="감지 유형" value="건강 이상 징후"/>
+                <DetailItem label="발생 시각" value={date}/>
+                <DetailItem label="감지 작업자" value={name}/>
+                <DetailItem label="감지 구역" value={zone}/>
+              </div>
+              <div className="health-notice-description">
+                <span>감지 내용</span>
+                <strong>{item.message}</strong>
+              </div>
+            </section>
+            <section className="panel health-notice-panel">
+              <h3>권장 조치</h3>
+              <div className="health-recommend-box"><HeartPulse size={20}/><div><strong>작업자 상태 확인 및 휴식 안내</strong><p>작업을 중단하고 안전한 장소에서 휴식하도록 안내하세요. 작업자 상태를 확인하고 필요한 경우 추가 대응을 진행하세요.</p></div></div>
+            </section>
+          </div>
+          <aside className="health-notice-side">
+            <section className="panel health-notice-panel">
+              <h3>작업자 정보</h3>
+              <div className="health-notice-person"><div className="health-notice-avatar"><UserRound size={22}/></div><div><strong>{name}</strong><span>{worker?.employeeNumber || '작업자'} · {zone}</span></div></div>
+              <div className="health-notice-summary"><MapPin size={16}/> {zone}</div>
+              <div className="health-notice-summary"><Clock3 size={16}/> {date}</div>
+              {worker && <Link className="health-notice-worker-link" to={`/workers/${worker.id}`}>작업자 상세 보기</Link>}
+            </section>
+            <section className="panel health-notice-panel health-notice-actions">
+              <h3>관리자 조치</h3>
+              <button type="button" className="health-notice-primary" onClick={confirm} disabled={saving || item.isRead}><CheckCircle2 size={17}/>{item.isRead ? '확인 완료' : saving ? '처리 중...' : '알림 확인 처리'}</button>
+              <button type="button" className="health-notice-secondary" onClick={load}><RefreshCw size={16}/>새로고침</button>
+              <p>알림 확인은 읽음 상태를 변경합니다. 사고 처리완료 기록과는 구분됩니다.</p>
+            </section>
+          </aside>
         </div>
-        <p style={{fontSize:12,color:'#718096',marginTop:16}}>이 기록은 서버에 저장된 건강 알림을 기반으로 표시됩니다. 발생 당시의 심박수·SpO₂ 센서 스냅샷은 알림 API에 포함되어 있지 않습니다.</p>
-        <button type="button" className="location-btn" onClick={confirm} disabled={saving || item.isRead} style={{marginTop:16}}><CheckCircle2 size={16} />{item.isRead?'확인 완료':saving?'처리 중...':'알림 확인 처리'}</button>
-        <button type="button" className="location-btn" onClick={load} style={{marginLeft:10,marginTop:16}}><RefreshCw size={15}/>새로고침</button>
-      </div>}
+      </>}
     </div>
   </>);
 }
