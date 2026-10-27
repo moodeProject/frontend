@@ -13,6 +13,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import {
@@ -22,6 +23,7 @@ import {
 import DateRangeFilter from '../components/DateRangeFilter';
 import TablePagination from '../components/TablePagination';
 import TopHeader from '../components/TopHeader';
+import { createRequestGate } from '../utils/requestGate';
 import { useDetections } from '../context/DetectionContext';
 import { useWorkers } from '../context/WorkerContext';
 import { getWorkerAlerts } from '../api/workerStatus';
@@ -276,7 +278,9 @@ export default function Detections() {
 
   const { workers } = useWorkers();
 
-  const [fallAlerts, setFallAlerts] = useState([]);
+  const [rawFallAlerts, setRawFallAlerts] = useState([]);
+  const hasLoadedFalls = useRef(false);
+  const fallAlerts = useMemo(() => rawFallAlerts.map(item => sensorAlertToDetection(item, workers)), [rawFallAlerts, workers]);
   const [healthRecords, setHealthRecords] = useState([]);
   const [healthError, setHealthError] = useState('');
   const [fallLoading, setFallLoading] = useState(false);
@@ -295,29 +299,23 @@ export default function Detections() {
   const active =
     searchParams.get('tab') || 'all';
 
-  const loadFallAlerts = useCallback(async () => {
-    setFallLoading(true);
-    setFallError('');
-
-    try {
-      const alerts = await getWorkerAlerts();
-      setFallAlerts(
-        consolidateFallAlerts(alerts).map((item) =>
-          sensorAlertToDetection(item, workers)
-        )
-      );
-    } catch (error) {
-      setFallError(
-        error?.message ||
-          '추락 감지 이력을 불러오지 못했습니다.'
-      );
-    } finally {
-      setFallLoading(false);
-    }
-  }, [workers]);
+  const fallGate = useMemo(() => createRequestGate({
+    load: getWorkerAlerts,
+    onStart: () => setFallLoading(!hasLoadedFalls.current),
+    onSuccess: alerts => {
+      hasLoadedFalls.current = true;
+      setRawFallAlerts(consolidateFallAlerts(alerts));
+      setFallError('');
+    },
+    onError: error => setFallError(error?.message || '추락 감지 이력을 불러오지 못했습니다.'),
+    onFinish: () => setFallLoading(false),
+  }), []);
+  const loadFallAlerts = useCallback(() => fallGate.run().catch(() => {}), [fallGate]);
 
   useEffect(() => {
     loadFallAlerts();
+    const timer = window.setInterval(() => { if (!document.hidden) loadFallAlerts(); }, 5000);
+    return () => window.clearInterval(timer);
   }, [loadFallAlerts]);
 
   const loadHealthRecords = useCallback(async () => {
@@ -569,7 +567,7 @@ export default function Detections() {
           }`}
         >
           <span>
-            {hazardError || fallError
+            {hazardError || fallError || healthError
               ? [
                   hazardError
                     ? `이상 감지 API: ${hazardError}`

@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import {
@@ -243,6 +244,7 @@ export function DetectionProvider({ children }) {
   const [hazardSummary, setHazardSummary] = useState(null);
   const [hazardLoading, setHazardLoading] = useState(false);
   const [hazardError, setHazardError] = useState('');
+  const hasLoadedHazards = useRef(false);
   const [lastHazardUpdated, setLastHazardUpdated] = useState(null);
   const [hazardStreamConnected, setHazardStreamConnected] =
     useState(false);
@@ -269,8 +271,9 @@ export function DetectionProvider({ children }) {
 
   const refreshGate = useMemo(() => createRequestGate({
     load: queryHazardEvents,
-    onStart: () => setHazardLoading(true),
+    onStart: () => setHazardLoading(!hasLoadedHazards.current),
     onSuccess: page => {
+      hasLoadedHazards.current = true;
       setDetections(page.events);
       setHazardSummary(page.summary);
       setLastHazardUpdated(new Date());
