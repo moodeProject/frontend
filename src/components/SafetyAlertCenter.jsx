@@ -162,6 +162,8 @@ function SafetyAlertCenter({ role }) {
   }
   const workerTarget = current?.priority === 3 ? '/worker/sos' : current?.kind === 'posture' ? '/worker/fall-status' :
     current?.category === 'external' ? `/worker/hazards/${encodeURIComponent(current.id)}` : '/worker/health';
+  const adminTab = ['health','heat'].includes(current?.kind) ? 'health' : ['fall','posture'].includes(current?.kind) ? 'fall' : ['puddle','obstacle','unguarded'].includes(current?.kind) ? 'external' : 'all';
+  const adminTarget = `/detections?tab=${adminTab}`;
   const urgent = current?.priority === 3;
   const title = current ? alertCopy(current.kind, role)[0] : '';
   return <>
@@ -194,9 +196,9 @@ function SafetyAlertCenter({ role }) {
         <p className="safety-alert-action">{alertCopy(current.kind, role)[1]}</p>
         <dl><div><dt>작업자</dt><dd>{current.name || profile.name || '확인 필요'}</dd></div><div><dt>구역</dt><dd>{current.zone || '위치 확인 필요'}</dd></div><div><dt>발생 시각</dt><dd>{new Date(current.occurredAt).toLocaleString('ko-KR')}</dd></div></dl>
         <div className="safety-alert-buttons">
-          {role === 'worker' && urgent && !current.test ? <button type="button" className="safety-rescue-button" disabled={sosBusy.current || sos.key === current.key && sos.done} onClick={requestRescue}>{sos.key === current.key && sos.pending ? '요청 전송 중…' : sos.key === current.key && sos.done ? '구조 요청 접수됨' : '관리자 구조 요청'}</button> : !current.test && <Link to={role === 'worker' ? workerTarget : current.target || '/notifications'} onClick={dismiss}>상세 확인</Link>}
+          {role === 'worker' && urgent && !current.test ? <button type="button" className="safety-rescue-button" disabled={sosBusy.current || sos.key === current.key && sos.done} onClick={requestRescue}>{sos.key === current.key && sos.pending ? '요청 전송 중…' : sos.key === current.key && sos.done ? '구조 요청 접수됨' : '관리자 구조 요청'}</button> : role === 'worker' && !current.test && <Link to={workerTarget} onClick={dismiss}>상세 확인</Link>}
           {role === 'worker' && urgent && !current.test && <a href="tel:119">119 전화 연결</a>}
-          <button type="button" onClick={dismiss}>알림 확인</button>
+          {role === 'admin' ? <Link to={adminTarget} onClick={dismiss}>알림 확인</Link> : <button type="button" onClick={dismiss}>알림 확인</button>}
         </div>
         {sos.key === current.key && sos.message && <p className="safety-alert-message" role="status">{sos.message}</p>}
         <small>{current.test ? '테스트 알림입니다. 실제 신고·사고 기록은 생성되지 않습니다.' : '알림 확인은 사고 처리 완료나 위험 해제를 의미하지 않습니다.'}</small>
