@@ -170,6 +170,8 @@ export default function HealthDetectionDetail() {
   );
 
   const isHeat = isHeatHazard(detail, fallbackItem);
+  const exampleHeart = worker?.healthExampleFields?.heartRate === true;
+  const exampleSpo2 = worker?.healthExampleFields?.spo2 === true;
 
   const category = String(
     detail?.category ?? ''
@@ -396,7 +398,7 @@ export default function HealthDetectionDetail() {
         <div className="health-detection-grid">
           <section className="panel health-detection-main-card">
             <div className="section-caption">
-              실시간 건강 상태
+              건강 상태
             </div>
 
             <div className="health-metric-hero">
@@ -413,7 +415,7 @@ export default function HealthDetectionDetail() {
 
                 <strong>
                   {worker?.heartRate
-                    ? `${worker.heartRate} bpm`
+                    ? `${worker.heartRate} bpm${exampleHeart ? ' · 예시' : ''}`
                     : '센서 확인 필요'}
                 </strong>
 
@@ -426,7 +428,7 @@ export default function HealthDetectionDetail() {
                 <span>심박수</span>
                 <b>
                   {worker?.heartRate
-                    ? `${worker.heartRate} bpm`
+                    ? `${worker.heartRate} bpm${exampleHeart ? ' · 예시' : ''}`
                     : '-'}
                 </b>
               </div>
@@ -435,7 +437,7 @@ export default function HealthDetectionDetail() {
                 <span>SpO₂</span>
                 <b>
                   {worker?.spo2 != null
-                    ? `${worker.spo2}%`
+                    ? `${worker.spo2}%${exampleSpo2 ? ' · 예시' : ''}`
                     : '-'}
                 </b>
               </div>
