@@ -17,6 +17,7 @@ import {
 import { Link } from 'react-router-dom';
 import DateRangeFilter from '../components/DateRangeFilter';
 import TablePagination from '../components/TablePagination';
+import '../styles/recordsPolish.css';
 import TopHeader from '../components/TopHeader';
 import { useDetections } from '../context/DetectionContext';
 import { useWorkers } from '../context/WorkerContext';
