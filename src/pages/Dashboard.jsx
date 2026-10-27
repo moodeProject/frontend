@@ -255,9 +255,40 @@ export default function Dashboard() {
       )
     : [];
 
-  const refreshDashboard = async () => {
-    await Promise.allSettled([refreshWorkerStatuses(), refreshHazardEvents(), getSOSList('REQUESTED').then(rows => { if (Array.isArray(rows)) { setSosList(rows); setSosError(''); } }).catch(error => setSosError(error?.message || 'SOS 조회 실패'))]);
-  };
+  const refreshDashboard = useCallback(async () => {
+    const results = await Promise.allSettled([
+      refreshWorkerStatuses(),
+      refreshHazardEvents(),
+      getSOSList('REQUESTED').then(rows => {
+        if (!Array.isArray(rows)) throw new Error('SOS 응답 형식이 올바르지 않습니다.');
+        setSosList(rows);
+        setSosError('');
+      }).catch(error => {
+        setSosError(error?.message || 'SOS 조회 실패');
+        throw error;
+      }),
+    ]);
+    if (results.every(result => result.status === 'rejected')) {
+      throw new Error('홈 데이터를 갱신하지 못했습니다. 서버 연결을 확인해 주세요.');
+    }
+  }, [refreshWorkerStatuses, refreshHazardEvents]);
+
+  // Dashboard owns its refresh cadence: refresh every visible data section,
+  // not just the zone/worker card, without resetting the current page.
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (!document.hidden) refreshDashboard().catch(() => {});
+    }, 5000);
+    const onFocus = () => refreshDashboard().catch(() => {});
+    const onVisible = () => { if (!document.hidden) onFocus(); };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [refreshDashboard]);
 
   const hazardCountLabel = hazardSummary
     ? `외부요인 ${hazardSummary.external ?? 0} · 건강 ${
