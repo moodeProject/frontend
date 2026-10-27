@@ -16,6 +16,7 @@ import {
 } from 'react';
 import { Link } from 'react-router-dom';
 import DateRangeFilter from '../components/DateRangeFilter';
+import TablePagination from '../components/TablePagination';
 import TopHeader from '../components/TopHeader';
 import { useDetections } from '../context/DetectionContext';
 import { useWorkers } from '../context/WorkerContext';
@@ -270,6 +271,8 @@ export default function Records() {
   const [fallError, setFallError] = useState('');
   const [tab, setTab] = useState('all');
   const [search, setSearch] = useState('');
+  const [pageSize, setPageSize] = useState(20);
+  const [page, setPage] = useState(1);
   const [dateRange, setDateRange] = useState({
     start: '',
     end: '',
@@ -375,6 +378,12 @@ export default function Records() {
       return tabMatch && searchMatch;
     });
   }, [tab, search, visibleItems]);
+
+  useEffect(() => { setPage(1); }, [tab, search, dateRange.start, dateRange.end]);
+  const totalPages = pageSize === 'all' ? 1 : Math.max(1, Math.ceil(rows.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const paginatedRows = pageSize === 'all' ? rows : rows.slice((safePage - 1) * pageSize, safePage * pageSize);
+  const handlePageSizeChange = (nextSize) => { setPageSize(nextSize); setPage(1); };
 
   const refreshPage = async () => {
     await Promise.allSettled([
@@ -485,7 +494,7 @@ export default function Records() {
             <span />
           </div>
 
-          {rows.map((item) => {
+          {paginatedRows.map((item) => {
             const Icon = iconForDetection(item);
 
             return (
@@ -553,6 +562,7 @@ export default function Records() {
               </div>
             )}
         </section>
+        <TablePagination total={rows.length} page={safePage} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={handlePageSizeChange} />
       </div>
     </>
   );
