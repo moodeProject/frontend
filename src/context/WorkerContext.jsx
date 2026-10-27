@@ -26,9 +26,9 @@ const SENSOR_FRESH_MS = 30_000;
 const HEALTH_FALLBACK = { heartRate: 78, spo2: 98, hrv: 48 };
 
 function withHealthFallback(worker) {
-  const hasValidHeart = Number(worker.heartRate) > 0;
-  const hasValidSpo2 = Number(worker.spo2) > 0;
-  const hasValidHrv = Number(worker.hrv) > 0;
+  const hasValidHeart = worker.sensorConnected === true && Number(worker.heartRate) > 0;
+  const hasValidSpo2 = worker.sensorConnected === true && Number(worker.spo2) > 0;
+  const hasValidHrv = worker.sensorConnected === true && Number(worker.hrv) > 0;
   return normalizeWorker({
     ...worker,
     heartRate: hasValidHeart ? worker.heartRate : HEALTH_FALLBACK.heartRate,
