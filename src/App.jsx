@@ -13,6 +13,7 @@ import Dashboard from './pages/Dashboard';
 import Detections from './pages/Detections';
 import ExternalDetectionDetail from './pages/ExternalDetectionDetail';
 import HealthDetectionDetail from './pages/HealthDetectionDetail';
+import HealthDemo from './pages/HealthDemo';
 import FindId from './pages/FindId';
 import FindPassword from './pages/FindPassword';
 import HelmetManagement from './pages/HelmetManagement';
@@ -83,6 +84,7 @@ export default function App() {
                   <Route path="/records" element={<Records />} />
                   <Route path="/helmets" element={<HelmetManagement />} />
                   <Route path="/notifications" element={<Notifications />} />
+                  <Route path="/demo/health" element={<HealthDemo />} />
                   <Route path="/mypage" element={<MyPage />} />
                 </Route>
               </Route>
