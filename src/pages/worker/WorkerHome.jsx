@@ -1,4 +1,4 @@
-import { getMyHome } from '../../api/myHome';
+import { getMyHome, normalizeMyHome } from '../../api/myHome';
 import {
   Clock3,
   Heart,
@@ -105,6 +105,30 @@ export default function WorkerHome() {
   const [checkedIn, setCheckedIn] = useState(() => localStorage.getItem(ATTENDANCE_KEY) === 'true');
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [attendanceMsg, setAttendanceMsg] = useState('');
+  const [mySensor, setMySensor] = useState(null);
+  const [myHomeError, setMyHomeError] = useState('');
+  const [myHomeLoading, setMyHomeLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    let busy = false;
+    const refresh = async () => {
+      if (!active || busy) return;
+      busy = true;
+      try {
+        const home = normalizeMyHome(await getMyHome());
+        if (active) { setMySensor(home); setMyHomeError(''); }
+      } catch (error) {
+        if (active) setMyHomeError(error?.message || '내 센서 조회 실패');
+      } finally {
+        busy = false;
+        if (active) setMyHomeLoading(false);
+      }
+    };
+    refresh();
+    const timer = window.setInterval(refresh, 5000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, []);
 
   const resolveAttendanceWorkerId = async () => {
     const validId = v => /^\d+$/.test(String(v ?? '').trim()) && Number(v) > 0 ? Number(v) : null;
@@ -169,12 +193,11 @@ export default function WorkerHome() {
     ) || null;
   }, [workers, profile.employeeNo, profile.workerId, profile.userId]);
 
-  const sensor =
-    currentWorker?.serverDataConnected
-      ? currentWorker
-      : null;
-  const linkedHelmet = currentWorker?.helmetId || currentWorker?.helmetNo || '';
-  const linkedDeviceId = currentWorker?.deviceId || '';
+  // The authenticated worker's self-service response is the primary source.
+  // Never substitute another worker's values based on a shared name or helmet label.
+  const sensor = mySensor || currentWorker || null;
+  const linkedHelmet = mySensor?.helmetId || currentWorker?.helmetId || currentWorker?.helmetNo || '';
+  const linkedDeviceId = mySensor?.deviceId || currentWorker?.deviceId || '';
 
   useEffect(() => {
     refreshWorkerStatuses().catch(() => {});
@@ -200,6 +223,7 @@ export default function WorkerHome() {
   );
 
   const currentZone =
+    mySensor?.zone ||
     currentWorker?.zone ||
     profile.location ||
     '';
@@ -264,19 +288,16 @@ export default function WorkerHome() {
 
   const uiStatus = sensorUiStatus(sensor);
 
-  const sensorConnected = Boolean(sensor);
-  const fallNormal = sensor
-    ? isNormalState(sensor.fallState)
-    : null;
+  const sensorConnected = sensor?.sensorConnected === true;
+  const hasStoredSensor = Boolean(sensor?.recordedAt && (sensor?.heartRate != null || sensor?.healthState || sensor?.fallState));
+  const fallNormal = sensor?.fallState ? isNormalState(sensor.fallState) : null;
 
-  const healthNormal = sensor
-    ? isNormalState(sensor.healthState)
-    : null;
+  const healthNormal = sensor?.healthState ? isNormalState(sensor.healthState) : null;
 
   const movementTone = postureTone(sensor);
 
   const currentSeverity =
-    uiStatus.key === 'danger'
+    !hasStoredSensor && !sensorConnected ? 'unknown' : uiStatus.key === 'danger'
       ? 'danger'
       : uiStatus.key === 'warning'
         ? 'warning'
@@ -325,10 +346,10 @@ export default function WorkerHome() {
         </span>
       </div>
 
-      {sensorError && (
+      {(myHomeError || sensorError) && (
         <div className="worker-filter-banner danger">
           <span>
-            센서 조회: {sensorError}
+            센서 조회: {myHomeError || sensorError}
           </span>
         </div>
       )}
@@ -367,7 +388,7 @@ export default function WorkerHome() {
           <span>
             <MapPin size={17} /> 위치
           </span>
-          <b>{currentWorker?.zone || profile.location || '-'}</b>
+          <b>{mySensor?.zone || currentWorker?.zone || profile.location || '-'}</b>
         </div>
 
         <div className="worker-state-row">
@@ -422,11 +443,7 @@ export default function WorkerHome() {
             <i />
           </div>
           <b>
-            {!sensor
-              ? '확인 필요'
-              : healthNormal
-                ? '정상'
-                : '주의'}
+            {healthNormal === null ? '확인 필요' : healthNormal ? '정상' : String(sensor?.healthState).toUpperCase() === 'ACTION_REQUIRED' ? '조치 필요' : '주의'}
           </b>
         </div>
 
@@ -435,7 +452,7 @@ export default function WorkerHome() {
             <Heart size={18} />
             <span>심박수</span>
             <strong>
-              {sensor?.heartRate ?? '-'}{' '}
+              {Number(sensor?.heartRate) > 0 ? sensor.heartRate : '-'}{' '}
               <small>bpm</small>
             </strong>
           </div>
@@ -445,11 +462,11 @@ export default function WorkerHome() {
             <span>건강 이벤트</span>
             <strong>
               {latestHealth?.type ||
-                (!sensor
+                (healthNormal === null
                   ? '데이터 없음'
                   : healthNormal
                     ? '정상'
-                    : sensor.healthState)}
+                    : String(sensor?.healthState).toUpperCase() === 'ACTION_REQUIRED' ? '건강 이상 · 조치 필요' : '건강 주의')}
             </strong>
           </div>
         </div>
