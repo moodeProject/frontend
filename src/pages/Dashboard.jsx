@@ -1,4 +1,3 @@
-import { statusWithOpenIncidents } from '../utils/workerIncidentStatus';
 import '../styles/dashboardSosLayout.css';
 import {
   AlertTriangle,
@@ -121,14 +120,16 @@ export default function Dashboard() {
     useState('');
 
   const [sosList, setSosList] = useState([]);
+  const [sosError, setSosError] = useState('');
 
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchSOS = () => {
       getSOSList('REQUESTED').then((list) => {
-        if (Array.isArray(list)) setSosList(list);
-      }).catch(() => {});
+        if (Array.isArray(list)) { setSosList(list); setSosError(''); }
+        else { setSosError('SOS 목록 응답 형식을 확인할 수 없습니다.'); }
+      }).catch(error => { setSosError(error?.message || 'SOS 조회 실패'); });
     };
     fetchSOS();
     const id = setInterval(fetchSOS, 10000);
@@ -145,7 +146,8 @@ export default function Dashboard() {
     }
   };
 
-  const attentionWorkers = workers.map(worker => statusWithOpenIncidents(worker, detections));
+  // Worker summary reflects the latest worker/sensor API status, not historical unresolved incidents.
+  const attentionWorkers = workers;
   const riskyWorkers = attentionWorkers.filter(
     (worker) => worker.status !== 'normal'
   );
@@ -249,10 +251,7 @@ export default function Dashboard() {
     : [];
 
   const refreshDashboard = async () => {
-    await Promise.allSettled([
-      refreshWorkerStatuses(),
-      refreshHazardEvents(),
-    ]);
+    await Promise.allSettled([refreshWorkerStatuses(), refreshHazardEvents(), getSOSList('REQUESTED').then(rows => { if (Array.isArray(rows)) { setSosList(rows); setSosError(''); } }).catch(error => setSosError(error?.message || 'SOS 조회 실패'))]);
   };
 
   const hazardCountLabel = hazardSummary
@@ -270,7 +269,7 @@ export default function Dashboard() {
       />
 
       <div className="page-body dashboard-page">
-        {(sensorError || hazardError) && (
+        {(sensorError || hazardError || sosError) && (
           <div className="worker-filter-banner danger">
             <span>
               {[
@@ -280,6 +279,7 @@ export default function Dashboard() {
                 hazardError
                   ? `이상 감지: ${hazardError}`
                   : '',
+                sosError ? `SOS: ${sosError}` : '',
               ]
                 .filter(Boolean)
                 .join(' / ')}
@@ -396,7 +396,7 @@ export default function Dashboard() {
                 <span>
                   {hazardStreamConnected
                     ? `● 실시간 연결 · ${hazardCountLabel}`
-                    : `재연결 중 · ${hazardCountLabel}`}
+                    : `서버 조회 · ${hazardCountLabel}`}
                 </span>
               </div>
 
@@ -479,11 +479,12 @@ export default function Dashboard() {
           </section>
 
           <aside className="right-stack" ref={rightStackRef}>
-            {sosList.length > 0 && (
+            {(sosList.length > 0 || sosError) && (
               <section className="panel sos-panel dashboard-sos-list">
                 <div className="panel-title-row border-bottom">
                   <div className="title-with-dot"><i className="red-dot"/><strong><ShieldAlert size={15}/> SOS 미처리</strong><span>{sosList.length}건</span></div>
                 </div>
+                {sosError && <p className="dashboard-sos-error">SOS 조회 실패 · {sosError}</p>}
                 {sosList.map((s) => (
                   <div key={s.id} className="sos-row">
                     <div className="sos-row-info">
