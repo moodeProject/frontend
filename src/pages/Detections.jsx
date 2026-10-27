@@ -147,8 +147,8 @@ function healthNotificationToDetection(raw) {
     level: 'warning', type: '건강 이상 감지',
     name: name || '작업자 정보 없음', zone: zone || '위치 미확인',
     time, dateLabel, occurredAt: raw.sentAt,
-    process: raw.isRead ? '확인함' : '조치 필요',
-    processClass: raw.isRead ? 'completed' : 'unprocessed',
+    process: raw.isRead ? '알림 확인함 · 조치 미확인' : '조치 필요',
+    processClass: 'unprocessed',
     message
   };
 }
@@ -282,9 +282,8 @@ export default function Detections() {
   const allItems = useMemo(
     () =>
       [...detections, ...fallAlerts, ...healthRecords]
-        .filter((item) =>
-          isInDateRange(item, dateRange)
-        )
+        .filter((item) => item.source === 'health-notification' || (item.processClass !== 'completed' && !['RESOLVED','COMPLETED','CLOSED'].includes(String(item.status || '').toUpperCase())))
+        .filter((item) => isInDateRange(item, dateRange))
         .sort(
           (a, b) =>
             new Date(
