@@ -4,13 +4,14 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from 'react';
 import {
   getHazardEvents,
   openHazardEventStream,
 } from '../api/hazardEvents';
+
+import { createRequestGate } from '../utils/requestGate';
 
 const DetectionContext = createContext(null);
 
@@ -246,7 +247,6 @@ export function DetectionProvider({ children }) {
   const [hazardStreamConnected, setHazardStreamConnected] =
     useState(false);
 
-  const refreshingRef = useRef(false);
 
   const queryHazardEvents = useCallback(async (params = {}) => {
     const first = await getHazardEvents({ size: 100, ...params, page: 0 });
@@ -267,39 +267,30 @@ export function DetectionProvider({ children }) {
     };
   }, []);
 
-  const refreshHazardEvents = useCallback(async (params = {}) => {
-    if (refreshingRef.current) return [];
-
-    refreshingRef.current = true;
-    setHazardLoading(true);
-    setHazardError('');
-
-    try {
-      const page = await queryHazardEvents(params);
-      const events = page.events;
-
-      setDetections(events);
+  const refreshGate = useMemo(() => createRequestGate({
+    load: queryHazardEvents,
+    onStart: () => setHazardLoading(true),
+    onSuccess: page => {
+      setDetections(page.events);
       setHazardSummary(page.summary);
       setLastHazardUpdated(new Date());
-
-      return events;
-    } catch (error) {
+      // Keep the last error visible during retries; clear only on recovery.
+      setHazardError('');
+    },
+    onError: error => {
       console.error('이상 감지 목록 조회 실패:', error);
-      setHazardError(
-        error?.message ||
-          '이상 감지 목록을 불러오지 못했습니다.'
-      );
-      throw error;
-    } finally {
-      refreshingRef.current = false;
-      setHazardLoading(false);
-    }
-  }, [queryHazardEvents]);
+      setHazardError(error?.message || '이상 감지 목록을 불러오지 못했습니다.');
+    },
+    onFinish: () => setHazardLoading(false),
+  }), [queryHazardEvents]);
+
+  const refreshHazardEvents = useCallback((params = {}, options = {}) =>
+    refreshGate.run(params, options).then(page => page.events), [refreshGate]);
 
   useEffect(() => {
     refreshHazardEvents().catch(() => {});
     // Also refresh without SSE, which can disconnect behind authenticated proxies.
-    const interval = window.setInterval(() => refreshHazardEvents().catch(() => {}), 5000);
+    const interval = window.setInterval(() => { if (!document.hidden) refreshHazardEvents().catch(() => {}); }, 5000);
     const onFocus = () => refreshHazardEvents().catch(() => {});
     const onVisible = () => { if (!document.hidden) onFocus(); };
     window.addEventListener('focus', onFocus);
