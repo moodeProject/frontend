@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createAlertTracker, mergeAlertQueue, eventAlert, notificationAlert, sensorAlerts, sameWorker } from '../src/utils/safetyAlerts.js';
+import { alertCopy, createAlertTracker, mergeAlertQueue, eventAlert, notificationAlert, sensorAlerts, sameWorker } from '../src/utils/safetyAlerts.js';
 const now = Date.now();
 const stamp = new Date(now).toISOString();
 const event = { id: 42, workerId:7, category:'external', kind:'puddle', name:'작업자', zone:'A구역', occurredAt:stamp, status:'UNHANDLED' };
@@ -58,4 +58,17 @@ test('a fresh ongoing sensor risk is shown once on entry, even if it started bef
   const item = { ...event, key:'sensor:7:health:onset', episode:'sensor:7:health', occurredAt:new Date(now-10000).toISOString() };
   assert.equal(tracker.take([item],now).length,1);
   assert.equal(tracker.take([{...item,recordedAt:new Date(now+1000).toISOString()}],now+1000).length,0);
+});
+
+test('every alert type has separate worker and manager action messages', () => {
+  for (const kind of ['puddle','obstacle','unguarded','health','heat','posture','fall','sos','unknown']) {
+    const worker = alertCopy(kind, 'worker');
+    const admin = alertCopy(kind, 'admin');
+    assert.notEqual(worker[1], admin[1], kind);
+    assert.ok(admin[1].includes('작업자'), kind);
+  }
+  assert.match(alertCopy('health','worker')[1], /몸 상태를 확인/);
+  assert.match(alertCopy('health','admin')[1], /작업자의 작업을 중단시키고/);
+  assert.match(alertCopy('fall','worker')[1], /무리하게 이동하지 말고/);
+  assert.match(alertCopy('fall','admin')[1], /현장 담당자에게 구조 지원/);
 });

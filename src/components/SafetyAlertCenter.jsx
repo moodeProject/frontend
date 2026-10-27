@@ -111,7 +111,7 @@ function SafetyAlertCenter({ role }) {
         if (prefs.vibration && vibrating) navigator.vibrate(priority === 3 ? [250,100,250,100,400] : [180,100,180]);
         if (voice && prefs.voice && speaking && priority >= 2) {
           window.speechSynthesis.cancel();
-          const speech = new SpeechSynthesisUtterance(`${role === 'admin' ? `${current.name || '작업자'}. ${current.zone || '위치 확인 필요'}. ` : ''}${alertCopy(current.kind)[1]}`);
+          const speech = new SpeechSynthesisUtterance(`${role === 'admin' ? `${current.name || '작업자'}. ${current.zone || '위치 확인 필요'}. ` : ''}${alertCopy(current.kind, role)[1]}`);
           speech.lang = 'ko-KR'; speech.rate = 1.05;
           speech.onerror = event => { if (!['canceled', 'interrupted'].includes(event.error)) setMediaError('음성 재생을 확인해주세요. 화면 알림은 계속 표시됩니다.'); };
           window.speechSynthesis.speak(speech);
@@ -163,7 +163,7 @@ function SafetyAlertCenter({ role }) {
   const workerTarget = current?.priority === 3 ? '/worker/sos' : current?.kind === 'posture' ? '/worker/fall-status' :
     current?.category === 'external' ? `/worker/hazards/${encodeURIComponent(current.id)}` : '/worker/health';
   const urgent = current?.priority === 3;
-  const title = current ? alertCopy(current.kind)[0] : '';
+  const title = current ? alertCopy(current.kind, role)[0] : '';
   return <>
     <div className={`safety-alert-controls ${role}`}>
       <button type="button" onClick={() => ready ? setSettings(!settings) : enable()}><Volume2 size={15}/>{ready ? '안전 알림 설정' : '소리·음성 알림 켜기'}</button>
@@ -189,11 +189,10 @@ function SafetyAlertCenter({ role }) {
             else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
           }
         }}>
-        <header><span><ShieldAlert size={22}/>{current.test ? '알림 테스트' : urgent ? '긴급 · 즉시 확인' : current.priority === 2 ? '작업 중단 · 상태 확인' : '주의 · 위험요인 감지'}</span><button type="button" onClick={dismiss} aria-label="알림 확인 후 닫기"><X size={19}/></button></header>
+        <header><span><ShieldAlert size={22}/>{current.test ? '알림 테스트' : urgent ? (role === 'admin' ? '긴급 · 현장 대응 필요' : '긴급 · 도움 요청') : current.priority === 2 ? (role === 'admin' ? '작업자 상태 확인 · 조치 필요' : '작업 중단 · 상태 확인') : (role === 'admin' ? '현장 위험 · 확인 필요' : '주의 · 위험요인 감지')}</span><button type="button" onClick={dismiss} aria-label="알림 확인 후 닫기"><X size={19}/></button></header>
         <h2>{title}</h2>
-        <p className="safety-alert-action">{alertCopy(current.kind)[1]}</p>
+        <p className="safety-alert-action">{alertCopy(current.kind, role)[1]}</p>
         <dl><div><dt>작업자</dt><dd>{current.name || profile.name || '확인 필요'}</dd></div><div><dt>구역</dt><dd>{current.zone || '위치 확인 필요'}</dd></div><div><dt>발생 시각</dt><dd>{new Date(current.occurredAt).toLocaleString('ko-KR')}</dd></div></dl>
-        {current.message && <p className="safety-alert-message">{current.message}</p>}
         <div className="safety-alert-buttons">
           {role === 'worker' && urgent && !current.test ? <button type="button" className="safety-rescue-button" disabled={sosBusy.current || sos.key === current.key && sos.done} onClick={requestRescue}>{sos.key === current.key && sos.pending ? '요청 전송 중…' : sos.key === current.key && sos.done ? '구조 요청 접수됨' : '관리자 구조 요청'}</button> : !current.test && <Link to={role === 'worker' ? workerTarget : current.target || '/notifications'} onClick={dismiss}>상세 확인</Link>}
           {role === 'worker' && urgent && !current.test && <a href="tel:119">119 전화 연결</a>}
