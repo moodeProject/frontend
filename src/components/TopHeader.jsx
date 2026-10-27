@@ -38,6 +38,7 @@ export default function TopHeader({
   title,
   subtitle,
   onRefresh,
+  dataUpdatedAt,
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -355,7 +356,7 @@ export default function TopHeader({
         >
           <span>
             마지막 업데이트{' '}
-            {formatTime(lastUpdated)}
+            {dataUpdatedAt ? formatTime(dataUpdatedAt) : (onRefresh && title === '통합 모니터링' ? '확인 중' : formatTime(lastUpdated))}
           </span>
 
           <button
