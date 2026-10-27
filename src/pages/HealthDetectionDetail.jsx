@@ -21,6 +21,7 @@ import {
 } from 'react-router-dom';
 import ActionToast from '../components/ActionToast';
 import TopHeader from '../components/TopHeader';
+import VitalValue from '../components/VitalValue';
 import { useDetections } from '../context/DetectionContext';
 import { useNotifications } from '../context/NotificationContext';
 import { useWorkers } from '../context/WorkerContext';
@@ -164,6 +165,7 @@ export default function HealthDetectionDetail() {
   const [detailLoading, setDetailLoading] = useState(true);
   const [detailError, setDetailError] = useState('');
   const [actionLoading, setActionLoading] = useState('');
+  const [actionMemo, setActionMemo] = useState('');
   const [toast, setToast] = useState({
     message: '',
     type: 'success',
@@ -203,8 +205,6 @@ export default function HealthDetectionDetail() {
   // 사고가 생긴 순간의 생체 값(서버 vitals). 아래 "현재 상태"는 실시간 값이라 서로 다를 수 있다.
   const snapshot = detail?.vitals ?? null;
   const actions = Array.isArray(detail?.actions) ? detail.actions : [];
-  const exampleHeart = worker?.healthExampleFields?.heartRate === true;
-  const exampleSpo2 = worker?.healthExampleFields?.spo2 === true;
 
   const category = String(
     detail?.category ?? ''
@@ -322,7 +322,7 @@ export default function HealthDetectionDetail() {
     const label = type.includes('건강 이상') ? type : `${type} 건강 이상`;
     await runAction(
       'RESOLVE',
-      `${label} 처리 완료`,
+      actionMemo.trim() || `${label} 처리 완료`,
       '건강 이상 감지 건을 처리완료로 변경했습니다.'
     );
   };
@@ -433,7 +433,7 @@ export default function HealthDetectionDetail() {
         <div className="health-detection-grid">
           <section className="panel health-detection-main-card">
             <div className="section-caption">
-              건강 상태
+              발생 당시 건강 상태
             </div>
 
             <div className="health-metric-hero">
@@ -451,9 +451,7 @@ export default function HealthDetectionDetail() {
                 <strong>
                   {snapshot?.heartRate > 0
                     ? `${snapshot.heartRate} bpm`
-                    : worker?.heartRate
-                      ? `${worker.heartRate} bpm${exampleHeart ? ' · 예시' : ''}`
-                      : '센서 확인 필요'}
+                    : '발생 당시 측정값 없음'}
                 </strong>
 
                 <p>{riskDescription}</p>
@@ -491,25 +489,21 @@ export default function HealthDetectionDetail() {
             )}
 
             <div className="section-caption health-section-gap">
-              현재 상태 · 실시간
+              현재 상태 · 최근 측정값
             </div>
 
             <div className="health-metric-grid">
               <div>
                 <span>심박수</span>
                 <b>
-                  {worker?.heartRate
-                    ? `${worker.heartRate} bpm${exampleHeart ? ' · 예시' : ''}`
-                    : '-'}
+                  <VitalValue worker={worker} unit="bpm" />
                 </b>
               </div>
 
               <div>
                 <span>SpO₂</span>
                 <b>
-                  {worker?.spo2 != null
-                    ? `${worker.spo2}%${exampleSpo2 ? ' · 예시' : ''}`
-                    : '-'}
+                  <VitalValue worker={worker} metric="spo2" unit="%" />
                 </b>
               </div>
 
@@ -578,6 +572,17 @@ export default function HealthDetectionDetail() {
 
             <section className="panel health-action-card">
               <h3>관리자 조치</h3>
+              <label className="health-action-memo" htmlFor="health-action-memo">
+                조치 메모 (선택)
+                <textarea
+                  id="health-action-memo"
+                  value={actionMemo}
+                  onChange={(event) => setActionMemo(event.target.value)}
+                  disabled={Boolean(actionLoading) || completed}
+                  placeholder="상태 확인 및 조치 내용을 입력하세요."
+                  rows={3}
+                />
+              </label>
 
               <button
                 type="button"
