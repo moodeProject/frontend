@@ -138,7 +138,7 @@ function notificationFromDetection(item, readIds) {
 
 function serverLevel(raw) {
   const value = String(
-    raw?.severity || raw?.level || raw?.type || ''
+    raw?.severity || raw?.level || raw?.type || (raw?.sosId != null ? 'SOS' : '')
   ).toUpperCase();
 
   if (
@@ -165,7 +165,7 @@ function serverTarget(raw) {
   if (raw?.id != null && raw?.hazardEventId == null && String(raw?.message || '').includes('건강 이상')) {
     return `/detections/health-notification/${encodeURIComponent(raw.id)}`;
   }
-  if (raw?.sosId != null) return '/notifications';
+  if (raw?.sosId != null) return `/sos/${encodeURIComponent(raw.sosId)}`;
   const category = String(raw?.category || '').toUpperCase();
 
   if (eventId) {
