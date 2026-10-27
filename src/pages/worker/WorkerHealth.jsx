@@ -16,6 +16,7 @@ import { WorkerScaffold } from '../../components/WorkerMobileUI';
 import { useDetections } from '../../context/DetectionContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { getMyHome, normalizeMyHome } from '../../api/myHome';
+import { getNotifications } from '../../api/notifications';
 import { getWorkerProfile } from '../../utils/workerProfile';
 import {
   detectionBelongsToWorker,
@@ -41,6 +42,7 @@ export default function WorkerHealth() {
   );
 
   const [sensor, setSensor] = useState(null);
+  const [healthNotices, setHealthNotices] = useState([]);
   const [sensorLoading, setSensorLoading] = useState(true);
   const [sensorError, setSensorError] = useState('');
 
@@ -51,7 +53,7 @@ export default function WorkerHealth() {
     setSensorLoading(true);
     try {
       const home = normalizeMyHome(await getMyHome());
-      setSensor(home.sensorConnected ? home : null);
+      setSensor(home);
       setSensorError('');
     } catch (error) {
       setSensor(null);
@@ -70,7 +72,7 @@ export default function WorkerHealth() {
       try {
         const home = normalizeMyHome(await getMyHome());
         if (!alive) return;
-        setSensor(home.sensorConnected ? home : null);
+        setSensor(home);
         setSensorError('');
       } catch (error) {
         if (!alive) return;
@@ -110,7 +112,24 @@ export default function WorkerHealth() {
     ]
   );
 
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      try {
+        const home = normalizeMyHome(await getMyHome());
+        const workerId = Number(home.workerId);
+        if (!Number.isInteger(workerId) || workerId <= 0) return;
+        const rows = await getNotifications({ recipientType: 'WORKER', recipientId: workerId, size: 100 });
+        if (alive) setHealthNotices(rows.filter(row => String(row.message || '').includes('건강 이상')));
+      } catch (error) { console.warn('근로자 건강 알림 조회 실패:', error); }
+    };
+    load();
+    const timer = window.setInterval(load, 10000);
+    return () => { alive = false; window.clearInterval(timer); };
+  }, []);
+
   const latestHealthEvent = healthEvents[0];
+  const latestHealthNotice = healthNotices[0];
 
   const healthNormal = sensor
     ? isNormalState(sensor.healthState)
@@ -190,7 +209,7 @@ export default function WorkerHealth() {
               ? '데이터 없음'
               : healthNormal
                 ? '정상'
-                : '주의'}
+                : String(sensor.healthState).toUpperCase() === 'ACTION_REQUIRED' ? '조치 필요' : '주의'}
           </span>
         </div>
 
@@ -201,7 +220,7 @@ export default function WorkerHealth() {
         </div>
 
         <p>
-          {latestHealthEvent?.detailDescription ||
+          {latestHealthNotice?.message || latestHealthEvent?.detailDescription ||
             (!sensor
               ? '최신 센서 데이터가 없습니다.'
               : healthNormal
@@ -228,7 +247,7 @@ export default function WorkerHealth() {
             {sensorLoading
               ? '갱신 중'
               : sensor?.heartRate != null
-                ? '실시간'
+                ? sensor.sensorConnected ? '실시간' : '최근 저장값'
                 : '데이터 없음'}
           </b>
         </div>
@@ -263,13 +282,12 @@ export default function WorkerHealth() {
           <p>
             <span>최근 건강 이벤트</span>
             <strong>
-              {latestHealthEvent?.type ||
-                '없음'}
+              {latestHealthNotice ? '건강 이상 알림' : latestHealthEvent?.type || '없음'}
             </strong>
           </p>
 
           <b>
-            {latestHealthEvent?.time || '-'}
+            {latestHealthNotice?.sentAt ? formatSensorTime(latestHealthNotice.sentAt) : latestHealthEvent?.time || '-'}
           </b>
         </div>
       </section>
