@@ -22,6 +22,23 @@ const WorkerContext = createContext(null);
 const STORAGE_KEY = 'safehelmet-workers-v3';
 const SENSOR_REFRESH_MS = 5_000;
 const SENSOR_FRESH_MS = 30_000;
+// 건강 센서 결측 시 화면에만 사용하는 예시 수치. 서버 상태/알림에는 적용하지 않는다.
+const HEALTH_FALLBACK = { heartRate: 78, spo2: 98, hrv: 48 };
+
+function withHealthFallback(worker) {
+  const hasValidHeart = Number(worker.heartRate) > 0;
+  const hasValidSpo2 = Number(worker.spo2) > 0;
+  const hasValidHrv = Number(worker.hrv) > 0;
+  return normalizeWorker({
+    ...worker,
+    heartRate: hasValidHeart ? worker.heartRate : HEALTH_FALLBACK.heartRate,
+    spo2: hasValidSpo2 ? worker.spo2 : HEALTH_FALLBACK.spo2,
+    hrv: hasValidHrv ? worker.hrv : HEALTH_FALLBACK.hrv,
+    healthExampleFields: {
+      heartRate: !hasValidHeart, spo2: !hasValidSpo2, hrv: !hasValidHrv,
+    },
+  });
+}
 
 function isFreshMeasurement(record) {
   if (!record?.recordedAt) return false;
@@ -177,7 +194,7 @@ function mergeWorkerStatus(worker, sensor, heatRisk) {
   const base = normalizeWorker(worker);
 
   if (!sensor && !heatRisk) {
-    return normalizeWorker({
+    return withHealthFallback({
       ...base,
       recordedAt: null,
       heartRate: null,
@@ -265,7 +282,7 @@ function mergeWorkerStatus(worker, sensor, heatRisk) {
   const hrv = optionalNumber(sensor?.hrv ?? heatRisk?.hrv, 0);
   const sensorZone = readZone(sensor || {});
 
-  return normalizeWorker({
+  return withHealthFallback({
     ...base,
     deviceId: sensor?.deviceId || heatRisk?.deviceId || base.deviceId,
     status,
