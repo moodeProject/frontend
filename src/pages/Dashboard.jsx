@@ -197,8 +197,8 @@ export default function Dashboard() {
   );
 
   const zones = useMemo(
-    () => zoneState(workers),
-    [workers]
+    () => zoneState(attentionWorkers),
+    [attentionWorkers]
   );
 
   const handleSummaryClick = (key) => {
