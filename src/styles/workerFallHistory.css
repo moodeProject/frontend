@@ -9,3 +9,18 @@
 .worker-fall-history-card .worker-card-title strong{font-size:18px}
 .worker-fall-history-card>p{font-size:13px;line-height:1.55}
 @media(max-width:480px){.worker-fall-history-card .worker-health-detail-item{gap:10px}.worker-fall-history-card .worker-health-detail-item strong{font-size:16px}.worker-fall-history-card .worker-health-detail-item>b{max-width:42%;font-size:11px;padding:6px 8px}.worker-fall-history-card .worker-health-detail-item>i{width:42px;height:42px}}
+
+/* Shared fall-history state palette: danger / warning / resolved. */
+.worker-fall-history-card.tone-danger{--fall-accent:#e43f43;--fall-soft:#fff0f0;--fall-border:#ffd3d5}
+.worker-fall-history-card.tone-warning{--fall-accent:#ef8700;--fall-soft:#fff7e6;--fall-border:#ffe1aa}
+.worker-fall-history-card.tone-resolved{--fall-accent:#15965c;--fall-soft:#ebfaf2;--fall-border:#baedce}
+.worker-fall-history-card .worker-card-title .worker-count-pill{color:var(--fall-accent);background:var(--fall-soft);border:1px solid var(--fall-border);white-space:nowrap}
+.worker-fall-history-card .worker-fall-history-bars i{background:var(--fall-accent)}
+.worker-fall-history-card .worker-health-detail-item{background:var(--fall-soft);border:1px solid var(--fall-border);border-radius:16px;padding:15px 16px;margin:12px 0}
+.worker-fall-history-card .worker-health-detail-item>i{background:#fff;color:var(--fall-accent)}
+.worker-fall-history-card .worker-health-detail-item strong{color:var(--fall-accent)}
+.worker-fall-history-card .worker-health-detail-item>b{color:var(--fall-accent);background:#fff;border:1px solid var(--fall-border)}
+.worker-fall-recommend.tone-danger{background:#fff2f2;border-color:#ffc8cb;color:#c62d37}
+.worker-fall-recommend.tone-warning{background:#fff8ea;border-color:#ffdea5;color:#b96a00}
+.worker-fall-recommend.tone-resolved{background:#eaf8f0;border-color:#bde6d0;color:#177c50}
+.worker-fall-recommend h3,.worker-fall-recommend p{color:inherit}
