@@ -1,3 +1,4 @@
+import { getMyHome, normalizeMyHome } from '../../api/myHome';
 import {
   CheckCircle2,
   HeartPulse,
@@ -111,13 +112,12 @@ export default function WorkerSOS() {
   };
 
   const submitServerSOS = async () => {
-    if (!requesterId) {
-      throw new Error(
-        'SOS 요청에 필요한 작업자 ID를 찾지 못했습니다.'
-      );
+    const self = normalizeMyHome(await getMyHome());
+    const verifiedId = Number(self.workerId || self.id);
+    if (!Number.isSafeInteger(verifiedId) || verifiedId <= 0) {
+      throw new Error('서버에서 로그인 작업자 ID를 확인하지 못했습니다.');
     }
-
-    const response = await createSOS(requesterId);
+    const response = await createSOS(verifiedId);
 
     refreshNotifications?.();
 
@@ -140,16 +140,9 @@ export default function WorkerSOS() {
         sosResponse = await submitServerSOS();
       }
 
-      addNotification({
-        level: 'danger',
-        title: fromEmergency
-          ? '119 신고 후 관리자 호출'
-          : '관리자 호출',
-        message: managerMessage(),
-        target: worker?.id
-          ? `/workers/${worker.id}`
-          : '/workers',
-      });
+      // POST /api/sos writes a server-side MANAGER notification.
+      // Do not present a local-only message as though it reached the manager.
+      refreshNotifications?.();
 
       setResult({
         type: fromEmergency
