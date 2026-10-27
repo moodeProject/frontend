@@ -12,6 +12,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { Link } from 'react-router-dom';
@@ -23,6 +24,7 @@ import { useDetections } from '../context/DetectionContext';
 import { useWorkers } from '../context/WorkerContext';
 import { getWorkerAlerts } from '../api/workerStatus';
 import { getNotifications } from '../api/notifications';
+import { createRequestGate } from '../utils/requestGate';
 
 const tabs = [
   { key: 'all', label: '전체' },
@@ -276,10 +278,14 @@ export default function Records() {
 
   const { workers } = useWorkers();
 
-  const [fallAlerts, setFallAlerts] = useState([]);
+  const [rawFallAlerts, setRawFallAlerts] = useState([]);
+  const hasLoadedFalls = useRef(false);
+  const hasLoadedHealth = useRef(false);
+  const fallAlerts = useMemo(() => rawFallAlerts.map(item => sensorAlertToRecord(item, workers)), [rawFallAlerts, workers]);
   const [healthRecords, setHealthRecords] = useState([]);
   const [healthError, setHealthError] = useState('');
-  const [fallLoading, setFallLoading] = useState(false);
+  const [fallLoading, setFallLoading] = useState(true);
+  const [healthLoading, setHealthLoading] = useState(true);
   const [fallError, setFallError] = useState('');
   const [tab, setTab] = useState('all');
   const [search, setSearch] = useState('');
@@ -290,48 +296,47 @@ export default function Records() {
     end: '',
   });
 
-  const loadFallAlerts = useCallback(async () => {
-    setFallLoading(true);
-    setFallError('');
-
-    try {
-      const alerts = await getWorkerAlerts();
-      setFallAlerts(
-        alerts.filter(isActualFallAlert).map((item) =>
-          sensorAlertToRecord(item, workers)
-        )
-      );
-    } catch (error) {
-      setFallError(
-        error?.message ||
-          '추락 감지 이력을 불러오지 못했습니다.'
-      );
-    } finally {
-      setFallLoading(false);
-    }
-  }, [workers]);
-
-  useEffect(() => {
-    loadFallAlerts();
-  }, [loadFallAlerts]);
-
-  const loadHealthRecords = useCallback(async () => {
-    try {
-      const pages = [];
+  // Live worker updates change labels only, not the history request lifecycle.
+  const fallGate = useMemo(() => createRequestGate({
+    load: getWorkerAlerts,
+    onStart: () => setFallLoading(!hasLoadedFalls.current),
+    onSuccess: alerts => {
+      hasLoadedFalls.current = true;
+      setRawFallAlerts(alerts.filter(isActualFallAlert));
+      setFallError('');
+    },
+    onError: error => setFallError(error?.message || '추락 감지 이력을 불러오지 못했습니다.'),
+    onFinish: () => setFallLoading(false),
+  }), []);
+  const healthGate = useMemo(() => createRequestGate({
+    load: async () => {
+      const rows = [];
       for (let page = 0; page < 20; page += 1) {
-        const batch = await getNotifications({recipientType: 'MANAGER', page, size: 100});
-        pages.push(...batch);
+        const batch = await getNotifications({ recipientType: 'MANAGER', page, size: 100 });
+        rows.push(...batch);
         if (batch.length < 100) break;
       }
-      const rows = pages;
-      setHealthRecords(rows.map(healthNotificationToRecord).filter(Boolean));
+      return rows.map(healthNotificationToRecord).filter(Boolean);
+    },
+    onStart: () => setHealthLoading(!hasLoadedHealth.current),
+    onSuccess: rows => {
+      hasLoadedHealth.current = true;
+      setHealthRecords(rows);
       setHealthError('');
-    } catch (error) { setHealthError(error?.message || '건강 알림 기록 조회 실패'); }
-  }, []);
-
+    },
+    onError: error => setHealthError(error?.message || '건강 알림 기록 조회 실패'),
+    onFinish: () => setHealthLoading(false),
+  }), []);
+  const loadFallAlerts = useCallback(() => fallGate.run(), [fallGate]);
+  const loadHealthRecords = useCallback(() => healthGate.run(), [healthGate]);
   useEffect(() => {
-    loadHealthRecords();
-    const timer = window.setInterval(loadHealthRecords, 10000);
+    loadFallAlerts().catch(() => {});
+    const timer = window.setInterval(() => { if (!document.hidden) loadFallAlerts().catch(() => {}); }, 5000);
+    return () => window.clearInterval(timer);
+  }, [loadFallAlerts]);
+  useEffect(() => {
+    loadHealthRecords().catch(() => {});
+    const timer = window.setInterval(() => { if (!document.hidden) loadHealthRecords().catch(() => {}); }, 10000);
     return () => window.clearInterval(timer);
   }, [loadHealthRecords]);
 
@@ -405,11 +410,13 @@ export default function Records() {
   const handlePageSizeChange = (nextSize) => { setPageSize(nextSize); setPage(1); };
 
   const refreshPage = async () => {
-    await Promise.allSettled([
-      refreshHazardEvents(),
-      loadFallAlerts(),
-      loadHealthRecords(),
+    const results = await Promise.allSettled([
+      refreshHazardEvents({}, { force: true }),
+      fallGate.run({}, { force: true }),
+      healthGate.run({}, { force: true }),
     ]);
+    const failures = results.filter(result => result.status === 'rejected');
+    if (failures.length) throw new Error(failures.map(result => result.reason?.message || '조회 실패').join(' / '));
   };
 
   return (
@@ -482,7 +489,7 @@ export default function Records() {
           }`}
         >
           <span>
-            {hazardError || fallError
+            {hazardError || fallError || healthError
               ? [
                   hazardError
                     ? `위험 이벤트 API: ${hazardError}`
@@ -494,7 +501,7 @@ export default function Records() {
                 ]
                   .filter(Boolean)
                   .join(' / ')
-              : hazardLoading || fallLoading
+              : hazardLoading || fallLoading || healthLoading
                 ? '사고·알림 기록을 불러오는 중입니다.'
                 : hazardStreamConnected
                   ? '● 실시간 위험 이벤트 기록 연결됨'
@@ -571,9 +578,12 @@ export default function Records() {
 
           {!hazardLoading &&
             !fallLoading &&
+            !healthLoading &&
             rows.length === 0 && (
               <div className="records-empty">
-                {search
+                {hazardError || fallError || healthError
+                  ? '기록을 조회하지 못했습니다. 새로고침으로 다시 시도해주세요.'
+                  : search
                   ? '검색 조건에 맞는 기록이 없습니다.'
                   : dateRange.start || dateRange.end
                     ? '선택한 기간에 저장된 사고·알림 기록이 없습니다.'
