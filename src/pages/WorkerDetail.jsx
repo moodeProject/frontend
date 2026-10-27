@@ -954,15 +954,22 @@ export default function WorkerDetail() {
           <div className="worker-profile-copy">
             <div className="profile-name-row">
               {editingName ? (
-                <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
-                  <input value={nameDraft} onChange={e => setNameDraft(e.target.value)} maxLength={50} aria-label="작업자 이름" style={{minWidth:140,maxWidth:220,minHeight:34,border:'1px solid #b6c5df',borderRadius:8,padding:'6px 10px'}} />
-                  <button type="button" disabled={savingName || !nameDraft.trim()} onClick={saveWorkerName} style={{padding:'7px 11px',borderRadius:8,border:'1px solid #1767ff',background:'#1767ff',color:'#fff',cursor:'pointer'}}>{savingName ? '저장 중' : '저장'}</button>
-                  <button type="button" disabled={savingName} onClick={() => setEditingName(false)} style={{padding:'7px 10px',borderRadius:8,border:'1px solid #dce3ee',background:'#fff',cursor:'pointer'}}>취소</button>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', maxWidth: '100%' }}>
+                  <input
+                    value={nameDraft}
+                    onChange={e => setNameDraft(e.target.value)}
+                    maxLength={50}
+                    aria-label="작업자 이름"
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); saveWorkerName(); } if (e.key === 'Escape') setEditingName(false); }}
+                    style={{ width: 170, maxWidth: '100%', height: 32, minHeight: 32, boxSizing: 'border-box', border: '1px solid #b6c5df', borderRadius: 8, padding: '0 9px', fontSize: 12, lineHeight: 'normal' }}
+                  />
+                  <button type="button" disabled={savingName || !nameDraft.trim()} onClick={saveWorkerName} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box', height: 32, minHeight: 32, padding: '0 10px', borderRadius: 8, border: '1px solid #1767ff', background: '#1767ff', color: '#fff', fontSize: 12, fontWeight: 700, lineHeight: 1, cursor: 'pointer' }}>{savingName ? '저장 중' : '저장'}</button>
+                  <button type="button" disabled={savingName} onClick={() => setEditingName(false)} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box', height: 32, minHeight: 32, padding: '0 10px', borderRadius: 8, border: '1px solid #dce3ee', background: '#fff', color: '#475569', fontSize: 12, fontWeight: 700, lineHeight: 1, cursor: 'pointer' }}>취소</button>
                 </div>
               ) : (
                 <>
                   <h2>{worker.name}</h2>
-                  <button type="button" onClick={() => {setNameDraft(worker.name || '');setEditingName(true);}} style={{border:'1px solid #dce3ee',background:'#fff',borderRadius:8,padding:'6px 10px',fontSize:12,color:'#1767ff',cursor:'pointer'}}>이름 변경</button>
+                  <button type="button" onClick={() => { setNameDraft(worker.name || ''); setEditingName(true); }} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box', height: 32, minHeight: 32, padding: '0 10px', border: '1px solid #dce3ee', background: '#fff', borderRadius: 8, fontSize: 12, fontWeight: 700, lineHeight: 1, color: '#1767ff', cursor: 'pointer' }}>이름 변경</button>
                 </>
               )}
 
