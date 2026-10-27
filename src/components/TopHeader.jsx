@@ -372,9 +372,7 @@ export default function TopHeader({
             <RefreshCw size={14} />
 
             <b>
-              {refreshing
-                ? '갱신 중'
-                : '새로고침'}
+              새로고침
             </b>
           </button>
         </div>
