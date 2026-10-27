@@ -397,7 +397,12 @@ export function WorkerProvider({ children }) {
       );
     }
 
-    setSensorError(errors.join(' / '));
+    const permissionDenied = [workerResult, helmetResult, statusResult, heatResult].some(
+      result => result.status === 'rejected' && result.reason?.status === 403
+    );
+    setSensorError(permissionDenied
+      ? '관리자 API 접근 권한이 거부되었습니다(403). 로그인 계정의 ROLE_ADMIN 권한과 서버 JWT 인증 설정을 확인해주세요.'
+      : [...new Set(errors.filter(Boolean))].join(' / '));
 
     const sensorMap = new Map(
       statuses
