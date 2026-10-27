@@ -276,10 +276,14 @@ export function NotificationProvider({ children }) {
 
     const timer = window.setInterval(
       refreshNotifications,
-      10000
+      5000
     );
 
-    return () => window.clearInterval(timer);
+    const onFocus = () => refreshNotifications();
+    const onVisible = () => { if (!document.hidden) refreshNotifications(); };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { window.clearInterval(timer); window.removeEventListener('focus', onFocus); document.removeEventListener('visibilitychange', onVisible); };
   }, [refreshNotifications]);
 
   useEffect(() => {
