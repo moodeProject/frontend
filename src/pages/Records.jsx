@@ -109,8 +109,8 @@ function healthNotificationToRecord(raw) {
     zone: zone || '위치 미확인',
     dateLabel, time,
     occurredAt: raw.sentAt,
-    process: raw.isRead ? '알림 확인함' : '알림 미확인',
-    processClass: raw.isRead ? 'completed' : 'unprocessed',
+    process: '조치 미확인',
+    processClass: 'unknown',
     message,
   };
 }
@@ -156,10 +156,21 @@ function sensorAlertToRecord(alert, workers) {
   };
 }
 
+function matchesActionableEvent(record, events) {
+  if (record.source !== 'sensor-alert' && record.source !== 'health-notification') return false;
+  const at = new Date(record.occurredAt || 0).getTime();
+  if (!Number.isFinite(at)) return false;
+  return events.some(event => event.source === 'server' &&
+    event.category === record.category &&
+    record.name && record.name !== '미확인 작업자' &&
+    String(record.name) === String(event.name) &&
+    Math.abs(new Date(event.occurredAt || 0).getTime() - at) <= 120000);
+}
+
 function processLabel(item) {
-  if (item.source === 'health-notification') return item.process || '알림 미확인';
+  if (item.source === 'health-notification') return '조치 미확인';
   if (item.source === 'sensor-alert') {
-    return '센서 감지';
+    return '조치 미확인';
   }
 
   if (item.statusLabel) return item.statusLabel;
@@ -172,9 +183,9 @@ function processLabel(item) {
 }
 
 function processClass(item) {
-  if (item.source === 'health-notification') return item.processClass === 'completed' ? 'confirmed' : 'unprocessed';
+  if (item.source === 'health-notification') return 'unknown';
   if (item.source === 'sensor-alert') {
-    return 'unprocessed';
+    return 'unknown';
   }
 
   const status = String(item.status ?? '').toUpperCase();
@@ -320,6 +331,7 @@ export default function Records() {
   const visibleItems = useMemo(
     () =>
       [...detections, ...fallAlerts, ...healthRecords]
+        .filter((item) => !matchesActionableEvent(item, detections))
         .filter((item) =>
           isInDateRange(item, dateRange)
         )
