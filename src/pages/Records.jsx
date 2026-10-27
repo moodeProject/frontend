@@ -20,6 +20,7 @@ import TopHeader from '../components/TopHeader';
 import { useDetections } from '../context/DetectionContext';
 import { useWorkers } from '../context/WorkerContext';
 import { getWorkerAlerts } from '../api/workerStatus';
+import { getNotifications } from '../api/notifications';
 
 const tabs = [
   { key: 'all', label: '전체' },
@@ -82,6 +83,37 @@ function formatDateTime(value) {
   };
 }
 
+function isActualFallAlert(alert) {
+  const state = String(alert?.fallState || '').toUpperCase();
+  const posture = String(alert?.posture || '').toUpperCase();
+  return ['ACTION_REQUIRED', 'FALLING', 'FALLEN', 'UNCONSCIOUS'].includes(state)
+    || ['STUMBLE', 'COLLAPSE'].includes(posture)
+    || alert?.fallDetected === true;
+}
+
+function healthNotificationToRecord(raw) {
+  const message = String(raw?.message || '');
+  if (raw?.hazardEventId != null || raw?.sosId != null || !message.includes('건강 이상')) return null;
+  const { dateLabel, time } = formatDateTime(raw.sentAt);
+  const [name, zone] = message.split(' · ');
+  return {
+    id: `health-notification-${raw.id}`,
+    notificationId: raw.id,
+    source: 'health-notification',
+    category: 'health',
+    kind: 'fatigue',
+    type: '건강 이상 감지',
+    level: 'warning',
+    name: name || '작업자 정보 없음',
+    zone: zone || '위치 미확인',
+    dateLabel, time,
+    occurredAt: raw.sentAt,
+    process: raw.isRead ? '확인함' : '확인 필요',
+    processClass: raw.isRead ? 'completed' : 'unprocessed',
+    message,
+  };
+}
+
 function sensorAlertToRecord(alert, workers) {
   const worker = workers.find(
     (item) =>
@@ -124,6 +156,7 @@ function sensorAlertToRecord(alert, workers) {
 }
 
 function processLabel(item) {
+  if (item.source === 'health-notification') return item.process || '확인 필요';
   if (item.source === 'sensor-alert') {
     return '센서 감지';
   }
@@ -138,6 +171,7 @@ function processLabel(item) {
 }
 
 function processClass(item) {
+  if (item.source === 'health-notification') return item.processClass === 'completed' ? 'confirmed' : 'unprocessed';
   if (item.source === 'sensor-alert') {
     return 'unprocessed';
   }
@@ -161,6 +195,7 @@ function levelLabel(item) {
 }
 
 function detailHref(item) {
+  if (item.source === 'health-notification') return `/detections/health-notification/${encodeURIComponent(item.notificationId)}`;
   if (item.source === 'sensor-alert') {
     const qs = new URLSearchParams();
 
@@ -229,6 +264,8 @@ export default function Records() {
   const { workers } = useWorkers();
 
   const [fallAlerts, setFallAlerts] = useState([]);
+  const [healthRecords, setHealthRecords] = useState([]);
+  const [healthError, setHealthError] = useState('');
   const [fallLoading, setFallLoading] = useState(false);
   const [fallError, setFallError] = useState('');
   const [tab, setTab] = useState('all');
@@ -245,7 +282,7 @@ export default function Records() {
     try {
       const alerts = await getWorkerAlerts();
       setFallAlerts(
-        alerts.map((item) =>
+        alerts.filter(isActualFallAlert).map((item) =>
           sensorAlertToRecord(item, workers)
         )
       );
@@ -263,9 +300,23 @@ export default function Records() {
     loadFallAlerts();
   }, [loadFallAlerts]);
 
+  const loadHealthRecords = useCallback(async () => {
+    try {
+      const rows = await getNotifications({recipientType: 'MANAGER', page: 0, size: 1000});
+      setHealthRecords(rows.map(healthNotificationToRecord).filter(Boolean));
+      setHealthError('');
+    } catch (error) { setHealthError(error?.message || '건강 알림 기록 조회 실패'); }
+  }, []);
+
+  useEffect(() => {
+    loadHealthRecords();
+    const timer = window.setInterval(loadHealthRecords, 10000);
+    return () => window.clearInterval(timer);
+  }, [loadHealthRecords]);
+
   const visibleItems = useMemo(
     () =>
-      [...detections, ...fallAlerts]
+      [...detections, ...fallAlerts, ...healthRecords]
         .filter((item) =>
           isInDateRange(item, dateRange)
         )
@@ -278,7 +329,7 @@ export default function Records() {
               a.occurredAt || a.recordedAt || 0
             ).getTime()
         ),
-    [detections, fallAlerts, dateRange]
+    [detections, fallAlerts, healthRecords, dateRange]
   );
 
   const counts = useMemo(
@@ -329,6 +380,7 @@ export default function Records() {
     await Promise.allSettled([
       refreshHazardEvents(),
       loadFallAlerts(),
+      loadHealthRecords(),
     ]);
   };
 
@@ -396,7 +448,7 @@ export default function Records() {
 
         <div
           className={`worker-filter-banner ${
-            hazardError || fallError
+            hazardError || fallError || healthError
               ? 'danger'
               : 'normal'
           }`}
@@ -410,6 +462,7 @@ export default function Records() {
                   fallError
                     ? `추락 이력 API: ${fallError}`
                     : '',
+                  healthError ? `건강 알림 API: ${healthError}` : '',
                 ]
                   .filter(Boolean)
                   .join(' / ')
