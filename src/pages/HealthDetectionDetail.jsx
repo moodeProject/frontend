@@ -95,6 +95,36 @@ function isHeatHazard(detail, fallback) {
   );
 }
 
+// 서버 HazardActionType / WorkerState 를 화면 문구로
+const ACTION_LABELS = {
+  SEND_WARNING: '휴식 권고 전송',
+  BLOCK_ZONE: '구역 접근 금지',
+  RESOLVE: '처리 완료',
+};
+
+const HEALTH_STATE_LABELS = {
+  NORMAL: '정상',
+  RECOMMEND: '휴식 권고',
+  ACTION_REQUIRED: '조치 필요',
+};
+
+function formatVital(value, unit) {
+  return value != null && Number(value) > 0 ? `${value}${unit}` : '-';
+}
+
+function formatDateTime(value) {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleString('ko-KR', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+}
+
 function formatTime(value) {
   if (!value) return '--:--';
 
@@ -170,6 +200,9 @@ export default function HealthDetectionDetail() {
   );
 
   const isHeat = isHeatHazard(detail, fallbackItem);
+  // 사고가 생긴 순간의 생체 값(서버 vitals). 아래 "현재 상태"는 실시간 값이라 서로 다를 수 있다.
+  const snapshot = detail?.vitals ?? null;
+  const actions = Array.isArray(detail?.actions) ? detail.actions : [];
   const exampleHeart = worker?.healthExampleFields?.heartRate === true;
   const exampleSpo2 = worker?.healthExampleFields?.spo2 === true;
 
@@ -285,9 +318,11 @@ export default function HealthDetectionDetail() {
   };
 
   const finish = async () => {
+    // type 이 이미 "건강 이상 감지"면 그대로 붙였을 때 "건강 이상 감지 건강 이상 감지"가 된다
+    const label = type.includes('건강 이상') ? type : `${type} 건강 이상`;
     await runAction(
       'RESOLVE',
-      `${type} 건강 이상 감지 처리 완료`,
+      `${label} 처리 완료`,
       '건강 이상 감지 건을 처리완료로 변경했습니다.'
     );
   };
@@ -414,13 +449,49 @@ export default function HealthDetectionDetail() {
                 <span>{type}</span>
 
                 <strong>
-                  {worker?.heartRate
-                    ? `${worker.heartRate} bpm${exampleHeart ? ' · 예시' : ''}`
-                    : '센서 확인 필요'}
+                  {snapshot?.heartRate > 0
+                    ? `${snapshot.heartRate} bpm`
+                    : worker?.heartRate
+                      ? `${worker.heartRate} bpm${exampleHeart ? ' · 예시' : ''}`
+                      : '센서 확인 필요'}
                 </strong>
 
                 <p>{riskDescription}</p>
               </div>
+            </div>
+
+            {snapshot && (
+              <>
+                <div className="section-caption health-section-gap">
+                  발생 당시 측정값 · {time}
+                </div>
+                <div className="health-metric-grid">
+                  <div>
+                    <span>심박수</span>
+                    <b>{formatVital(snapshot.heartRate, ' bpm')}</b>
+                  </div>
+                  <div>
+                    <span>SpO₂</span>
+                    <b>{formatVital(snapshot.spo2, '%')}</b>
+                  </div>
+                  <div>
+                    <span>HRV</span>
+                    <b>{formatVital(snapshot.hrv, ' ms')}</b>
+                  </div>
+                  <div>
+                    <span>위험 단계</span>
+                    <b>
+                      {HEALTH_STATE_LABELS[snapshot.healthState] ||
+                        snapshot.healthState ||
+                        '-'}
+                    </b>
+                  </div>
+                </div>
+              </>
+            )}
+
+            <div className="section-caption health-section-gap">
+              현재 상태 · 실시간
             </div>
 
             <div className="health-metric-grid">
@@ -572,6 +643,33 @@ export default function HealthDetectionDetail() {
                 <RefreshCw size={16} />
                 상세 새로고침
               </button>
+            </section>
+
+            <section className="panel health-history-card">
+              <h3>조치 이력</h3>
+              {actions.length === 0 ? (
+                <p className="health-history-empty">
+                  아직 조치 기록이 없습니다.
+                </p>
+              ) : (
+                <ul>
+                  {actions.map((action, index) => (
+                    <li key={`${action.actionType}-${index}`}>
+                      <strong>
+                        {ACTION_LABELS[action.actionType] ||
+                          action.actionType}
+                      </strong>
+                      <span>
+                        {formatDateTime(action.performedAt)}
+                        {action.performedBy != null
+                          ? ` · 관리자 ${action.performedBy}`
+                          : ''}
+                      </span>
+                      {action.memo && <p>{action.memo}</p>}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </section>
           </aside>
         </div>
