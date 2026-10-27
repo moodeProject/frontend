@@ -122,23 +122,10 @@ export default function Dashboard() {
 
   const [sosList, setSosList] = useState([]);
   const [sosError, setSosError] = useState('');
+  const [dashboardUpdatedAt, setDashboardUpdatedAt] = useState(null);
 
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetchSOS = () => {
-      getSOSList('REQUESTED').then((list) => {
-        if (Array.isArray(list)) { setSosList(list); setSosError(''); }
-        else { setSosError('SOS 목록 응답 형식을 확인할 수 없습니다.'); }
-      }).catch(error => { setSosError(error?.message || 'SOS 조회 실패'); });
-    };
-    fetchSOS();
-    const id = setInterval(fetchSOS, 5000);
-    window.addEventListener('focus', fetchSOS);
-    const onVisible = () => { if (!document.hidden) fetchSOS(); };
-    document.addEventListener('visibilitychange', onVisible);
-    return () => { clearInterval(id); window.removeEventListener('focus', fetchSOS); document.removeEventListener('visibilitychange', onVisible); };
-  }, []);
 
   const handleResolve = async (sosId) => {
     if (!window.confirm('정말 SOS 경고를 끄시겠습니까?')) return;
@@ -272,11 +259,13 @@ export default function Dashboard() {
     if (results.every(result => result.status === 'rejected')) {
       throw new Error('홈 데이터를 갱신하지 못했습니다. 서버 연결을 확인해 주세요.');
     }
+    setDashboardUpdatedAt(new Date());
   }, [refreshWorkerStatuses, refreshHazardEvents]);
 
   // Dashboard owns its refresh cadence: refresh every visible data section,
   // not just the zone/worker card, without resetting the current page.
   useEffect(() => {
+    refreshDashboard().catch(() => {});
     const timer = window.setInterval(() => {
       if (!document.hidden) refreshDashboard().catch(() => {});
     }, 5000);
@@ -306,6 +295,7 @@ export default function Dashboard() {
         title="통합 모니터링"
         subtitle="현장 전체 실시간 현황"
         onRefresh={refreshDashboard}
+        dataUpdatedAt={dashboardUpdatedAt}
       />
 
       <div className="page-body dashboard-page">
