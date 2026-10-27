@@ -321,7 +321,7 @@ function StatusCard({
             className={`status-card-value ${level}`}
           >
             {Number(worker.heartRate) > 0 ? worker.heartRate : '-'}{' '}
-            bpm{worker.healthExampleFields?.heartRate ? ' · 예시' : ''}
+            bpm
           </strong>
 
           <div className="detail-fatigue">
@@ -1161,9 +1161,9 @@ export default function WorkerDetail() {
           <p style={{ margin: '0 0 12px', color: '#64748b', fontSize: 12 }}>건강 센서 수신값이 없거나 유효하지 않은 항목에는 예시값을 표시합니다. 실제 수신 데이터와 구분해서 확인하세요.</p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(155px, 1fr))', gap: 12 }}>
             {[
-              ['심박수', validHeartRate ? `${worker.heartRate} bpm${worker.healthExampleFields?.heartRate ? ' · 예시' : ''}` : '측정 대기'],
-              ['산소포화도', validSpo2 ? `${worker.spo2}%${worker.healthExampleFields?.spo2 ? ' · 예시' : ''}` : '측정 대기'],
-              ['HRV', validHrv ? `${Number(worker.hrv).toFixed(1)}${worker.healthExampleFields?.hrv ? ' · 예시' : ''}` : '측정 대기'],
+              ['심박수', validHeartRate ? `${worker.heartRate} bpm$` : '측정 대기'],
+              ['산소포화도', validSpo2 ? `${worker.spo2}%$` : '측정 대기'],
+              ['HRV', validHrv ? `${Number(worker.hrv).toFixed(1)}$` : '측정 대기'],
               ['가속도 X / Y / Z', recentSensor && [worker.ax, worker.ay, worker.az].every(v => v != null) ? [worker.ax, worker.ay, worker.az].join(' / ') : '데이터 대기'],
               ['자이로 X / Y / Z', recentSensor && [worker.gx, worker.gy, worker.gz].every(v => v != null) ? [worker.gx, worker.gy, worker.gz].join(' / ') : '데이터 대기'],
               ['자세', recentSensor && worker.posture ? postureLabel(worker.posture) : '데이터 대기'],
