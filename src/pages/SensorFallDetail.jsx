@@ -777,16 +777,7 @@ export default function SensorFallDetail() {
                 : '긴급 구조 요청'}
             </button>
 
-            <div className="worker-filter-banner normal">
-              <span>
-                현재 상세는 센서 추락 이력
-                API 기준입니다. 영상·조치
-                정보는 FALL hazard-event
-                생성 시 추가됩니다.
-              </span>
-            </div>
-
-            <button
+<button
               className="location-btn"
               type="button"
               onClick={() => {
