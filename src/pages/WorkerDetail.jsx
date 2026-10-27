@@ -337,8 +337,7 @@ function StatusCard({
             </div>
 
             <b>
-              {worker.sensorConnected && worker.fatigue ? worker.fatigue : '측정 대기'}
-              {worker.fatigue ? '단계' : ''}
+              {typeof worker.fatigueAbnormal === 'boolean' && worker.recordedAt ? (worker.fatigueAbnormal ? '이상 감지' : '정상') : '측정 대기'}
             </b>
           </div>
 
