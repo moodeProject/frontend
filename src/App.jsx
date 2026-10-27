@@ -39,6 +39,7 @@ import WorkerRecords from './pages/worker/WorkerRecords';
 import WorkerNearby from './pages/worker/WorkerNearby';
 import WorkerHealth from './pages/worker/WorkerHealth';
 import WorkerHazards from './pages/worker/WorkerHazards';
+import WorkerHazardDetail from './pages/worker/WorkerHazardDetail';
 import WorkerAlerts from './pages/worker/WorkerAlerts';
 import WorkerSOS from './pages/worker/WorkerSOS';
 import WorkerFallAlert from './pages/worker/WorkerFallAlert';
@@ -67,6 +68,7 @@ export default function App() {
                 <Route path="/worker/nearby" element={<WorkerNearby />} />
                 <Route path="/worker/health" element={<WorkerHealth />} />
                 <Route path="/worker/hazards" element={<WorkerHazards />} />
+                <Route path="/worker/hazards/:eventId" element={<WorkerHazardDetail />} />
                 <Route path="/worker/alerts" element={<WorkerAlerts />} />
                 <Route path="/worker/sos" element={<WorkerSOS />} />
                 <Route path="/worker/fall-alert" element={<WorkerFallAlert />} />
