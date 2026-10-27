@@ -63,6 +63,17 @@ function formatTime(value) {
   });
 }
 
+function validMeasurement(value, unit = '') {
+  const n = Number(value);
+  return value == null || value === '' || !Number.isFinite(n) || n <= 0
+    ? '측정 불가'
+    : `${n}${unit}`;
+}
+
+function fallStateLabel(value) {
+  return ({ NORMAL: '정상', RECOMMEND: '관찰 권고', ACTION_REQUIRED: '휘청거림 · 조치 필요', FALLING: '쓰러짐 감지', FALLEN: '추락 감지', UNCONSCIOUS: '의식불명 감지' })[String(value || '').toUpperCase()] || '판정 없음';
+}
+
 function confidence(value) {
   if (
     value === null ||
@@ -477,10 +488,10 @@ export default function SensorFallDetail() {
               </div>
               <div className="final-cause">
                 <span>추락 상태 · 자세</span>
-                <strong>{detail?.fallState || '-'} · {postureLabel(detail?.posture)}</strong>
+                <strong>{fallStateLabel(detail?.fallState)} · {postureLabel(detail?.posture)}</strong>
               </div>
               <div className="final-cause">
-                <span>추락 신뢰도</span>
+                <span>온보드 AI 추락 확률</span>
                 <strong>{confidence(detail?.fallConfidence)}</strong>
               </div>
             </section>
@@ -574,14 +585,14 @@ export default function SensorFallDetail() {
                 <div>
                   <dt>SpO₂</dt>
                   <dd>
-                    {detail?.spo2 ?? '-'}%
+                    {validMeasurement(detail?.spo2, '%')}
                   </dd>
                 </div>
 
                 <div>
                   <dt>HRV</dt>
                   <dd>
-                    {detail?.hrv ?? '-'}
+                    {validMeasurement(detail?.hrv)}
                   </dd>
                 </div>
 
@@ -602,7 +613,7 @@ export default function SensorFallDetail() {
               <div>
                 추락 상태{' '}
                 <b>
-                  {detail?.fallState || '-'}
+                  {fallStateLabel(detail?.fallState)}
                 </b>
               </div>
 
@@ -628,14 +639,6 @@ export default function SensorFallDetail() {
                 </b>
               </div>
 
-              <div>
-                AI 신뢰도{' '}
-                <b>
-                  {confidence(
-                    detail?.fallConfidence
-                  )}
-                </b>
-              </div>
             </section>
 
             <section className="panel related-card">
