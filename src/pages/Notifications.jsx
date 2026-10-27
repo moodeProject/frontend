@@ -21,6 +21,8 @@ export default function Notifications() {
     markRead,
     markAllRead,
     hazardStreamConnected,
+    serverNotificationError,
+    refreshNotifications,
   } = useNotifications();
 
   const {
@@ -42,9 +44,9 @@ export default function Notifications() {
     [notifications, tab]
   );
 
-  const openItem = (item) => {
-    markRead(item.id);
-    navigate(item.target || '/');
+  const openItem = async (item) => {
+    if (!item.read) await markRead(item.id);
+    navigate(item.target || '/notifications');
   };
 
   return (
@@ -52,7 +54,7 @@ export default function Notifications() {
       <TopHeader
         title="알림"
         subtitle="실제 위험 이벤트 및 관리자 조치 알림"
-        onRefresh={refreshHazardEvents}
+        onRefresh={() => { refreshHazardEvents(); refreshNotifications(); }}
       />
 
       <div className="page-body notifications-page">
@@ -69,12 +71,18 @@ export default function Notifications() {
           <button
             className="mark-all-btn"
             onClick={markAllRead}
-            disabled={notifications.length === 0}
+            disabled={unreadCount === 0}
           >
             <CheckCheck size={15} />
             모두 읽음 처리
           </button>
         </div>
+
+        {serverNotificationError && (
+          <div className="worker-filter-banner danger" role="alert">
+            <span>서버 알림 API 오류: {serverNotificationError}</span>
+          </div>
+        )}
 
         {hazardError && (
           <div className="worker-filter-banner danger">
