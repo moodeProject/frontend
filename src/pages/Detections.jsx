@@ -24,6 +24,7 @@ import TopHeader from '../components/TopHeader';
 import { useDetections } from '../context/DetectionContext';
 import { useWorkers } from '../context/WorkerContext';
 import { getWorkerAlerts } from '../api/workerStatus';
+import { getNotifications } from '../api/notifications';
 import { runHazardEventAction } from '../api/hazardEvents';
 import '../styles/detectionsBulkAction.css';
 
@@ -127,6 +128,23 @@ function sensorAlertToDetection(alert, workers) {
   };
 }
 
+function healthNotificationToDetection(raw) {
+  const message = String(raw.message || '');
+  if (raw.hazardEventId != null || raw.sosId != null || !message.includes('건강 이상')) return null;
+  const { dateLabel, time } = formatDateTime(raw.sentAt);
+  const [name, zone] = message.split(' · ');
+  return {
+    id: `health-notification-${raw.id}`, notificationId: raw.id,
+    source: 'health-notification', category: 'health', kind: 'fatigue',
+    level: 'warning', type: '건강 이상 감지',
+    name: name || '작업자 정보 없음', zone: zone || '위치 미확인',
+    time, dateLabel, occurredAt: raw.sentAt,
+    process: raw.isRead ? '확인함' : '조치 필요',
+    processClass: raw.isRead ? 'completed' : 'unprocessed',
+    message
+  };
+}
+
 function isInDateRange(item, range) {
   if (!range.start && !range.end) return true;
 
@@ -158,6 +176,7 @@ function isInDateRange(item, range) {
 }
 
 function detailPath(item) {
+  if (item.source === 'health-notification') return `/detections/health-notification/${encodeURIComponent(item.notificationId)}`;
   if (item.source === 'sensor-alert') {
     const qs = new URLSearchParams();
 
@@ -197,6 +216,8 @@ export default function Detections() {
   const { workers } = useWorkers();
 
   const [fallAlerts, setFallAlerts] = useState([]);
+  const [healthRecords, setHealthRecords] = useState([]);
+  const [healthError, setHealthError] = useState('');
   const [fallLoading, setFallLoading] = useState(false);
   const [fallError, setFallError] = useState('');
   const [dateRange, setDateRange] = useState({
@@ -236,9 +257,23 @@ export default function Detections() {
     loadFallAlerts();
   }, [loadFallAlerts]);
 
+  const loadHealthRecords = useCallback(async () => {
+    try {
+      const rows = await getNotifications({ recipientType: 'MANAGER', page: 0, size: 1000 });
+      setHealthRecords(rows.map(healthNotificationToDetection).filter(Boolean));
+      setHealthError('');
+    } catch (error) { setHealthError(error?.message || '건강 이력 조회 실패'); }
+  }, []);
+
+  useEffect(() => {
+    loadHealthRecords();
+    const timer = window.setInterval(loadHealthRecords, 10000);
+    return () => window.clearInterval(timer);
+  }, [loadHealthRecords]);
+
   const allItems = useMemo(
     () =>
-      [...detections, ...fallAlerts]
+      [...detections, ...fallAlerts, ...healthRecords]
         .filter((item) =>
           isInDateRange(item, dateRange)
         )
@@ -251,7 +286,7 @@ export default function Detections() {
               a.occurredAt || a.recordedAt || 0
             ).getTime()
         ),
-    [detections, fallAlerts, dateRange]
+    [detections, fallAlerts, healthRecords, dateRange]
   );
 
   const counts = useMemo(
@@ -361,6 +396,7 @@ export default function Detections() {
     await Promise.allSettled([
       refreshHazardEvents(),
       loadFallAlerts(),
+      loadHealthRecords(),
     ]);
   };
 
@@ -452,7 +488,7 @@ export default function Detections() {
 
         <div
           className={`worker-filter-banner ${
-            hazardError || fallError
+            hazardError || fallError || healthError
               ? 'danger'
               : 'normal'
           }`}
@@ -466,6 +502,7 @@ export default function Detections() {
                   fallError
                     ? `추락 이력 API: ${fallError}`
                     : '',
+                  healthError ? `건강 알림 API: ${healthError}` : '',
                 ]
                   .filter(Boolean)
                   .join(' / ')
