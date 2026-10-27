@@ -1,0 +1,13 @@
+/* Worker detail: keep name/action hierarchy intact and prevent health-card overflow. */
+.worker-detail-page .profile-name-row{display:flex;align-items:center;flex-wrap:wrap;gap:12px;min-height:36px}
+.worker-detail-page .worker-detail-name-group{display:inline-flex;align-items:center;flex-wrap:wrap;gap:10px;min-width:0}
+.worker-detail-page .worker-detail-name-group h2{margin:0;font-size:19px;line-height:1.3;font-weight:800;white-space:normal;overflow-wrap:anywhere}
+.worker-detail-page .worker-detail-name-edit{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;height:32px;min-height:32px;padding:0 11px;flex-shrink:0;border:1px solid #dce3ee;background:#fff;border-radius:8px;color:#1767ff;font-size:12px;line-height:1;font-weight:700;cursor:pointer}
+.worker-detail-page .worker-detail-name-edit:hover{background:#eff5ff}
+.worker-detail-page .worker-status-grid{align-items:stretch;margin-bottom:30px;row-gap:20px}
+.worker-detail-page .worker-status-card{height:auto;min-height:188px;display:flex;flex-direction:column;overflow:visible;padding-bottom:20px}
+.worker-detail-page .detail-personal-heat-risk{position:static;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid #e9edf3;min-height:32px;font-size:12px;line-height:1.45}
+.worker-detail-page .detail-personal-heat-risk span{color:#8391a6}
+.worker-detail-page .detail-personal-heat-risk b{margin-left:auto}
+.worker-detail-page .worker-status-grid + .panel{margin-top:14px}
+@media(max-width:900px){.worker-detail-page .worker-status-grid{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}.worker-detail-page .worker-detail-name-group h2{font-size:17px}}
