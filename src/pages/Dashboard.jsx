@@ -12,6 +12,7 @@ import {
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import {
@@ -111,6 +112,11 @@ export default function Dashboard() {
     hazardStreamConnected,
   } = useDetections();
 
+  const rightStackRef = useRef(null);
+  const alertHeaderRef = useRef(null);
+  const alertListRef = useRef(null);
+  const [visibleAlertCount, setVisibleAlertCount] = useState(5);
+
   const [expandedStatus, setExpandedStatus] =
     useState('');
 
@@ -192,14 +198,34 @@ export default function Dashboard() {
             new Date(b.occurredAt || 0).getTime() -
             new Date(a.occurredAt || 0).getTime()
         )
-        .slice(0, 5),
-    [detections]
+        .slice(0, visibleAlertCount),
+    [detections, visibleAlertCount]
   );
 
   const zones = useMemo(
     () => zoneState(attentionWorkers),
     [attentionWorkers]
   );
+
+  // Match the real-time incident list to the height of the right-side panels.
+  useEffect(() => {
+    const side = rightStackRef.current;
+    if (!side) return;
+    const measure = () => {
+      const available = side.getBoundingClientRect().height
+        - (alertHeaderRef.current?.getBoundingClientRect().height || 54);
+      const firstRow = alertListRef.current?.querySelector('.alert-row');
+      const rowHeight = firstRow?.getBoundingClientRect().height || 98;
+      const count = Math.max(1, Math.min(100, Math.floor(Math.max(0, available) / Math.max(1, rowHeight))));
+      setVisibleAlertCount(prev => prev === count ? prev : count);
+    };
+    measure();
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
+    observer?.observe(side);
+    if (alertHeaderRef.current) observer?.observe(alertHeaderRef.current);
+    window.addEventListener('resize', measure);
+    return () => { observer?.disconnect(); window.removeEventListener('resize', measure); };
+  }, [sosList.length, riskyWorkers.length, zones.length]);
 
   const handleSummaryClick = (key) => {
     if (key === 'warning' || key === 'danger') {
@@ -379,7 +405,7 @@ export default function Dashboard() {
               </Link>
             </div>
 
-            <div className="alert-list">
+            <div className="alert-list" ref={alertListRef}>
               {recentHazards.length > 0 ? (
                 recentHazards.map((item) => (
                   <div
@@ -452,7 +478,7 @@ export default function Dashboard() {
             </div>
           </section>
 
-          <aside className="right-stack">
+          <aside className="right-stack" ref={rightStackRef}>
             {sosList.length > 0 && (
               <section className="panel sos-panel dashboard-sos-list">
                 <div className="panel-title-row border-bottom">
