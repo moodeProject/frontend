@@ -340,6 +340,19 @@ export function WorkerProvider({ children }) {
     if (refreshInFlight.current) return;
     refreshInFlight.current = true;
     try {
+    const path = window.location.pathname;
+    if (!path.startsWith('/worker/')) {
+      const token = localStorage.getItem('safehelmet_admin_token');
+      let adminAuthenticated = false;
+      try {
+        const data = JSON.parse(atob((token || '').split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+        adminAuthenticated = data.userType === 'ADMIN' && Number(data.exp) * 1000 > Date.now();
+      } catch {}
+      if (!adminAuthenticated) {
+        setSensorLoading(false);
+        return;
+      }
+    }
     // Worker tokens must not enumerate all workers, helmet assignments, or
     // site-wide health readings. The backend rejects these admin APIs with 403.
     // Use a server-authorized self-service endpoint when one is available.
