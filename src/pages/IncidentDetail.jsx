@@ -508,119 +508,30 @@ export default function IncidentDetail() {
 
         <div className="incident-layout">
           <div className="incident-main">
-            <section className="panel video-panel">
-              <div className="section-caption">
-                사고 영상 확인
-                <span>
-                  {detail?.clip
-                    ? '서버 저장 영상'
-                    : '영상 준비 전'}
-                </span>
-              </div>
-
-              {playbackUrl && showClip ? (
-                <video
-                  key={playbackUrl}
-                  src={playbackUrl}
-                  controls
-                  autoPlay
-                  style={{
-                    width: '100%',
-                    maxHeight: 520,
-                    borderRadius: 12,
-                    background: '#07111d',
-                  }}
-                />
-              ) : (
-                <div className="fake-video">
-                  <div className="video-top">
-                    <span>● 현장 영상</span>
-                    <time>
-                      {formatDateTime(occurredAt)}
-                    </time>
-                  </div>
-
-                  <div className="fall-scene">
-                    <div className="fall-box">
-                      ⚠ {hazardLabel}
-                      {confidence != null
-                        ? ` · ${Math.round(
-                            confidence <= 1
-                              ? confidence * 100
-                              : confidence
-                          )}%`
-                        : ''}
-                    </div>
-
-                    <div className="impact">
-                      FALL
-                    </div>
-                  </div>
-
-                  <div className="video-bottom">
-                    <span>
-                      AI ACTIVE ·{' '}
-                      {severity || 'FALL'} ·{' '}
-                      {boxes.length} DETECTION
-                    </span>
-                  </div>
-
-                  <div className="video-controls">
-                    <Play size={18} />
-                    <b>사고 시점</b>
-                    <span>
-                      {detail?.clip?.markedOffsetSeconds ??
-                        '-'}{' '}
-                      /{' '}
-                      {detail?.clip?.durationSeconds ??
-                        '-'}
-                    </span>
-                  </div>
+            <section className="panel cause-panel" style={{ marginBottom: 16 }}>
+              <div className="section-caption">추락 사고 정보 · 센서 기반</div>
+              <div className="health-recommend-box">
+                <TriangleAlert size={20} />
+                <div>
+                  <strong>추락 감지 시 사고 영상은 제공되지 않습니다.</strong>
+                  <p>가속도·자이로 등 센서 판정으로 기록된 사고입니다. 카메라 사고 영상 자동 저장 기능은 아직 연결되어 있지 않습니다.</p>
                 </div>
-              )}
-
-              <div className="timeline-labels">
-                <span>사고 전</span>
-                <b>▶ 사고 시점</b>
-                <span>사고 후</span>
               </div>
-
-              <div
-                style={{
-                  display: 'flex',
-                  gap: 10,
-                  marginTop: 12,
-                }}
-              >
-                {playbackUrl && (
-                  <button
-                    type="button"
-                    className="location-btn"
-                    onClick={() =>
-                      setShowClip((value) => !value)
-                    }
-                  >
-                    <Play size={15} />
-                    {showClip
-                      ? '영상 닫기'
-                      : '실제 영상 재생'}
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  className="location-btn"
-                  onClick={() =>
-                    loadDetail().catch(() => {})
-                  }
-                >
-                  <RefreshCw size={15} />
-                  영상/상세 갱신
-                </button>
+              <div className="final-cause">
+                <span>사고 발생 시간</span>
+                <strong>{formatDateTime(occurredAt)}</strong>
+              </div>
+              <div className="final-cause">
+                <span>작업자 · 위치</span>
+                <strong>{name} · {zone}</strong>
+              </div>
+              <div className="final-cause">
+                <span>감지 유형 · 상태</span>
+                <strong>{hazardLabel} · {severity || '확인 필요'}</strong>
               </div>
             </section>
 
-            <section className="panel cause-panel">
+                        <section className="panel cause-panel">
               <h3>사고 상세 분석</h3>
 
               <div className="final-cause">
