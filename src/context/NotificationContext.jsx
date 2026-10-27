@@ -181,6 +181,15 @@ function serverTarget(raw) {
   return '/notifications';
 }
 
+function isFallRescueNotification(item) {
+  const value = String(item?.title || '') + ' ' + String(item?.message || '');
+  return /추락.*자동.*구조.*요청|자동.*구조.*요청/.test(value);
+}
+function preferredNotificationTarget(item) {
+  if (item.sosId != null) return `/sos/${encodeURIComponent(item.sosId)}`;
+  if (isFallRescueNotification(item)) return `/fall-rescue/${encodeURIComponent(item.source || 'manual')}/${encodeURIComponent(item.id)}`;
+  return item.target || '/notifications';
+}
 function normalizeServerNotification(raw) {
   const createdAt =
     raw?.sentAt ??
@@ -321,6 +330,7 @@ export function NotificationProvider({ children }) {
     const seen = new Set();
 
     return combined
+      .map(item => ({ ...item, target: preferredNotificationTarget(item) }))
       .filter((item) => {
         const key =
           item.source === 'server'
