@@ -249,15 +249,21 @@ export function DetectionProvider({ children }) {
   const refreshingRef = useRef(false);
 
   const queryHazardEvents = useCallback(async (params = {}) => {
-    const page = await getHazardEvents(params);
-
+    const first = await getHazardEvents({ size: 100, ...params, page: 0 });
+    const maxPages = Math.min(Math.max(1, first.totalPages || 1), 20);
+    const following = await Promise.all(
+      Array.from({ length: maxPages - 1 }, (_, index) =>
+        getHazardEvents({ size: 100, ...params, page: index + 1 })
+      )
+    );
+    const events = [first, ...following].flatMap(result => result.content).map(toUiEvent);
     return {
-      events: page.content.map(toUiEvent),
-      summary: page.summary,
-      page: page.page,
-      size: page.size,
-      totalElements: page.totalElements,
-      totalPages: page.totalPages,
+      events,
+      summary: first.summary,
+      page: first.page,
+      size: first.size,
+      totalElements: first.totalElements,
+      totalPages: first.totalPages,
     };
   }, []);
 
@@ -292,6 +298,9 @@ export function DetectionProvider({ children }) {
 
   useEffect(() => {
     refreshHazardEvents().catch(() => {});
+    // Also refresh without SSE, which can disconnect behind authenticated proxies.
+    const interval = window.setInterval(() => refreshHazardEvents().catch(() => {}), 20000);
+    return () => window.clearInterval(interval);
   }, [refreshHazardEvents]);
 
   // 목록 API의 폴링과 별개로 SSE를 연결해 새 이벤트를 즉시 반영합니다.
