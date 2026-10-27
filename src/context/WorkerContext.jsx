@@ -21,7 +21,7 @@ import { getDefaultWorkerProfile } from '../utils/defaultWorkerProfiles';
 const initialWorkers = [];
 const WorkerContext = createContext(null);
 const STORAGE_KEY = 'safehelmet-workers-v3';
-const SENSOR_REFRESH_MS = 15_000;
+const SENSOR_REFRESH_MS = 5_000;
 const REFRESH_TIMEOUT_MS = 12_000;
 const SENSOR_FRESH_MS = 30_000;
 // 서버가 반환한 최신 저장 건강값만 표시하며, 0·결측치는 표시하지 않는다.
@@ -538,7 +538,11 @@ export function WorkerProvider({ children }) {
       refreshWorkerStatuses().catch(() => {});
     }, SENSOR_REFRESH_MS);
 
-    return () => window.clearInterval(timer);
+    const onFocus = () => refreshWorkerStatuses().catch(() => {});
+    const onVisible = () => { if (!document.hidden) onFocus(); };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { window.clearInterval(timer); window.removeEventListener('focus', onFocus); document.removeEventListener('visibilitychange', onVisible); };
   }, [refreshWorkerStatuses]);
 
   const api = useMemo(
