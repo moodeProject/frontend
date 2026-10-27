@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { HeartPulse, RefreshCw, CheckCircle2, MapPin, Clock3, UserRound, ShieldAlert } from 'lucide-react';
 import TopHeader from '../components/TopHeader';
+import '../styles/healthNotificationDetail.css';
 import { getNotifications, markNotificationRead } from '../api/notifications';
 import { useWorkers } from '../context/WorkerContext';
 
