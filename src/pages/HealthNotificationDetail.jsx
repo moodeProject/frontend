@@ -48,7 +48,7 @@ export default function HealthNotificationDetail() {
       {item && <>
         <div className="health-notice-banner">
           <div className="health-notice-banner-title"><ShieldAlert size={23}/><div><strong>건강 이상 징후가 감지되었습니다.</strong><span>{name} · {zone} · {date}</span></div></div>
-          <span className={item.isRead ? 'health-notice-status resolved' : 'health-notice-status'}>{item.isRead ? '확인 완료' : '조치 필요'}</span>
+          <span className={item.isRead ? 'health-notice-status resolved' : 'health-notice-status'}>{item.isRead ? '알림 확인함 · 조치 미확인' : '조치 필요'}</span>
         </div>
         <div className="health-notice-grid">
           <div className="health-notice-main">
@@ -80,9 +80,9 @@ export default function HealthNotificationDetail() {
             </section>
             <section className="panel health-notice-panel health-notice-actions">
               <h3>관리자 조치</h3>
-              <button type="button" className="health-notice-primary" onClick={confirm} disabled={saving || item.isRead}><CheckCircle2 size={17}/>{item.isRead ? '확인 완료' : saving ? '처리 중...' : '알림 확인 처리'}</button>
+              <button type="button" className="health-notice-primary" onClick={confirm} disabled={saving || item.isRead}><CheckCircle2 size={17}/>{item.isRead ? '알림 확인함' : saving ? '처리 중...' : '알림 확인 처리'}</button>
               <button type="button" className="health-notice-secondary" onClick={load}><RefreshCw size={16}/>새로고침</button>
-              <p>알림 확인은 읽음 상태를 변경합니다. 사고 처리완료 기록과는 구분됩니다.</p>
+              <p>알림 확인은 읽음 상태만 변경하며 사고 조치 완료로 처리되지는 않습니다.</p>
             </section>
           </aside>
         </div>
