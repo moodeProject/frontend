@@ -90,6 +90,14 @@ function formatDateTime(value) {
   };
 }
 
+function isFallAlert(alert) {
+  const state = String(alert?.fallState || '').toUpperCase();
+  const posture = String(alert?.posture || '').toUpperCase();
+  return ['ACTION_REQUIRED', 'FALLING', 'FALLEN', 'UNCONSCIOUS'].includes(state)
+    || ['STUMBLE', 'COLLAPSE'].includes(posture)
+    || alert?.fallDetected === true;
+}
+
 function sensorAlertToDetection(alert, workers) {
   const worker = workers.find(
     (item) =>
@@ -239,7 +247,7 @@ export default function Detections() {
     try {
       const alerts = await getWorkerAlerts();
       setFallAlerts(
-        alerts.map((item) =>
+        alerts.filter(isFallAlert).map((item) =>
           sensorAlertToDetection(item, workers)
         )
       );
