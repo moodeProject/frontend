@@ -25,7 +25,7 @@ function tokenUserType(token) {
 }
 
 async function request(method, path, body, options = {}) {
-  const workerPage = window.location.pathname.startsWith('/worker');
+  const workerPage = (window.location.pathname === '/worker' || window.location.pathname.startsWith('/worker/'));
   const tokenKey = options.authRole === 'WORKER' ? 'safehelmet_worker_token' : options.authRole === 'ADMIN' ? 'safehelmet_admin_token' : workerPage ? 'safehelmet_worker_token' : 'safehelmet_admin_token';
   const token = options.anonymous ? null : localStorage.getItem(tokenKey)
   const expectedRole = tokenKey === 'safehelmet_worker_token' ? 'WORKER' : 'ADMIN'
