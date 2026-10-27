@@ -35,7 +35,7 @@ const labelMap = {
 };
 
 function detectionTarget(item) {
-  if (item.source === 'sensor-alert') return `/sensor-fall/${encodeURIComponent(item.deviceId)}/${encodeURIComponent(item.occurredAt || '')}`;
+  if (item.source === 'sensor-alert') return `/sensor-fall/${encodeURIComponent(item.deviceId)}?recordedAt=${encodeURIComponent(item.occurredAt || '')}`;
   if (item.source === 'health-notification') return `/detections/health-notification/${encodeURIComponent(item.notificationId)}`;
   if (item.category === 'fall') {
     return `/incident/${item.id}`;
@@ -169,6 +169,8 @@ export default function Dashboard() {
     hazardStreamConnected,
   } = useDetections();
 
+  const workersRef = useRef(workers);
+  workersRef.current = workers;
   const rightStackRef = useRef(null);
   const alertHeaderRef = useRef(null);
   const alertListRef = useRef(null);
@@ -308,7 +310,7 @@ export default function Dashboard() {
       Promise.allSettled([getWorkerAlerts(), getNotifications({ recipientType: 'MANAGER', page: 0, size: 100 })]).then(([fall, health]) => {
         if (fall.status === 'rejected' && health.status === 'rejected') throw new Error('추가 감지 데이터 조회 실패');
         setExtraIncidents([
-          ...extraSensorIncidents(fall.status === 'fulfilled' ? fall.value : [], workers),
+          ...extraSensorIncidents(fall.status === 'fulfilled' ? fall.value : [], workersRef.current),
           ...extraHealthIncidents(health.status === 'fulfilled' ? health.value : []),
         ]);
       }),
@@ -325,7 +327,7 @@ export default function Dashboard() {
       throw new Error('홈 데이터를 갱신하지 못했습니다. 서버 연결을 확인해 주세요.');
     }
     setDashboardUpdatedAt(new Date());
-  }, [refreshWorkerStatuses, refreshHazardEvents, workers]);
+  }, [refreshWorkerStatuses, refreshHazardEvents]);
 
   // Dashboard owns its refresh cadence: refresh every visible data section,
   // not just the zone/worker card, without resetting the current page.
