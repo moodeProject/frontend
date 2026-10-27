@@ -25,6 +25,8 @@ import WorkerCard from '../components/WorkerCard';
 import { useDetections } from '../context/DetectionContext';
 import { useWorkers } from '../context/WorkerContext';
 import { getSOSList, resolveSOSRequest } from '../api/sos';
+import { getWorkerAlerts } from '../api/workerStatus';
+import { getNotifications } from '../api/notifications';
 
 const labelMap = {
   normal: '정상',
@@ -33,6 +35,8 @@ const labelMap = {
 };
 
 function detectionTarget(item) {
+  if (item.source === 'sensor-alert') return `/sensor-fall/${encodeURIComponent(item.deviceId)}/${encodeURIComponent(item.occurredAt || '')}`;
+  if (item.source === 'health-notification') return `/detections/health-notification/${encodeURIComponent(item.notificationId)}`;
   if (item.category === 'fall') {
     return `/incident/${item.id}`;
   }
@@ -95,6 +99,59 @@ function zoneState(workers) {
     );
 }
 
+
+function formatIncidentTime(value) {
+  const date = new Date(value || 0);
+  return Number.isFinite(date.getTime()) ? {
+    time: date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }),
+    dateLabel: date.toLocaleDateString('ko-KR'),
+  } : { time: '--:--', dateLabel: '--' };
+}
+function extraSensorIncidents(alerts, workers) {
+  const rows = Array.isArray(alerts) ? alerts : [];
+  const result = [];
+  for (const alert of [...rows].sort((a,b) => new Date(b.recordedAt || 0) - new Date(a.recordedAt || 0))) {
+    const fallState = String(alert.fallState || '').toUpperCase();
+    const posture = String(alert.posture || '').toUpperCase();
+    if (!(['ACTION_REQUIRED','FALLING','FALLEN','UNCONSCIOUS'].includes(fallState)
+      || ['STUMBLE','COLLAPSE'].includes(posture) || alert.fallDetected === true)) continue;
+    if (result.some(existing => existing.deviceId === alert.deviceId &&
+      Math.abs(new Date(existing.occurredAt) - new Date(alert.recordedAt)) < 120000)) continue;
+    const worker = workers.find(w => String(w.deviceId || '').trim() === String(alert.deviceId || '').trim());
+    result.push({
+      id: 'sensor-fall-' + alert.deviceId + '-' + (alert.recordedAt || 'latest'),
+      source: 'sensor-alert', category: 'fall', level: 'danger', type: '추락/쓰러짐',
+      name: worker?.name || alert.deviceId || '미확인 작업자',
+      zone: worker?.zone || '-', occurredAt: alert.recordedAt,
+      ...formatIncidentTime(alert.recordedAt), deviceId: alert.deviceId,
+      detailDescription: '헬멧 센서에서 추락 또는 자세 붕괴가 감지되었습니다.',
+    });
+  }
+  return result;
+}
+function extraHealthIncidents(rows) {
+  return (Array.isArray(rows) ? rows : []).filter(raw =>
+    raw.hazardEventId == null && raw.sosId == null && String(raw.message || '').includes('건강 이상')
+  ).map(raw => {
+    const [name, zone] = String(raw.message || '').split(' · ');
+    return {
+      id: 'health-notification-' + raw.id, source: 'health-notification',
+      notificationId: raw.id, category: 'health', level: 'warning',
+      type: '건강 이상 감지', name: name || '미확인 작업자', zone: zone || '-',
+      occurredAt: raw.sentAt, ...formatIncidentTime(raw.sentAt),
+      detailDescription: raw.message || '작업자 건강 이상 알림',
+    };
+  });
+}
+function matchingServerIncident(record, events) {
+  const timestamp = new Date(record.occurredAt || 0).getTime();
+  return Number.isFinite(timestamp) && events.some(event =>
+    event.source === 'server' && event.category === record.category &&
+    event.name === record.name && record.name !== '미확인 작업자' &&
+    Math.abs(new Date(event.occurredAt || 0).getTime() - timestamp) <= 120000
+  );
+}
+
 export default function Dashboard() {
   const {
     workers,
@@ -122,6 +179,7 @@ export default function Dashboard() {
 
   const [sosList, setSosList] = useState([]);
   const [sosError, setSosError] = useState('');
+  const [extraIncidents, setExtraIncidents] = useState([]);
   const [dashboardUpdatedAt, setDashboardUpdatedAt] = useState(null);
 
   const navigate = useNavigate();
@@ -187,14 +245,14 @@ export default function Dashboard() {
 
   const recentHazards = useMemo(
     () =>
-      [...detections]
+      [...detections, ...extraIncidents.filter(item => !matchingServerIncident(item, detections))]
         .sort(
           (a, b) =>
             new Date(b.occurredAt || 0).getTime() -
             new Date(a.occurredAt || 0).getTime()
         )
         .slice(0, visibleAlertCount),
-    [detections, visibleAlertCount]
+    [detections, extraIncidents, visibleAlertCount]
   );
 
   const zones = useMemo(
@@ -247,6 +305,13 @@ export default function Dashboard() {
     const results = await Promise.allSettled([
       refreshWorkerStatuses(),
       refreshHazardEvents(),
+      Promise.allSettled([getWorkerAlerts(), getNotifications({ recipientType: 'MANAGER', page: 0, size: 100 })]).then(([fall, health]) => {
+        if (fall.status === 'rejected' && health.status === 'rejected') throw new Error('추가 감지 데이터 조회 실패');
+        setExtraIncidents([
+          ...extraSensorIncidents(fall.status === 'fulfilled' ? fall.value : [], workers),
+          ...extraHealthIncidents(health.status === 'fulfilled' ? health.value : []),
+        ]);
+      }),
       getSOSList('REQUESTED').then(rows => {
         if (!Array.isArray(rows)) throw new Error('SOS 응답 형식이 올바르지 않습니다.');
         setSosList(rows);
@@ -260,7 +325,7 @@ export default function Dashboard() {
       throw new Error('홈 데이터를 갱신하지 못했습니다. 서버 연결을 확인해 주세요.');
     }
     setDashboardUpdatedAt(new Date());
-  }, [refreshWorkerStatuses, refreshHazardEvents]);
+  }, [refreshWorkerStatuses, refreshHazardEvents, workers]);
 
   // Dashboard owns its refresh cadence: refresh every visible data section,
   // not just the zone/worker card, without resetting the current page.
