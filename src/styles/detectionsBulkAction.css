@@ -6,3 +6,24 @@
 .detection-bulk-resolve-btn:focus-visible{outline:2px solid #1767ff;outline-offset:2px}
 .detection-bulk-progress{padding:10px 14px;margin:12px 0;border-radius:10px;background:#eef4ff;color:#28569c;font-size:12px;font-weight:650;line-height:1.5}
 @media(max-width:1150px){.detections-page .admin-date-filter-row{flex-wrap:wrap}.detections-page .detection-bulk-actions{margin-left:auto}.detections-page .records-search{margin-left:0!important}}
+
+/* Detection list: status is a readable, full-width tinted band, not a tiny gray pill. */
+.detection-table-row .detection-status-band{
+  display:flex;align-items:center;justify-content:center;
+  width:100%;max-width:190px;min-height:33px;
+  padding:7px 10px;border-radius:9px;
+  font-size:12px;font-weight:750;line-height:1.4;
+  text-align:center;white-space:normal;word-break:keep-all;
+  border:1px solid transparent;box-sizing:border-box;
+}
+.detection-table-row .detection-status-band.danger.unprocessed,
+.detection-table-row .detection-status-band.danger.processing{
+  background:#fff0f1;color:#cf263a;border-color:#ffc6cc;
+}
+.detection-table-row .detection-status-band.warning.unprocessed,
+.detection-table-row .detection-status-band.warning.processing{
+  background:#fff6e9;color:#bf7000;border-color:#ffdfaa;
+}
+.detection-table-row .detection-status-band.completed{
+  background:#eaf8f0;color:#12804b;border-color:#b6e7cb;
+}
