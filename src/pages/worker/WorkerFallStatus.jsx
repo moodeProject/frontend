@@ -26,12 +26,15 @@ export default function WorkerFallStatus() {
     const state = String(selectedEvent.status || '').toUpperCase();
     const resolved = ['RESOLVED', 'COMPLETED', 'CLOSED'].includes(state) || selectedEvent.processClass === 'completed';
     const status = resolved ? '처리완료' : selectedEvent.statusLabel || selectedEvent.process || '확인 필요';
+    const fallState = String(selectedEvent.fallState || '').toUpperCase();
+    const caution = !resolved && (selectedEvent.level === 'warning' || ['RECOMMEND', 'CAUTION', 'STUMBLE'].includes(fallState));
+    const tone = resolved ? 'resolved' : caution ? 'warning' : 'danger';
     return (
       <WorkerScaffold active="alerts" title="추락 감지 상세" back>
-        <section className="worker-white-card worker-health-detail-card worker-fall-history-card">
+        <section className={`worker-white-card worker-health-detail-card worker-fall-history-card tone-${tone}`}>
           <div className="worker-card-title">
             <strong>추락 감지 기록</strong>
-            <span className="worker-count-pill">{resolved ? '처리완료' : '위험'}</span>
+            <span className="worker-count-pill">{resolved ? '처리완료' : caution ? '주의' : '위험'}</span>
           </div>
           <div className="worker-fatigue-big worker-fall-history-bars">
             <i /><i /><i />
@@ -60,8 +63,8 @@ export default function WorkerFallStatus() {
             <p><span>감지 자세</span><strong>{postureLabel(selectedEvent.posture)}</strong></p>
           </div>}
         </section>
-        <section className="worker-recommend-card">
-          <h3>권장 행동</h3>
+        <section className={`worker-recommend-card worker-fall-recommend tone-${tone}`}>
+          <h3>{resolved ? '확인 결과' : '권장 행동'}</h3>
           <p>✓ 안전한 장소로 이동하고 몸 상태를 확인하세요.</p>
           <p>✓ 통증이나 어지러움이 있다면 즉시 작업을 중단하세요.</p>
           <p>✓ 도움이 필요하다면 관리자에게 상황을 알려주세요.</p>
