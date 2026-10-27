@@ -98,6 +98,25 @@ function isFallAlert(alert) {
     || alert?.fallDetected === true;
 }
 
+function consolidateFallAlerts(alerts) {
+  // Same device often reports repeated frames for one fall episode.
+  // Keep the newest representative within each 2-minute window.
+  const ordered = [...alerts].filter(isFallAlert).sort((a,b) =>
+    new Date(b.recordedAt || 0).getTime() - new Date(a.recordedAt || 0).getTime()
+  );
+  const result = [];
+  for (const alert of ordered) {
+    const time = new Date(alert.recordedAt || 0).getTime();
+    const duplicate = result.some(saved =>
+      String(saved.deviceId) === String(alert.deviceId) &&
+      Number.isFinite(time) &&
+      Math.abs(new Date(saved.recordedAt).getTime() - time) < 2 * 60 * 1000
+    );
+    if (!duplicate) result.push(alert);
+  }
+  return result;
+}
+
 function sensorAlertToDetection(alert, workers) {
   const worker = workers.find(
     (item) =>
@@ -247,7 +266,7 @@ export default function Detections() {
     try {
       const alerts = await getWorkerAlerts();
       setFallAlerts(
-        alerts.filter(isFallAlert).map((item) =>
+        consolidateFallAlerts(alerts).map((item) =>
           sensorAlertToDetection(item, workers)
         )
       );
