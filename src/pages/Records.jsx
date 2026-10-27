@@ -108,7 +108,7 @@ function healthNotificationToRecord(raw) {
     zone: zone || '위치 미확인',
     dateLabel, time,
     occurredAt: raw.sentAt,
-    process: raw.isRead ? '확인함' : '확인 필요',
+    process: raw.isRead ? '알림 확인함' : '알림 미확인',
     processClass: raw.isRead ? 'completed' : 'unprocessed',
     message,
   };
@@ -156,7 +156,7 @@ function sensorAlertToRecord(alert, workers) {
 }
 
 function processLabel(item) {
-  if (item.source === 'health-notification') return item.process || '확인 필요';
+  if (item.source === 'health-notification') return item.process || '알림 미확인';
   if (item.source === 'sensor-alert') {
     return '센서 감지';
   }
@@ -388,7 +388,7 @@ export default function Records() {
     <>
       <TopHeader
         title="사고·알림 기록"
-        subtitle="실제 이상 감지 이벤트 처리 이력"
+        subtitle="전체 위험 발생 및 알림 이력"
         onRefresh={refreshPage}
       />
 
