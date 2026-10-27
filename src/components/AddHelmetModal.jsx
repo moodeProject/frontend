@@ -7,6 +7,7 @@ export default function AddHelmetModal({ open, onClose, onAdd, helmets, workers 
   const [workerId, setWorkerId] = useState('');
   const [memo, setMemo] = useState('');
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const availableWorkers = useMemo(() => {
     const assigned = new Set(helmets.filter((helmet) => helmet.workerId).map((helmet) => helmet.workerId));
@@ -24,7 +25,7 @@ export default function AddHelmetModal({ open, onClose, onAdd, helmets, workers 
     onClose();
   };
 
-  const submit = (event) => {
+  const submit = async (event) => {
     event.preventDefault();
     const helmet = helmetNumber.trim().toUpperCase();
     const device = deviceId.trim().toUpperCase();
@@ -42,17 +43,24 @@ export default function AddHelmetModal({ open, onClose, onAdd, helmets, workers 
     }
 
     const worker = workers.find((item) => item.id === workerId);
-    onAdd({
+    setSubmitting(true);
+    setError('');
+    try {
+      await onAdd({
       helmetNumber: helmet,
       deviceId: device,
       workerId: worker?.id || '',
       workerName: worker?.name || '미연결',
-      sensorConnected: true,
-      lastCommunication: '방금 전',
-      status: worker ? 'inUse' : 'standby',
+      sensorConnected: false,
+      status: 'disconnected',
       memo: memo.trim(),
-    });
-    resetAndClose();
+      });
+      resetAndClose();
+    } catch (err) {
+      setError(err?.message || '서버 헬멧 등록에 실패했습니다.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -82,7 +90,7 @@ export default function AddHelmetModal({ open, onClose, onAdd, helmets, workers 
         {error && <p className="form-error">{error}</p>}
         <div className="modal-actions">
           <button type="button" className="secondary-modal-btn" onClick={resetAndClose}>취소</button>
-          <button type="submit" className="primary-modal-btn">헬멧 등록</button>
+          <button type="submit" className="primary-modal-btn" disabled={submitting}>{submitting ? '등록 중...' : '헬멧 등록'}</button>
         </div>
       </form>
     </div>
