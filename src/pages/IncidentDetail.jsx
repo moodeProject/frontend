@@ -510,13 +510,6 @@ export default function IncidentDetail() {
           <div className="incident-main">
             <section className="panel cause-panel" style={{ marginBottom: 16 }}>
               <div className="section-caption">추락 사고 정보 · 센서 기반</div>
-              <div className="health-recommend-box">
-                <TriangleAlert size={20} />
-                <div>
-                  <strong>추락 감지 시 사고 영상은 제공되지 않습니다.</strong>
-                  <p>가속도·자이로 등 센서 판정으로 기록된 사고입니다. 카메라 사고 영상 자동 저장 기능은 아직 연결되어 있지 않습니다.</p>
-                </div>
-              </div>
               <div className="final-cause">
                 <span>사고 발생 시간</span>
                 <strong>{formatDateTime(occurredAt)}</strong>
