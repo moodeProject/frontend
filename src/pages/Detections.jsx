@@ -603,7 +603,7 @@ export default function Detections() {
 
                 <div>
                   <span
-                    className={`process-chip detection-status-band ${item.processClass} ${item.level}`}
+                    className={`process-chip ${item.processClass}`}
                   >
                     {item.process}
                   </span>
