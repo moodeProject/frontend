@@ -511,6 +511,25 @@ export default function ExternalDetectionDetail() {
           </div>
         )}
 
+        <section className={`incident-banner ${isCompleted ? 'completed' : ''}`} style={{ marginBottom: 20 }}>
+          <div>
+            <AlertTriangle size={24} />
+            <div>
+              <strong>{isCompleted ? '영상 위험 감지 조치가 완료되었습니다.' : 'AI 영상 위험이 감지되었습니다.'}</strong>
+              <span>{item.name} · {item.zone} · {item.time}</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            className={isCompleted ? 'completed' : ''}
+            onClick={finish}
+            disabled={Boolean(actionLoading) || isCompleted}
+          >
+            <CheckCircle2 size={15} />
+            {isCompleted ? '처리완료' : actionLoading === 'RESOLVE' ? '처리 중...' : '처리 완료하기'}
+          </button>
+        </section>
+
         <div className="external-detail-heading">
           <div
             className={`external-heading-icon ${item.kind}`}
